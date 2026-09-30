@@ -14,9 +14,13 @@ import { selfFillFixture } from './self-fill.fixture';
 import { strictScopeFixture } from './strict-scope.fixture';
 import { strictSplitFixture } from './strict-split.fixture';
 import { syntheticCollisionFixture } from './synthetic-collision.fixture';
+import { syntheticCustomNamespaceFixture } from './synthetic-custom-namespace.fixture';
+import { syntheticCustomStorageFixture } from './synthetic-custom-storage.fixture';
 import { syntheticDenseEntriesFixture } from './synthetic-dense-entries.fixture';
 import { syntheticEmptyPageFixture } from './synthetic-empty-page.fixture';
 import { syntheticHostileFixture } from './synthetic-hostile.fixture';
+import { syntheticLegacySessionStorageFixture } from './synthetic-legacy-session-storage.fixture';
+import { syntheticLocalStorageFixture } from './synthetic-local-storage.fixture';
 import { syntheticMissingChannelFixture } from './synthetic-missing-channel.fixture';
 import { syntheticMultiVersionFixture } from './synthetic-multi-version.fixture';
 import { syntheticNoImportMapsFixture } from './synthetic-no-import-maps.fixture';
@@ -56,6 +60,10 @@ export const FIXTURES = {
   'synthetic-no-import-maps': syntheticNoImportMapsFixture,
   'synthetic-not-recognized': syntheticNotRecognizedFixture,
   'synthetic-empty-page': syntheticEmptyPageFixture,
+  'synthetic-local-storage': syntheticLocalStorageFixture,
+  'synthetic-legacy-session-storage': syntheticLegacySessionStorageFixture,
+  'synthetic-custom-namespace': syntheticCustomNamespaceFixture,
+  'synthetic-custom-storage': syntheticCustomStorageFixture,
 } satisfies Record<string, SnapshotV1>;
 
 export type FixtureId = keyof typeof FIXTURES;

@@ -212,6 +212,7 @@ export function ingestSnapshot(snapshot: SnapshotV1): FederationModel {
       capturedAt: snapshot.capture.capturedAt,
       collectorVersion: snapshot.capture.collectorVersion,
       generation: runtime?.generation ?? 'unknown',
+      runtimeSource: snapshot.runtimeSource ?? null,
     },
     channels: snapshot.channels,
     mapMode,

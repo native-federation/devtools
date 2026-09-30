@@ -58,7 +58,20 @@
   outline-offset: 1px;
 }
 
+.strip-source {
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 10px;
+  color: var(--nf-color-text-muted);
+  border: 1px solid var(--nf-color-border);
+}
+
+.strip-source-stale {
+  border-style: dashed;
+}
+
 /* Tooltip affordance: every element carrying a reason signals it. */
+.strip-source[title],
 .strip-none[title],
 .strip-na[title],
 .strip-warning[title] {

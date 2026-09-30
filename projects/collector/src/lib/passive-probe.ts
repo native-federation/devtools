@@ -1,7 +1,10 @@
 /**
- * The fixed passive probe: page metadata, the four `__NATIVE_FEDERATION__`
- * repositories, DOM import-map inventory, and an `importShim` presence
- * summary. The repository schemas are the corpus-validated V2 shapes
+ * The fixed passive probe: page metadata, the orchestrator's storage
+ * descriptor (`__NF_ORCHESTRATOR__`, orchestrator >= 4.7), the four
+ * repositories of the globalThis namespace it points at (default
+ * `__NATIVE_FEDERATION__`), DOM import-map inventory, and an `importShim`
+ * presence summary. Web-storage namespaces are only reported here; their
+ * items are read by storage-probe.ts. The descriptor's `get` is never read. The repository schemas are the corpus-validated V2 shapes
  * (ground truth: captures/ + docs/work/v2/shape-validation.md) and accept
  * both registry-format generations — participants carry `entries` (v4.5+)
  * or `file` (v4), scoped-externals has its own single-object schema,
@@ -41,6 +44,7 @@ export const PASSIVE_PROBE_SOURCE = `(() => {
     maxErrors: 128,
     maxImportMaps: 32,
     maxImportMapTextLength: 131072,
+    maxNamespaces: 8,
     maxObjectKeys: 128,
     maxStringLength: 4096,
     maxTotalEntries: 512
@@ -252,7 +256,42 @@ export const PASSIVE_PROBE_SOURCE = `(() => {
     return { present: true, descriptor: "data", valueType: result.value === null ? "null" : typeof result.value, value: result.value };
   };
 
-  const nativeSummary = descriptorSummary("__NATIVE_FEDERATION__");
+  const orchestratorSummary = descriptorSummary("__NF_ORCHESTRATOR__");
+  const discovered = [];
+  if (Object.prototype.hasOwnProperty.call(orchestratorSummary, "value")) {
+    const orchestratorValue = orchestratorSummary.value;
+    delete orchestratorSummary.value;
+    const storage = readData(orchestratorValue, "storage", "__NF_ORCHESTRATOR__.storage");
+    const namespaces = storage.status === "data" ? ownKeys(storage.value, "__NF_ORCHESTRATOR__.storage").sort() : [];
+    if (namespaces.length > limits.maxNamespaces) {
+      addError("probe", "namespace-limit", "__NF_ORCHESTRATOR__.storage", namespaces.length);
+    }
+    for (let index = 0; index < namespaces.length && index < limits.maxNamespaces; index += 1) {
+      const namespace = namespaces[index];
+      const path = "__NF_ORCHESTRATOR__.storage.entry";
+      const entry = readData(storage.value, namespace, path);
+      if (entry.status !== "data") continue;
+      const type = readData(entry.value, "type", path + ".type");
+      const version = readData(entry.value, "version", path + ".version");
+      const info = { namespace: namespace.slice(0, limits.maxStringLength), type: null, version: null };
+      if (type.status === "data") info.type = boundedString(type.value, path + ".type");
+      if (version.status === "data") info.version = boundedString(version.value, path + ".version");
+      discovered.push(info);
+    }
+    orchestratorSummary.entries = discovered;
+  }
+
+  let chosen = null;
+  for (let index = 0; index < discovered.length; index += 1) {
+    if (discovered[index].namespace === "__NATIVE_FEDERATION__") chosen = discovered[index];
+  }
+  if (chosen === null && discovered.length > 0) chosen = discovered[0];
+  const source = chosen === null
+    ? { type: "globalThis", namespace: "__NATIVE_FEDERATION__", discovery: "default" }
+    : { type: chosen.type, namespace: chosen.namespace, discovery: "descriptor" };
+
+  const nativeSummary = source.type === "globalThis" ? descriptorSummary(source.namespace) : {};
+  nativeSummary.source = source;
   if (Object.prototype.hasOwnProperty.call(nativeSummary, "value")) {
     const nativeValue = nativeSummary.value;
     delete nativeSummary.value;
@@ -263,10 +302,12 @@ export const PASSIVE_PROBE_SOURCE = `(() => {
       "shared-externals": schemas.externalScopes,
       "shared-chunks": schemas.chunks
     };
+    // Page-chosen namespaces stay out of error paths, like map keys do.
+    const namespacePath = source.namespace === "__NATIVE_FEDERATION__" ? source.namespace : "namespace";
     const names = Object.keys(repositorySchemas);
     for (let index = 0; index < names.length; index += 1) {
       const name = names[index];
-      const repository = readData(nativeValue, name, "__NATIVE_FEDERATION__." + name);
+      const repository = readData(nativeValue, name, namespacePath + "." + name);
       if (repository.status === "missing") {
         nativeSummary.repositories[name] = { present: false };
         continue;
@@ -326,9 +367,10 @@ export const PASSIVE_PROBE_SOURCE = `(() => {
   }
 
   return {
-    schemaVersion: "passive-probe/3",
+    schemaVersion: "passive-probe/4",
     page,
     globals: {
+      orchestrator: orchestratorSummary,
       nativeFederation: nativeSummary,
       importShim: importShimSummary
     },

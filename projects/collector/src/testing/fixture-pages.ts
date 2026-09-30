@@ -84,19 +84,30 @@ function makeScriptNode(type: string, text: string): Record<string, unknown> {
   };
 }
 
-function makeStorage(counters: PageCounters, sentinel: string): Record<string, unknown> {
-  return {
-    sentinel,
-    setItem: () => {
-      counters.storageOps += 1;
-    },
-    removeItem: () => {
-      counters.storageOps += 1;
-    },
-    clear: () => {
-      counters.storageOps += 1;
-    },
-  };
+/**
+ * Storage-like object: items are named own data properties, as on a real
+ * `Storage`, and every method counts as a storage op — the storage probe
+ * must read items by descriptor, never through `getItem`.
+ */
+export function makeStorage(
+  counters: PageCounters,
+  sentinel: string,
+  items: Record<string, string> = {},
+): Record<string, unknown> {
+  const storage: Record<string, unknown> = { sentinel, ...items };
+  for (const method of ['getItem', 'key', 'setItem', 'removeItem', 'clear']) {
+    Object.defineProperty(storage, method, {
+      enumerable: false,
+      value: () => {
+        counters.storageOps += 1;
+      },
+    });
+  }
+  return storage;
+}
+
+export function makeCounters(): PageCounters {
+  return { getterCalls: 0, loaderCalls: 0, storageOps: 0, getImportMapCalls: 0 };
 }
 
 /**

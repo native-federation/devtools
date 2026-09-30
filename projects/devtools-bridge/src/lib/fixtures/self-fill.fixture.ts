@@ -13,7 +13,7 @@ export const selfFillFixture: SnapshotV1 = {
     "pageUrl": "http://localhost:4300/",
     "capturedAt": "2026-08-11T09:59:21.579Z",
     "mode": "passive",
-    "collectorVersion": "nf-devtools-collector/3"
+    "collectorVersion": "nf-devtools-collector/4"
   },
   "channels": {
     "nativeFederationGlobals": {
@@ -25,6 +25,13 @@ export const selfFillFixture: SnapshotV1 = {
     "importShim": {
       "state": "available"
     }
+  },
+  "runtimeSource": {
+    "storage": "globalThis",
+    "namespace": "__NATIVE_FEDERATION__",
+    "discovery": "default",
+    "orchestratorVersion": null,
+    "otherNamespaces": []
   },
   "runtime": {
     "remotes": {

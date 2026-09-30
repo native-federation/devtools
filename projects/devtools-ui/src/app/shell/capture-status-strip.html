@@ -18,6 +18,11 @@
       }
     </span>
   }
+  @if (vm.source; as source) {
+    <span class="strip-source" [class.strip-source-stale]="source.stale" [title]="source.tooltip">{{
+      source.label
+    }}</span>
+  }
   @if (vm.generation; as generation) {
     <a
       class="strip-generation"

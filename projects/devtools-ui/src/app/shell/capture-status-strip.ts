@@ -37,6 +37,7 @@ export class CaptureStatusStrip {
       mapMode: model.mapMode,
       effectiveMap: model.effectiveMap,
       generation: derived.generationBadge.generation,
+      runtimeSource: model.provenance.runtimeSource,
     };
   });
 

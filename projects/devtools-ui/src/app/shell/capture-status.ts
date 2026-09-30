@@ -1,4 +1,4 @@
-import { ChannelStateV1, ChannelsV1, SnapshotGenerationV1 } from 'devtools-bridge';
+import { ChannelStateV1, ChannelsV1, RuntimeSourceV1, SnapshotGenerationV1 } from 'devtools-bridge';
 
 import { EffectiveMap, MapMode } from '../shared/store/federation-model';
 
@@ -21,6 +21,13 @@ export interface StripEntry {
   indicator: StripIndicator;
 }
 
+export interface RuntimeSourceBadge {
+  label: string;
+  tooltip: string;
+  /** Web storage found without an orchestrator descriptor. */
+  stale: boolean;
+}
+
 export interface CaptureStatusVm {
   /**
    * Single summary replacing all per-tab entries when no channel carries
@@ -32,6 +39,11 @@ export interface CaptureStatusVm {
   entries: StripEntry[];
   /** Generation label from snapshot provenance; null suppresses the badge. */
   generation: SnapshotGenerationV1 | null;
+  /**
+   * Where the runtime state was read from; null for the default
+   * `window.__NATIVE_FEDERATION__`, which renders quietly.
+   */
+  source: RuntimeSourceBadge | null;
 }
 
 export type CaptureStatusSource =
@@ -43,6 +55,8 @@ export type CaptureStatusSource =
       mapMode: MapMode;
       effectiveMap: EffectiveMap;
       generation: SnapshotGenerationV1;
+      /** Absent for snapshots from collectors before runtime-source discovery. */
+      runtimeSource?: RuntimeSourceV1 | null;
     };
 
 /**
@@ -64,15 +78,18 @@ export function buildCaptureStatus(source: CaptureStatusSource): CaptureStatusVm
     return null;
   }
 
-  const globals = globalsIndicator(source.channels.nativeFederationGlobals);
+  const runtimeSource = source.runtimeSource ?? null;
+  const globals = globalsIndicator(source.channels.nativeFederationGlobals, runtimeSource);
   const importMap = importMapIndicator(source.channels, source.mapMode, source.effectiveMap);
   const generation = source.generation === 'unknown' ? null : source.generation;
+  const sourceBadge = runtimeSourceBadge(runtimeSource);
 
   if (globals?.kind === 'off' && importMap?.kind === 'off') {
     return {
       noFederation: { tooltip: `${globals.tooltip}; ${importMap.tooltip}` },
       entries: [],
       generation,
+      source: sourceBadge,
     };
   }
 
@@ -88,10 +105,17 @@ export function buildCaptureStatus(source: CaptureStatusSource): CaptureStatusVm
     entries.push({ tab: 'Diagnostics', indicator: diagnostics });
   }
 
-  return { noFederation: null, entries, generation };
+  return { noFederation: null, entries, generation, source: sourceBadge };
 }
 
-function globalsIndicator(channel: ChannelStateV1): StripIndicator | null {
+// A custom adapter is a federated page we cannot read, not a quiet "off".
+function globalsIndicator(
+  channel: ChannelStateV1,
+  runtimeSource: RuntimeSourceV1 | null,
+): StripIndicator | null {
+  if (channel.state === 'unavailable' && runtimeSource?.storage === 'custom') {
+    return { kind: 'warning', tooltip: channel.reason };
+  }
   switch (channel.state) {
     case 'available':
       return null;
@@ -100,6 +124,38 @@ function globalsIndicator(channel: ChannelStateV1): StripIndicator | null {
     case 'not-recognized':
       return { kind: 'warning', tooltip: channel.reason };
   }
+}
+
+const DEFAULT_NAMESPACE = '__NATIVE_FEDERATION__';
+
+function runtimeSourceBadge(source: RuntimeSourceV1 | null): RuntimeSourceBadge | null {
+  if (source === null || source.storage === 'custom') {
+    return null;
+  }
+  const isDefault = source.storage === 'globalThis' && source.namespace === DEFAULT_NAMESPACE;
+  if (isDefault && source.otherNamespaces.length === 0) {
+    return null;
+  }
+  const stale = source.discovery === 'default' && source.storage !== 'globalThis';
+  const where =
+    source.storage === 'globalThis'
+      ? `window.${source.namespace}`
+      : `${source.storage} (${source.namespace}.*)`;
+  const parts = [
+    `Runtime state read from ${where}`,
+    source.orchestratorVersion === null ? null : `orchestrator ${source.orchestratorVersion}`,
+    stale
+      ? 'found without an orchestrator storage descriptor — may be left over from an earlier visit'
+      : null,
+    source.otherNamespaces.length > 0
+      ? `other namespaces on this page, not captured: ${source.otherNamespaces.join(', ')}`
+      : null,
+  ];
+  return {
+    label: source.storage === 'globalThis' ? source.namespace : source.storage,
+    tooltip: parts.filter((part) => part !== null).join('; '),
+    stale,
+  };
 }
 
 function importMapIndicator(

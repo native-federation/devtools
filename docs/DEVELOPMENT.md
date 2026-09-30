@@ -85,6 +85,22 @@ The dev panel can replay captured scenarios without a running application via
 isolation, dynamic initialization, and a live capture of a deployed
 Angular/React host.
 
+## Probes
+
+The collector evaluates up to three fixed expressions in the inspected page,
+each one a single template literal with no page-derived text:
+
+| Source | Runs | Reads |
+| --- | --- | --- |
+| `passive-probe.ts` | always | page metadata, the orchestrator storage descriptor (`__NF_ORCHESTRATOR__`), the globalThis registry it points at, DOM import maps; descriptor-level reads only |
+| `shim-map-probe.ts` | `importShim` is a data property | `importShim.getImportMap()`, the one sanctioned page-function call |
+| `storage-probe.ts` | the descriptor names web storage, or a descriptor-less page has no default global | the four `<namespace>.<key>` items from `localStorage` / `sessionStorage`, as named own properties (never `getItem`) |
+
+The gate for the storage probe (`storageProbeIndicated`) is shared by the
+bridge and the fixture pipeline. Custom storage adapters are reported as
+unsupported; the descriptor's `get` is never called. Background and design:
+[`work/storage-discovery/plan.md`](work/storage-discovery/plan.md).
+
 ## Repository layout
 
 | Path | Contents |

@@ -8,7 +8,13 @@
  * then the canonical consumer resolver records mapped, unmapped, blocked, or
  * unknown outcomes before compatibility rows project those results.
  */
-import type { ChannelsV1, GenerationV1, ServedFileV1, SnapshotGenerationV1 } from 'devtools-bridge';
+import type {
+  ChannelsV1,
+  GenerationV1,
+  RuntimeSourceV1,
+  ServedFileV1,
+  SnapshotGenerationV1,
+} from 'devtools-bridge';
 
 import type {
   CanonicalRegistryEvidence,
@@ -38,6 +44,8 @@ export interface StoreProvenance {
   capturedAt: string;
   collectorVersion: string;
   generation: SnapshotGenerationV1;
+  /** null for snapshots that carry no runtime source. */
+  runtimeSource: RuntimeSourceV1 | null;
 }
 
 /** Joined effective resolution of one participant row. */

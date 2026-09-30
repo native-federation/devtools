@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import { PASSIVE_PROBE_SOURCE } from './passive-probe';
 import { SHIM_MAP_PROBE_SOURCE } from './shim-map-probe';
+import { STORAGE_PROBE_SOURCE } from './storage-probe';
 import {
   buildFrankensteinPage,
   buildHostilePage,
@@ -39,6 +40,8 @@ describe('passivity harness (frankenstein page)', () => {
     expect(page.counters.getImportMapCalls).toBe(0);
 
     const shim = evaluateProbe(SHIM_MAP_PROBE_SOURCE, page.sandbox) as ProbeResultLike;
+    // Reads both storages on this descriptor-less page; storageOps proves no Storage method ran.
+    evaluateProbe(STORAGE_PROBE_SOURCE, page.sandbox);
 
     const after = digestState(page.digestTargets);
     expect(after).toBe(before);

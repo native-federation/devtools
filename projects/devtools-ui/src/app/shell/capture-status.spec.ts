@@ -14,6 +14,7 @@ function capturedSource(fixtureId: FixtureId): CaptureStatusSource {
     mapMode: model.mapMode,
     effectiveMap: model.effectiveMap,
     generation: deriveFederation(model).generationBadge.generation,
+    runtimeSource: model.provenance.runtimeSource,
   };
 }
 
@@ -49,12 +50,12 @@ describe('buildCaptureStatus', () => {
   // renders the Import Map channel quietly: no partial, no warning.
   it('keeps the whole strip quiet for the healthy native fixture', () => {
     const vm = buildCaptureStatus(capturedSource('dynamic-init-native'));
-    expect(vm).toEqual({ noFederation: null, entries: [], generation: 'v4.5' });
+    expect(vm).toEqual({ noFederation: null, entries: [], generation: 'v4.5', source: null });
   });
 
   it('keeps the whole strip quiet for the healthy shim fixture', () => {
     const vm = buildCaptureStatus(capturedSource('dynamic-init-shim'));
-    expect(vm).toEqual({ noFederation: null, entries: [], generation: 'v4.5' });
+    expect(vm).toEqual({ noFederation: null, entries: [], generation: 'v4.5', source: null });
   });
 
   // T8-AC-04 (SEEDED): shim tags present but the shim yielded nothing —
@@ -169,6 +170,7 @@ describe('buildCaptureStatus', () => {
       },
       entries: [],
       generation: null,
+      source: null,
     });
 
     expect(missingChannel?.noFederation).toBeNull();
@@ -181,5 +183,43 @@ describe('buildCaptureStatus', () => {
     expect(buildCaptureStatus(capturedSource('frankenstein-live'))?.generation).toBe('v4');
     expect(buildCaptureStatus(capturedSource('clean-skip'))?.generation).toBe('v4.5');
     expect(buildCaptureStatus(capturedSource('synthetic-empty-page'))?.generation).toBeNull();
+  });
+
+  // Storage discovery: the default global renders quietly; any other
+  // source is named, legacy web storage is flagged as possibly stale.
+  it('names a descriptor-discovered web storage and the uncaptured namespaces', () => {
+    expect(buildCaptureStatus(capturedSource('synthetic-local-storage'))?.source).toEqual({
+      label: 'localStorage',
+      tooltip:
+        'Runtime state read from localStorage (__NATIVE_FEDERATION__.*); orchestrator 4.7.0; ' +
+        'other namespaces on this page, not captured: __ADMIN_NF__',
+      stale: false,
+    });
+  });
+
+  it('flags web storage found without a descriptor as possibly stale', () => {
+    const source = buildCaptureStatus(capturedSource('synthetic-legacy-session-storage'))?.source;
+    expect(source?.label).toBe('sessionStorage');
+    expect(source?.stale).toBe(true);
+    expect(source?.tooltip).toContain('may be left over from an earlier visit');
+  });
+
+  it('names a custom globalThis namespace', () => {
+    expect(buildCaptureStatus(capturedSource('synthetic-custom-namespace'))?.source).toEqual({
+      label: '__MY_NF__',
+      tooltip: 'Runtime state read from window.__MY_NF__; orchestrator 4.7.0',
+      stale: false,
+    });
+  });
+
+  it('warns on custom storage adapters instead of a quiet n/a', () => {
+    const vm = buildCaptureStatus(capturedSource('synthetic-custom-storage'));
+    const reason = "custom storage adapters are not supported (namespace '__NATIVE_FEDERATION__')";
+    expect(vm?.noFederation).toBeNull();
+    expect(vm?.source).toBeNull();
+    expect(vm?.entries).toContainEqual({
+      tab: 'Packages',
+      indicator: { kind: 'warning', tooltip: reason },
+    });
   });
 });

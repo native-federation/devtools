@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PASSIVE_PROBE_SOURCE, SHIM_MAP_PROBE_SOURCE } from 'collector';
+import { PASSIVE_PROBE_SOURCE, SHIM_MAP_PROBE_SOURCE, STORAGE_PROBE_SOURCE } from 'collector';
 import { ChromeSnapshotProvider } from './chrome-snapshot-provider';
 
 // Raw probe results as they come back over the DevTools eval boundary —
 // minimal but schema-valid shapes (see the collector's passive probe).
 const rawProbe = (importShim: Record<string, unknown>) => ({
-  schemaVersion: 'passive-probe/3',
+  schemaVersion: 'passive-probe/4',
   page: { origin: 'https://lab.example', path: '/app', readyState: 'complete' },
   globals: {
     nativeFederation: { present: false },
@@ -14,6 +14,38 @@ const rawProbe = (importShim: Record<string, unknown>) => ({
   importMaps: [],
   errors: [],
 });
+
+// A passive-probe/4 result carrying the runtime source the storage gate reads.
+const rawSourcedProbe = (
+  source: Record<string, unknown>,
+  nativeFederation: Record<string, unknown> = { present: false },
+) => {
+  const probe = rawProbe({ present: false });
+  return { ...probe, globals: { ...probe.globals, nativeFederation: { ...nativeFederation, source } } };
+};
+
+const RAW_STORAGE = {
+  schemaVersion: 'storage-probe/1',
+  source: { type: 'localStorage', namespace: '__NATIVE_FEDERATION__', discovery: 'descriptor' },
+  storages: {
+    localStorage: {
+      available: true,
+      items: {
+        remotes: {
+          present: true,
+          descriptor: 'data',
+          text: JSON.stringify({
+            host: { scopeUrl: 'https://lab.example/', exposes: [], integrity: {} },
+          }),
+        },
+        'scoped-externals': { present: false },
+        'shared-externals': { present: false },
+        'shared-chunks': { present: false },
+      },
+    },
+  },
+  errors: [],
+};
 
 const RAW_SHIM_MAP = {
   schemaVersion: 'shim-map-probe/1',
@@ -145,6 +177,68 @@ describe('ChromeSnapshotProvider', () => {
       stage: 'bridge',
       code: 'eval-exception',
       detail: 'shim-map-probe',
+    });
+  });
+
+  it('runs the storage probe when the descriptor names a web storage', async () => {
+    const evalMock = installChrome((expression, callback) => {
+      callback(
+        expression === PASSIVE_PROBE_SOURCE
+          ? rawSourcedProbe(RAW_STORAGE.source)
+          : expression === STORAGE_PROBE_SOURCE
+            ? RAW_STORAGE
+            : undefined,
+      );
+    });
+
+    const snapshot = await new ChromeSnapshotProvider().captureSnapshot();
+
+    expect(evalMock.mock.calls.map((call) => call[0])).toEqual([
+      PASSIVE_PROBE_SOURCE,
+      STORAGE_PROBE_SOURCE,
+    ]);
+    expect(snapshot.channels.nativeFederationGlobals.state).toBe('available');
+    expect(snapshot.runtime?.remotes['host'].scopeUrl).toBe('https://lab.example/');
+    expect(snapshot.runtimeSource?.storage).toBe('localStorage');
+  });
+
+  it('skips the storage probe when the default global is present', async () => {
+    const evalMock = installChrome((_expression, callback) => {
+      callback(
+        rawSourcedProbe(
+          { type: 'globalThis', namespace: '__NATIVE_FEDERATION__', discovery: 'default' },
+          { present: true, descriptor: 'data', valueType: 'object', repositories: {} },
+        ),
+      );
+    });
+
+    await new ChromeSnapshotProvider().captureSnapshot();
+
+    expect(evalMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('runs the storage probe for a descriptor-less page without the default global', async () => {
+    const evalMock = installChrome((expression, callback) => {
+      callback(
+        expression === PASSIVE_PROBE_SOURCE
+          ? rawSourcedProbe({
+              type: 'globalThis',
+              namespace: '__NATIVE_FEDERATION__',
+              discovery: 'default',
+            })
+          : undefined,
+        expression === PASSIVE_PROBE_SOURCE ? undefined : { isException: true },
+      );
+    });
+
+    const snapshot = await new ChromeSnapshotProvider().captureSnapshot();
+
+    expect(evalMock.mock.calls[1][0]).toBe(STORAGE_PROBE_SOURCE);
+    expect(snapshot.channels.nativeFederationGlobals.state).toBe('unavailable');
+    expect(snapshot.errors).toContainEqual({
+      stage: 'bridge',
+      code: 'eval-exception',
+      detail: 'storage-probe',
     });
   });
 });

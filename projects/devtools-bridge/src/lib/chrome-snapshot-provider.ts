@@ -1,4 +1,10 @@
-import { PASSIVE_PROBE_SOURCE, SHIM_MAP_PROBE_SOURCE, mapProbeResult } from 'collector';
+import {
+  PASSIVE_PROBE_SOURCE,
+  SHIM_MAP_PROBE_SOURCE,
+  STORAGE_PROBE_SOURCE,
+  mapProbeResult,
+  storageProbeIndicated,
+} from 'collector';
 import { SnapshotProvider } from './snapshot-provider';
 import { CollectionErrorV1, SnapshotV1 } from './snapshot-v1';
 
@@ -41,10 +47,10 @@ type EvalOutcome =
   | { kind: 'exception' }
   | { kind: 'timeout' };
 
-type ProbeLabel = 'passive-probe' | 'shim-map-probe';
+type ProbeLabel = 'passive-probe' | 'shim-map-probe' | 'storage-probe';
 
 /**
- * Live provider for the packaged extension: evaluates the collector's two
+ * Live provider for the packaged extension: evaluates the collector's
  * fixed probe sources in the inspected page and maps the untrusted raw
  * results into `SnapshotV1`. Capture never rejects — every failure mode
  * (missing DevTools global, eval exception, timeout) resolves to the
@@ -79,7 +85,20 @@ export class ChromeSnapshotProvider implements SnapshotProvider {
       }
     }
 
-    return withBridgeErrors(mapProbeResult(probeOutcome.value, rawShimMap, context), bridgeErrors);
+    let rawStorage: unknown = null;
+    if (storageProbeIndicated(probeOutcome.value)) {
+      const storageOutcome = await evaluateSource(host, STORAGE_PROBE_SOURCE);
+      if (storageOutcome.kind === 'value') {
+        rawStorage = storageOutcome.value;
+      } else {
+        bridgeErrors.push(evalFailure(storageOutcome, 'storage-probe'));
+      }
+    }
+
+    return withBridgeErrors(
+      mapProbeResult(probeOutcome.value, rawShimMap, context, rawStorage),
+      bridgeErrors,
+    );
   }
 }
 

@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { PASSIVE_PROBE_SOURCE } from './passive-probe';
 import { SHIM_MAP_PROBE_SOURCE } from './shim-map-probe';
+import { STORAGE_PROBE_SOURCE } from './storage-probe';
 
 /** Ported from the research repo's static probe test, with additions. */
 const FORBIDDEN_EVERYWHERE = [
@@ -84,5 +85,31 @@ describe('SHIM_MAP_PROBE_SOURCE (static)', () => {
       expect(SHIM_MAP_PROBE_SOURCE.includes(forbidden), forbidden).toBe(false);
     }
     expect(SHIM_MAP_PROBE_SOURCE.includes('getImportMap')).toBe(true);
+  });
+});
+
+describe('STORAGE_PROBE_SOURCE (static)', () => {
+  it('is one fixed expression without interpolation', () => {
+    expectFixedExpression(STORAGE_PROBE_SOURCE);
+    expectSingleFixedLiteral('storage-probe.ts');
+  });
+
+  // The storage names are its sanctioned exception; every Storage method —
+  // reading ones included, since a page can patch them — stays forbidden.
+  it('contains no active operation beyond reaching the two storages', () => {
+    const allowed = new Set(['localStorage', 'sessionStorage']);
+    const forbidden = [
+      ...FORBIDDEN_EVERYWHERE.filter((token) => !allowed.has(token)),
+      'getImportMap',
+      'getItem',
+      '.key(',
+      '.clear(',
+      'JSON.parse',
+    ];
+    for (const token of forbidden) {
+      expect(STORAGE_PROBE_SOURCE.includes(token), token).toBe(false);
+    }
+    expect(STORAGE_PROBE_SOURCE.includes('globalThis.localStorage')).toBe(true);
+    expect(STORAGE_PROBE_SOURCE.includes('globalThis.sessionStorage')).toBe(true);
   });
 });

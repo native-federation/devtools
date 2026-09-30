@@ -224,10 +224,35 @@ export interface CollectionErrorV1 {
   detail?: CollectionErrorDetailV1;
 }
 
+/** Storage type as the orchestrator names it (`StorageType`, orchestrator >= 4.7). */
+export type RuntimeStorageV1 = 'globalThis' | 'localStorage' | 'sessionStorage' | 'custom';
+
+/**
+ * Where the runtime repositories were read from. `descriptor` means the
+ * orchestrator published `globalThis.__NF_ORCHESTRATOR__` (>= 4.7);
+ * `default` means it did not and the collector found the state under the
+ * default namespace, so web-storage state may be left over from an
+ * earlier visit.
+ */
+export interface RuntimeSourceV1 {
+  storage: RuntimeStorageV1;
+  namespace: string;
+  discovery: 'descriptor' | 'default';
+  /** Version the descriptor entry reports; null without a descriptor. */
+  orchestratorVersion: string | null;
+  /** Further descriptor namespaces on the page, not captured. */
+  otherNamespaces: string[];
+}
+
 export interface SnapshotV1 {
   schemaVersion: 1;
   capture: CaptureMetaV1;
   channels: ChannelsV1;
+  /**
+   * Absent in snapshots from older collectors, and when neither a
+   * descriptor nor state under the default namespace was found.
+   */
+  runtimeSource?: RuntimeSourceV1;
   /** Runtime resolver outcome; null when nativeFederationGlobals is not available. */
   runtime: RuntimeRepositoriesV1 | null;
   /** Import-map evidence; null when neither import-map channel yielded data. */

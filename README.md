@@ -89,6 +89,13 @@ consumes from whom, and which own version lost the negotiation.
 > classic **v3 runtime** (`@softarc/native-federation-runtime`) do not expose
 > this registry and are **not supported** — on such pages the panel shows
 > *No Native Federation detected*.
+>
+> The registry is found under the default storage options, a custom
+> `storageNamespace`, and `localStorage` / `sessionStorage` storage. Since
+> orchestrator 4.7 the panel follows the storage descriptor the orchestrator
+> publishes (`window.__NF_ORCHESTRATOR__`). On older versions it falls back to
+> the default namespace in `window`, then `localStorage`, then
+> `sessionStorage`. **Custom storage adapters are not supported.**
 
 ## Install
 

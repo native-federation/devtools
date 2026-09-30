@@ -20,4 +20,4 @@ export const DEFAULT_LIMITS = Object.freeze({
 export type CollectorLimits = typeof DEFAULT_LIMITS;
 
 /** Version stamp the mapper writes into `SnapshotV1.capture.collectorVersion`. */
-export const COLLECTOR_VERSION = 'nf-devtools-collector/3';
+export const COLLECTOR_VERSION = 'nf-devtools-collector/4';

@@ -86,7 +86,7 @@ function makeRawAnchorProbe(participant: Record<string, unknown>): Record<string
   });
 
   return {
-    schemaVersion: 'passive-probe/3',
+    schemaVersion: 'passive-probe/4',
     page: { origin: 'https://edge.example', path: '/', readyState: 'complete' },
     globals: {
       nativeFederation: {

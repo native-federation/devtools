@@ -9,7 +9,8 @@
 import type { SnapshotV1 } from '../../../devtools-bridge/src/lib/snapshot-v1';
 import { PASSIVE_PROBE_SOURCE } from '../lib/passive-probe';
 import { SHIM_MAP_PROBE_SOURCE } from '../lib/shim-map-probe';
-import { mapProbeResult } from '../lib/snapshot-mapper';
+import { mapProbeResult, storageProbeIndicated } from '../lib/snapshot-mapper';
+import { STORAGE_PROBE_SOURCE } from '../lib/storage-probe';
 import { buildCapturePage, evaluateProbe } from './fixture-pages';
 
 /**
@@ -28,5 +29,8 @@ export function deriveCaptureSnapshot(capture: Record<string, any>): SnapshotV1 
   const rawShimMap = shimProbeIndicated(rawProbe)
     ? evaluateProbe(SHIM_MAP_PROBE_SOURCE, sandbox)
     : null;
-  return mapProbeResult(rawProbe, rawShimMap, { capturedAt: capture['capturedAt'] });
+  const rawStorage = storageProbeIndicated(rawProbe)
+    ? evaluateProbe(STORAGE_PROBE_SOURCE, sandbox)
+    : null;
+  return mapProbeResult(rawProbe, rawShimMap, { capturedAt: capture['capturedAt'] }, rawStorage);
 }
