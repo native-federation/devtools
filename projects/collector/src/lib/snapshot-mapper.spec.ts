@@ -31,7 +31,8 @@ function capturePage(sandbox: Record<string, unknown>): SnapshotV1 {
   return mapProbeResult(raw, shim, { capturedAt: CAPTURED_AT });
 }
 
-const ANCHOR_FIELDS = ['pool', 'servedBy'] as const;
+// `poolCause` is orchestrator v4.7 (native-federation/orchestrator#87).
+const ANCHOR_FIELDS = ['pool', 'servedBy', 'poolCause'] as const;
 
 type AnchorField = (typeof ANCHOR_FIELDS)[number];
 
@@ -46,10 +47,14 @@ function makeAnchorParticipant(extra: Record<string, unknown> = {}): Record<stri
   };
 }
 
-function makeAnchorSharedExternals(participant: Record<string, unknown>): Record<string, unknown> {
+function makeAnchorSharedExternals(
+  participant: Record<string, unknown>,
+  external: Record<string, unknown> = {},
+): Record<string, unknown> {
   return {
     __GLOBAL__: {
       'anchor-package': {
+        ...external,
         dirty: false,
         versions: [
           {
@@ -64,12 +69,15 @@ function makeAnchorSharedExternals(participant: Record<string, unknown>): Record
   };
 }
 
-function captureInlineAnchor(participant: Record<string, unknown>): SnapshotV1 {
+function captureInlineAnchor(
+  participant: Record<string, unknown>,
+  external: Record<string, unknown> = {},
+): SnapshotV1 {
   const sandbox = makeBarePage({
     __NATIVE_FEDERATION__: {
       remotes: {},
       'scoped-externals': {},
-      'shared-externals': makeAnchorSharedExternals(participant),
+      'shared-externals': makeAnchorSharedExternals(participant, external),
       'shared-chunks': {},
     },
   });
@@ -77,7 +85,10 @@ function captureInlineAnchor(participant: Record<string, unknown>): SnapshotV1 {
   return mapProbeResult(raw, null, { capturedAt: CAPTURED_AT });
 }
 
-function makeRawAnchorProbe(participant: Record<string, unknown>): Record<string, unknown> {
+function makeRawAnchorProbe(
+  participant: Record<string, unknown>,
+  external: Record<string, unknown> = {},
+): Record<string, unknown> {
   const repository = (value: Record<string, unknown>) => ({
     present: true,
     descriptor: 'data',
@@ -96,7 +107,7 @@ function makeRawAnchorProbe(participant: Record<string, unknown>): Record<string
         repositories: {
           remotes: repository({}),
           'scoped-externals': repository({}),
-          'shared-externals': repository(makeAnchorSharedExternals(participant)),
+          'shared-externals': repository(makeAnchorSharedExternals(participant, external)),
           'shared-chunks': repository({}),
         },
       },
@@ -107,8 +118,13 @@ function makeRawAnchorProbe(participant: Record<string, unknown>): Record<string
   };
 }
 
-function captureHostAnchor(participant: Record<string, unknown>): SnapshotV1 {
-  return mapProbeResult(makeRawAnchorProbe(participant), null, { capturedAt: CAPTURED_AT });
+function captureHostAnchor(
+  participant: Record<string, unknown>,
+  external: Record<string, unknown> = {},
+): SnapshotV1 {
+  return mapProbeResult(makeRawAnchorProbe(participant, external), null, {
+    capturedAt: CAPTURED_AT,
+  });
 }
 
 function capturedAnchor(snapshot: SnapshotV1) {
@@ -122,9 +138,24 @@ function hasOwn(value: object, key: string): boolean {
 function registerAnchorProjectionTests(
   label: string,
   errorStage: 'probe' | 'mapper',
-  capture: (participant: Record<string, unknown>) => SnapshotV1,
+  capture: (participant: Record<string, unknown>, external?: Record<string, unknown>) => SnapshotV1,
 ): void {
   describe(`witnessed anchors through ${label} (T2.1-AC-01, T2.1-AC-03)`, () => {
+    it('keeps v4.7 poolName and poolCause, and omits them when absent', () => {
+      const stored = capture(makeAnchorParticipant({ poolCause: 'uncovered' }), {
+        poolName: 'framework~2',
+      });
+      const external = stored.runtime!.sharedExternals['__GLOBAL__']['anchor-package'];
+      expect(external.poolName).toBe('framework~2');
+      expect(capturedAnchor(stored).poolCause).toBe('uncovered');
+
+      const legacy = capture(makeAnchorParticipant());
+      expect(hasOwn(legacy.runtime!.sharedExternals['__GLOBAL__']['anchor-package'], 'poolName')).toBe(
+        false,
+      );
+      expect(hasOwn(capturedAnchor(legacy), 'poolCause')).toBe(false);
+    });
+
     it.each(ANCHOR_FIELDS)('omits a non-string %s without coercion', (field: AnchorField) => {
       let coercionCalls = 0;
       const coercedSecret = `coerced-${field}-secret`;
@@ -200,6 +231,78 @@ function registerAnchorProjectionTests(
     );
   });
 }
+
+// The descriptor orchestrator v4.7 publishes (native-federation/orchestrator#86): frozen, with a
+// `get` function the passive probe must never call.
+describe('orchestrator version from __NF_ORCHESTRATOR__', () => {
+  const orchestratorPage = (entry: Record<string, unknown>) => {
+    const counters = { getCalls: 0 };
+    const sandbox = makeBarePage({
+      __NATIVE_FEDERATION__: {
+        remotes: {},
+        'scoped-externals': {},
+        'shared-externals': {},
+        'shared-chunks': {},
+      },
+      __NF_ORCHESTRATOR__: Object.freeze({
+        storage: Object.freeze({
+          __NATIVE_FEDERATION__: Object.freeze({
+            type: 'globalThis',
+            namespace: '__NATIVE_FEDERATION__',
+            keys: ['remotes', 'shared-externals', 'scoped-externals', 'shared-chunks'],
+            get: () => {
+              counters.getCalls += 1;
+              return {};
+            },
+            ...entry,
+          }),
+        }),
+      }),
+    });
+    const raw = evaluateProbe(PASSIVE_PROBE_SOURCE, sandbox);
+    return { snapshot: mapProbeResult(raw, null, { capturedAt: CAPTURED_AT }), counters };
+  };
+
+  it('carries the published version without calling get', () => {
+    const { snapshot, counters } = orchestratorPage({ version: '4.7.0' });
+    expect(snapshot.runtime!.orchestratorVersion).toBe('4.7.0');
+    expect(counters.getCalls).toBe(0);
+    expect(snapshot.errors).toEqual([]);
+  });
+
+  it('omits the version when the page publishes no descriptor (before v4.7)', () => {
+    const snapshot = captureInlineAnchor(makeAnchorParticipant());
+    expect(hasOwn(snapshot.runtime!, 'orchestratorVersion')).toBe(false);
+  });
+
+  it('drops a version that is not a version token', () => {
+    const { snapshot } = orchestratorPage({ version: '4.7.0 <script>' });
+    expect(hasOwn(snapshot.runtime!, 'orchestratorVersion')).toBe(false);
+    expect(snapshot.errors.map((error) => error.code)).toContain('orchestrator-version-invalid');
+  });
+
+  it('skips an accessor-backed version without invoking it', () => {
+    let getterCalls = 0;
+    const entry = {};
+    Object.defineProperty(entry, 'version', {
+      enumerable: true,
+      get() {
+        getterCalls += 1;
+        return '4.7.0';
+      },
+    });
+    const sandbox = makeBarePage({
+      __NATIVE_FEDERATION__: { remotes: {} },
+      __NF_ORCHESTRATOR__: { storage: { __NATIVE_FEDERATION__: entry } },
+    });
+    const snapshot = mapProbeResult(evaluateProbe(PASSIVE_PROBE_SOURCE, sandbox), null, {
+      capturedAt: CAPTURED_AT,
+    });
+    expect(getterCalls).toBe(0);
+    expect(hasOwn(snapshot.runtime!, 'orchestratorVersion')).toBe(false);
+    expect(snapshot.errors.map((error) => error.code)).toContain('accessor-skipped');
+  });
+});
 
 registerAnchorProjectionTests('the inline probe schema', 'probe', captureInlineAnchor);
 registerAnchorProjectionTests('the host mapper schema', 'mapper', captureHostAnchor);

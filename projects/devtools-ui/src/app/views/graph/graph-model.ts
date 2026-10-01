@@ -2,8 +2,15 @@ import type {
   BundleClaim,
   CanonicalResolutionProjection,
   ChunkGroupProjection,
+  CopyGroupingFacets,
+  ResolvedDependencyCopy,
 } from '../../shared/store/resolution';
-import { participantDisplay } from '../../shared/view-conventions';
+import {
+  copySourceRemote,
+  countClaim,
+  packageId,
+  participantDisplay,
+} from '../../shared/view-conventions';
 import {
   columnX,
   compareStrings,
@@ -17,7 +24,9 @@ import {
   remoteNodeAt,
   remoteOrder,
   stubQualifierOf,
+  stubTooltipOf,
 } from './graph-element-factories';
+import { groupDependencies } from './graph-grouping';
 import {
   BundleEdgeRef,
   CLUSTER_HEADER,
@@ -33,9 +42,11 @@ import {
   GraphNode,
   HEADER_BASELINE,
   HEADER_H,
+  GraphListItem,
   HONEST_BUCKETS,
   HonestBucket,
   LABEL_PAD,
+  LIST_ROW_H,
   MARGIN,
   MAX_BUNDLE_EDGES,
   NODE_H,
@@ -64,14 +75,16 @@ import {
 interface ClusterSeed {
   key: string;
   label: string;
+  tooltip: string | null;
+  poolId?: string | null;
   /** Hue owner; null renders neutral (host, honest buckets, no emitter). */
   hueRemote: string | null;
 }
 
 /** Node blueprint of the chunks column before geometry is assigned. */
 type ChunkNodeSeed =
-  | { kind: 'file'; id: string; label: string }
-  | { kind: 'stub'; id: string; label: string; qualifier: string };
+  | { kind: 'file'; id: string; label: string; href: string | null; tooltip: string | null }
+  | { kind: 'stub'; id: string; label: string; qualifier: string; tooltip: string };
 
 export function buildGraphModel(
   projection: CanonicalResolutionProjection,
@@ -96,6 +109,9 @@ export function buildGraphModel(
   // (`droppedRelationIds`, `completeness`) stay selection-independent.
   const selectedRemotes = options.selectedRemotes ?? new Set<string>();
   const filtering = selectedRemotes.size > 0;
+  const excluding = options.filterMode === 'exclude';
+  const consumerShown = (name: string): boolean =>
+    !filtering || selectedRemotes.has(name) !== excluding;
   const consumersByCopyId = new Map<string, Set<string>>();
   for (const relation of projection.consumerRelations) {
     const consumers = consumersByCopyId.get(relation.copyId) ?? new Set<string>();
@@ -103,8 +119,7 @@ export function buildGraphModel(
     consumersByCopyId.set(relation.copyId, consumers);
   }
   const copyKept = (copyId: string): boolean =>
-    !filtering ||
-    [...(consumersByCopyId.get(copyId) ?? [])].some((name) => selectedRemotes.has(name));
+    !filtering || [...(consumersByCopyId.get(copyId) ?? [])].some(consumerShown);
 
   // --- Dependency clustering by evidenced source -------------------------
   const sortedCopies = projection.copies
@@ -148,15 +163,38 @@ export function buildGraphModel(
   const dependencyHueByCopyId = new Map<string, number | null>();
   let dependencyCursor = MARGIN + HEADER_H;
 
+  const listItems: GraphListItem[] = [];
+  const facetsByCopyId = new Map(projection.copyGroupingFacets.map((f) => [f.copyId, f]));
+  const expandedCopyId = options.expandedCopyId ?? null;
   const layoutDependencyCluster = (seed: ClusterSeed, entries: typeof sortedCopies): void => {
     const colorIndex = clusterHueOf(seed.hueRemote);
     const boxY = dependencyCursor;
     let nodeY = boxY + CLUSTER_HEADER + CLUSTER_PAD;
     for (const entry of entries) {
-      dependencyNodes.push(dependencyNodeAt(entry.copy, entry.fullLabel, nodeY));
+      const expanded = entry.copy.id === expandedCopyId;
+      const node = { ...dependencyNodeAt(entry.copy, entry.fullLabel, nodeY), expanded };
+      dependencyNodes.push(node);
       orderedDependencyEntries.push(entry);
       dependencyHueByCopyId.set(entry.copy.id, colorIndex);
       nodeY += NODE_H + NODE_VGAP;
+      if (expanded) {
+        const rows = secondaryEntrypointsOf(entry.copy, entry.fullLabel, projection.copies);
+        const packageSelect = packageSelectOf(entry.copy, facetsByCopyId.get(entry.copy.id));
+        if (packageSelect !== null) {
+          rows.push({ text: 'see usage details', tooltip: 'open in Packages', packageSelect });
+        }
+        rows.forEach((row, index) => {
+          const y = nodeY + index * LIST_ROW_H + LIST_ROW_H - 4;
+          listItems.push({
+            key: `${node.key}\n${row.text}`,
+            ownerKey: node.key,
+            ...row,
+            x: node.x + 2 * LABEL_PAD,
+            y,
+          });
+        });
+        nodeY += rows.length * LIST_ROW_H + NODE_VGAP;
+      }
     }
     const boxHeight = nodeY - NODE_VGAP - boxY + CLUSTER_PAD;
     const boxX = columnX(1) - CLUSTER_PAD;
@@ -164,6 +202,10 @@ export function buildGraphModel(
       key: seed.key,
       column: 'dependencies',
       label: seed.label,
+      tooltip: seed.tooltip,
+      poolId: seed.poolId ?? null,
+      nodeKeys: entries.map((entry) => nodeKeyOf('dependency', entry.copy.id)),
+      expanded: null,
       count: entries.length,
       colorIndex,
       x: boxX,
@@ -176,19 +218,31 @@ export function buildGraphModel(
     dependencyCursor = boxY + boxHeight + CLUSTER_VGAP;
   };
 
-  for (const name of sourceClusterNames) {
-    layoutDependencyCluster(
-      { key: `dependencies:source:${name}`, label: remoteClusterDisplay(name), hueRemote: name },
-      sourceClusterEntries.get(name)!,
-    );
-  }
-  for (const bucket of HONEST_BUCKETS) {
-    const entries = bucketClusterEntries.get(bucket);
-    if (entries !== undefined) {
+  const groupBy = options.groupBy ?? 'provider';
+  if (groupBy === 'provider') {
+    for (const name of sourceClusterNames) {
       layoutDependencyCluster(
-        { key: `dependencies:bucket:${bucket}`, label: bucket, hueRemote: null },
-        entries,
+        {
+          key: `dependencies:source:${name}`,
+          label: remoteClusterDisplay(name),
+          tooltip: null,
+          hueRemote: name,
+        },
+        sourceClusterEntries.get(name)!,
       );
+    }
+    for (const bucket of HONEST_BUCKETS) {
+      const entries = bucketClusterEntries.get(bucket);
+      if (entries !== undefined) {
+        layoutDependencyCluster(
+          { key: `dependencies:bucket:${bucket}`, label: bucket, tooltip: null, hueRemote: null },
+          entries,
+        );
+      }
+    }
+  } else {
+    for (const group of groupDependencies(groupBy, sortedCopies, projection)) {
+      layoutDependencyCluster(group, group.entries);
     }
   }
 
@@ -201,12 +255,26 @@ export function buildGraphModel(
     dependencyNodes.map((node) => [node.id, node]),
   );
 
-  // --- Chunk column from the copies' bundle claims -----------------------
-  // The chunk column derives exclusively from copies' attached claims (the
-  // selected source path), so pseudo/`mapping-or-exposed` groups are
-  // excluded structurally, not by filter. Claims without registered files
-  // render a qualified stub — uncertainty stays visible, files are never
-  // invented.
+  // --- Build-files column: each copy's entry files and its bundle's chunks
+  // Entry files are the copy's mapped entrypoint targets; chunk files come
+  // only from the copy's attached bundle claims (the selected source path),
+  // so pseudo/`mapping-or-exposed` groups are excluded structurally. Both
+  // share the `remote · bundle` cluster of the build that emitted them.
+  // Chunk files are recorded relative to the emitter's scope, as the orchestrator resolves them.
+  const scopeUrlByRemote = new Map(
+    projection.remotes.map((remote) => [remote.name, remote.resolvedScopeUrl]),
+  );
+  const fileHref = (emitter: string, file: string): string | null => {
+    const scope = scopeUrlByRemote.get(emitter);
+    if (scope === undefined) {
+      return null;
+    }
+    try {
+      return new URL(file, scope).href;
+    } catch {
+      return null;
+    }
+  };
   const claimById = new Map<string, BundleClaim>(
     projection.bundleClaims.map((claim) => [claim.id, claim]),
   );
@@ -216,7 +284,7 @@ export function buildGraphModel(
 
   interface ChunkClusterCollector {
     emitter: string | null;
-    bundle: string;
+    bundle: string | null;
     seeds: ChunkNodeSeed[];
   }
   const chunkClusterByKey = new Map<string, ChunkClusterCollector>();
@@ -226,7 +294,7 @@ export function buildGraphModel(
 
   const collectChunkNode = (
     emitter: string | null,
-    bundle: string,
+    bundle: string | null,
     seed: ChunkNodeSeed,
     copyId: string,
   ): void => {
@@ -245,11 +313,32 @@ export function buildGraphModel(
   };
 
   for (const { copy } of orderedDependencyEntries) {
-    for (const claimId of copy.bundleClaimIds) {
-      const claim = claimById.get(claimId);
-      if (claim === undefined) {
-        continue;
-      }
+    const claims = copy.bundleClaimIds
+      .map((claimId) => claimById.get(claimId))
+      .filter((claim): claim is BundleClaim => claim !== undefined);
+    const bundles = [
+      ...new Set(claims.filter((c) => c.status !== 'ambiguous').map((c) => c.bundle)),
+    ];
+    const entryBuild = {
+      emitter: copySourceRemote(copy),
+      bundle: bundles.length === 1 ? bundles[0] : null,
+    };
+    for (const specifier of Object.keys(copy.entrypoints).sort(compareStrings)) {
+      const target = copy.entrypoints[specifier];
+      collectChunkNode(
+        entryBuild.emitter,
+        entryBuild.bundle,
+        {
+          kind: 'file',
+          id: `entry\n${target}`,
+          label: fileNameOf(target),
+          href: target,
+          tooltip: `entry file of ${specifier}`,
+        },
+        copy.id,
+      );
+    }
+    for (const claim of claims) {
       if (claim.status === 'mapped-source') {
         for (const groupId of claim.chunkGroupIds) {
           const group = groupById.get(groupId);
@@ -262,16 +351,34 @@ export function buildGraphModel(
               group.bundleName ?? claim.bundle,
               // The pair (chunk group, recorded file) is the node identity;
               // equal filenames from different emitters stay distinct.
-              { kind: 'file', id: `${group.id}\n${file}`, label: file },
+              {
+                kind: 'file',
+                id: `${group.id}\n${file}`,
+                label: file,
+                href: fileHref(group.emitterRemote, file),
+                tooltip: null,
+              },
               copy.id,
             );
           }
         }
-      } else {
+      } else if (
+        claim.status === 'ambiguous' ||
+        Object.keys(copy.entrypoints).length === 0 ||
+        claim.sourceRemote !== entryBuild.emitter ||
+        claim.bundle !== entryBuild.bundle
+      ) {
+        // A source-only bundle whose entry file already sits in its cluster needs no stub.
         collectChunkNode(
           claim.sourceRemote,
           claim.bundle,
-          { kind: 'stub', id: claim.id, label: claim.bundle, qualifier: stubQualifierOf(claim) },
+          {
+            kind: 'stub',
+            id: claim.id,
+            label: claim.bundle,
+            qualifier: stubQualifierOf(claim),
+            tooltip: stubTooltipOf(claim),
+          },
           copy.id,
         );
       }
@@ -289,40 +396,85 @@ export function buildGraphModel(
     if ((a.emitter === null) !== (b.emitter === null)) {
       return a.emitter === null ? 1 : -1;
     }
-    return compareStrings(a.emitter ?? '', b.emitter ?? '') || compareStrings(a.bundle, b.bundle);
+    return (
+      compareStrings(a.emitter ?? '', b.emitter ?? '') ||
+      compareStrings(a.bundle ?? '', b.bundle ?? '')
+    );
   });
 
   const chunkNodes: ChunkGraphNode[] = [];
   const chunkNodeById = new Map<string, ChunkGraphNode>();
+  /** Seed ID → rendered node ID: a collapsed cluster's files resolve to its summary node. */
+  const renderedChunkId = new Map<string, string>();
+  const expandedBuildKey =
+    options.expandedBuildKey === undefined ? 'all' : options.expandedBuildKey;
   let chunkCursor = MARGIN + HEADER_H;
   for (const [clusterKey, collector] of orderedChunkClusters) {
     const boxY = chunkCursor;
     let nodeY = boxY + CLUSTER_HEADER + CLUSTER_PAD;
     const x = columnX(2);
-    for (const seed of collector.seeds) {
-      const height = seed.kind === 'stub' ? STUB_NODE_H : NODE_H;
+    // A single-file group shows its file directly: there is nothing to expand.
+    const collapsible = collector.seeds.length > 1;
+    const expanded = !collapsible || expandedBuildKey === 'all' || expandedBuildKey === clusterKey;
+    if (!expanded) {
+      const id = `summary\n${clusterKey}`;
       const node: ChunkGraphNode = {
-        ...nodeBaseAt('chunk', seed.id, seed.label, x, nodeY),
+        ...nodeBaseAt('chunk', id, countClaim(collector.seeds.length, 'file'), x, nodeY),
+        labelTooltip: 'click the group to list its files',
+        kind: 'chunk',
+        href: null,
+        summary: true,
+        clusterKey,
+        qualifier: null,
+        qualifierX: x + LABEL_PAD,
+        qualifierY: nodeY + QUALIFIER_BASELINE,
+      };
+      chunkNodes.push(node);
+      chunkNodeById.set(id, node);
+      for (const seed of collector.seeds) renderedChunkId.set(seed.id, id);
+      nodeY += NODE_H + NODE_VGAP;
+    }
+    for (const seed of expanded ? collector.seeds : []) {
+      const height = seed.kind === 'stub' ? STUB_NODE_H : NODE_H;
+      const base = nodeBaseAt('chunk', seed.id, seed.label, x, nodeY);
+      const node: ChunkGraphNode = {
+        ...base,
+        labelTooltip: seed.tooltip ?? base.labelTooltip,
         kind: 'chunk',
         height,
+        href: seed.kind === 'file' ? seed.href : null,
+        summary: false,
+        clusterKey,
         qualifier: seed.kind === 'stub' ? seed.qualifier : null,
         qualifierX: x + LABEL_PAD,
         qualifierY: nodeY + QUALIFIER_BASELINE,
       };
       chunkNodes.push(node);
       chunkNodeById.set(node.id, node);
+      renderedChunkId.set(seed.id, node.id);
       nodeY += height + NODE_VGAP;
     }
     const boxHeight = nodeY - NODE_VGAP - boxY + CLUSTER_PAD;
     const boxX = x - CLUSTER_PAD;
+    const emitter = collector.emitter === null ? null : remoteClusterDisplay(collector.emitter);
     const label =
-      collector.emitter === null
-        ? collector.bundle
-        : `${remoteClusterDisplay(collector.emitter)} · ${collector.bundle}`;
+      emitter === null
+        ? (collector.bundle ?? '(no evidenced source)')
+        : collector.bundle === null
+          ? emitter
+          : `${emitter} · ${collector.bundle}`;
     clusters.push({
       key: clusterKey,
       column: 'chunks',
       label,
+      tooltip: null,
+      poolId: null,
+      nodeKeys: [
+        ...new Set(
+          collector.seeds.map((seed) => nodeKeyOf('chunk', renderedChunkId.get(seed.id)!)),
+        ),
+      ],
+      expanded: collapsible ? expanded : null,
       count: collector.seeds.length,
       colorIndex: clusterHueOf(collector.emitter),
       x: boxX,
@@ -351,7 +503,7 @@ export function buildGraphModel(
       droppedRelationIds.push(relation.id);
       continue;
     }
-    if (filtering && !selectedRemotes.has(relation.consumerRemote)) {
+    if (!consumerShown(relation.consumerRemote)) {
       continue;
     }
     // A selected (or unfiltered) consumer's relation is exactly what keeps
@@ -362,7 +514,16 @@ export function buildGraphModel(
   // --- Bundle-edge references (rendered by the hover trace only) ---------
   const referenceCap = edges.length + MAX_BUNDLE_EDGES;
   const bundleEdgeRefs: BundleEdgeRef[] = [];
-  for (const pair of refPairs.slice(0, referenceCap)) {
+  // A collapsed group's files share one summary node: their references merge.
+  const renderedPairs = [
+    ...new Map(
+      refPairs.map((pair) => {
+        const chunkNodeId = renderedChunkId.get(pair.chunkNodeId)!;
+        return [`${pair.copyId}\n${chunkNodeId}`, { copyId: pair.copyId, chunkNodeId }];
+      }),
+    ).values(),
+  ];
+  for (const pair of renderedPairs.slice(0, referenceCap)) {
     const dependency = dependencyNodeById.get(pair.copyId)!;
     const chunk = chunkNodeById.get(pair.chunkNodeId)!;
     bundleEdgeRefs.push({
@@ -378,7 +539,7 @@ export function buildGraphModel(
       ),
     });
   }
-  const cappedEdges = Math.max(0, refPairs.length - referenceCap);
+  const cappedEdges = Math.max(0, renderedPairs.length - referenceCap);
 
   // --- Canvas ------------------------------------------------------------
   const nodes: GraphNode[] = [...remoteNodes, ...dependencyNodes, ...chunkNodes];
@@ -409,7 +570,7 @@ export function buildGraphModel(
       },
       {
         key: 'chunks',
-        label: 'Chunks',
+        label: 'Build files',
         x: columnX(2),
         headerX: columnX(2),
         headerY: MARGIN + HEADER_BASELINE,
@@ -417,6 +578,7 @@ export function buildGraphModel(
     ],
     clusters,
     nodes,
+    listItems,
     edges,
     bundleEdgeRefs,
     cappedEdges,
@@ -462,4 +624,75 @@ export function graphAdjacencyOf(model: GraphModel): ReadonlyMap<string, Readonl
     link(ref.dependencyKey, ref.chunkKey);
   }
   return adjacency;
+}
+
+/** Last path segment of a target URL — the file name a build emitted. */
+function fileNameOf(url: string): string {
+  const path = url.split(/[?#]/)[0];
+  return path.slice(path.lastIndexOf('/') + 1) || url;
+}
+
+/**
+ * Rows of an expanded dependency: entrypoints of its own `entries` map beyond
+ * the package itself (dense builds), then sibling copies registered under a
+ * secondary name of the package by the same source (flat builds; the
+ * name-derived parent rule of Packages).
+ */
+function secondaryEntrypointsOf(
+  copy: ResolvedDependencyCopy,
+  label: string,
+  copies: readonly ResolvedDependencyCopy[],
+): Pick<GraphListItem, 'text' | 'tooltip' | 'packageSelect'>[] {
+  const rows = new Map<string, Pick<GraphListItem, 'text' | 'tooltip' | 'packageSelect'>>();
+  for (const specifier of Object.keys(copy.entrypoints).sort(compareStrings)) {
+    if (specifier !== label) {
+      rows.set(specifier, {
+        text: specifier,
+        tooltip: "secondary entrypoint in this copy's entries map",
+        packageSelect: null,
+      });
+    }
+  }
+  const source = copySourceRemote(copy);
+  for (const other of [...copies].sort((a, b) => compareStrings(a.id, b.id))) {
+    const name = other.sourcePackage;
+    if (
+      other.id !== copy.id &&
+      name !== null &&
+      name.startsWith(`${label}/`) &&
+      !rows.has(name) &&
+      copySourceRemote(other) === source
+    ) {
+      rows.set(name, {
+        text: name,
+        tooltip: 'secondary entrypoint registered as its own copy (name-derived parent)',
+        packageSelect: null,
+      });
+    }
+  }
+  return rows.size > 0
+    ? [...rows.values()].sort((a, b) => compareStrings(a.text, b.text))
+    : [{ text: 'no secondary entrypoints', tooltip: null, packageSelect: null }];
+}
+
+// Mirrors the Packages view's copyGroupIds: private sources have no Packages row.
+function packageSelectOf(
+  copy: ResolvedDependencyCopy,
+  facets: CopyGroupingFacets | undefined,
+): string | null {
+  if (copy.source.kind === 'private-registration') {
+    return null;
+  }
+  if (copy.source.kind === 'shared-declaration') {
+    const scope = facets?.shareScope ?? null;
+    return scope === null || copy.sourcePackage === null
+      ? null
+      : packageId(scope, copy.sourcePackage);
+  }
+  for (const { resolutionDomain, consumerRegistryPackage } of copy.resolutionContexts) {
+    if (resolutionDomain.kind === 'share-scope') {
+      return packageId(resolutionDomain.name, consumerRegistryPackage);
+    }
+  }
+  return null;
 }

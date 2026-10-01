@@ -336,3 +336,20 @@ a:not(.tip) {
 a:hover {
   text-decoration: underline;
 }
+
+/* A declaration's explicit pool tag; an orphan tag (joined nothing) warns. */
+.pool-chip {
+  padding: 0 4px;
+  border: 1px solid var(--nf-color-border);
+  border-radius: 3px;
+  font-size: 10px;
+  color: var(--nf-color-text-muted);
+  font-family: var(--nf-font-mono);
+  white-space: nowrap;
+}
+
+.pool-chip-orphan {
+  border-color: var(--nf-color-warning-border);
+  background: var(--nf-color-warning-bg);
+  color: var(--nf-color-warning-text);
+}

@@ -57,6 +57,7 @@ const remoteProvider: SchemaNode = {
     file: url,
     name: string,
     pool: string,
+    poolCause: string,
     requiredVersion: string,
     servedBy: string,
     strictVersion: boolean,
@@ -75,6 +76,7 @@ const external: SchemaNode = {
   type: 'record',
   fields: {
     dirty: boolean,
+    poolName: string,
     versions: { type: 'array', item: version },
   },
 };

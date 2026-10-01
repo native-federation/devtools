@@ -61,6 +61,7 @@ function evidenceFor(claims: readonly Claim[]): CanonicalRegistryEvidence {
         generation: 'v4.5',
         pool: null,
         servedBy: null,
+        poolCause: null,
         entrypointCandidateIds: [],
         provenance: EMPTY_PROVENANCE,
       });
@@ -84,6 +85,7 @@ function evidenceFor(claims: readonly Claim[]): CanonicalRegistryEvidence {
       shareScope: '__GLOBAL__',
       packageName: specifier,
       dirty: false,
+      poolName: null,
       versionRegistrationIds: [versionId],
       provenance: EMPTY_PROVENANCE,
     });

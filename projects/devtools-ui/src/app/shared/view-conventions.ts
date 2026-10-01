@@ -20,6 +20,7 @@ import type { FederationModel } from './store/federation-model';
 import type {
   BundleClaim,
   BundleClaimId,
+  CanonicalResolutionProjection,
   ChunkGroupId,
   ChunkGroupProjection,
   ConsumerCopyRelation,
@@ -105,6 +106,7 @@ export interface CanonicalIndexes {
   relationsByCopy: Map<ResolvedDependencyCopyId, ConsumerCopyRelation[]>;
   bundleClaimById: Map<BundleClaimId, BundleClaim>;
   chunkGroupById: Map<ChunkGroupId, ChunkGroupProjection>;
+  projection: CanonicalResolutionProjection;
 }
 
 export function buildCanonicalIndexes(model: FederationModel): CanonicalIndexes {
@@ -128,6 +130,7 @@ export function buildCanonicalIndexes(model: FederationModel): CanonicalIndexes 
     ]);
   }
   return {
+    projection,
     sharedExternalById: new Map(
       model.registryEvidence.sharedExternals.map((record) => [record.id, record]),
     ),

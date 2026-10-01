@@ -278,21 +278,23 @@ function deriveBadges(
   sharedRows: SharedParticipantRow[],
   chunkGroups: ChunkGroup[],
 ): RemoteBadges {
+  const ownRows = sharedRows.filter((row) => row.participant === remote.name);
+  const chunkLists = chunkGroups.some(
+    (group) => group.owningRemote === remote.name && group.origin === 'shared-chunks',
+  );
   return {
     remote: remote.name,
     denseChunking: {
-      present: chunkGroups.some(
-        (group) => group.owningRemote === remote.name && group.origin === 'shared-chunks',
-      ),
-      rule: 'shared-chunks-lists',
+      present: chunkLists || ownRows.some((row) => row.bundle !== null),
+      rule: chunkLists ? 'shared-chunks-lists' : 'participant-bundle',
     },
     sri: {
       present: Object.keys(remote.integrity).length > 0,
       rule: 'integrity-map-present',
     },
-    denseExternals: {
-      present: sharedRows.some((row) => row.participant === remote.name && row.bundle !== null),
-      rule: 'participant-bundle',
+    multiEntry: {
+      present: ownRows.some((row) => row.servedFiles.length > 1),
+      rule: 'multi-entry-map',
     },
   };
 }

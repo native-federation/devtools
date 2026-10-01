@@ -180,6 +180,7 @@ export function normalizeRegistryEvidence(
 
           const pool = normalizeParticipantAnchor(participant, 'pool', participantPath);
           const servedBy = normalizeParticipantAnchor(participant, 'servedBy', participantPath);
+          const poolCause = normalizeParticipantAnchor(participant, 'poolCause', participantPath);
 
           participantDeclarations.push({
             id: participantDeclarationId,
@@ -193,11 +194,13 @@ export function normalizeRegistryEvidence(
             generation: participant.generation,
             pool: pool.value,
             servedBy: servedBy.value,
+            poolCause: poolCause.value,
             entrypointCandidateIds,
             provenance: provenance(
               presentEvidence(participantPath),
               pool.evidence,
               servedBy.evidence,
+              poolCause.evidence,
             ),
           });
           participantDeclarationIds.push(participantDeclarationId);
@@ -238,6 +241,7 @@ export function normalizeRegistryEvidence(
         shareScope,
         packageName,
         dirty: external.dirty,
+        poolName: typeof external.poolName === 'string' ? external.poolName : null,
         versionRegistrationIds,
         provenance: provenance(presentEvidence(sharedPath)),
       });
@@ -313,7 +317,7 @@ function normalizeAction(rawAction: string): RegistrationAction {
 
 function normalizeParticipantAnchor(
   participant: ExternalRemoteV1,
-  field: 'pool' | 'servedBy',
+  field: 'pool' | 'servedBy' | 'poolCause',
   participantPath: EvidencePathSegment[],
 ): { value: string | null; evidence: EvidenceRef } {
   const path = [...participantPath, field];

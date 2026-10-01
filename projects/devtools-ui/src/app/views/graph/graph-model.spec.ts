@@ -28,6 +28,7 @@ import type {
   ResolvedDependencyCopy,
   ResolvedDependencyCopyId,
 } from '../../shared/store/resolution';
+import { buildPackagesVm } from '../packages/packages-view-model';
 import { buildGraphModel, graphAdjacencyOf } from './graph-model';
 import {
   CLUSTER_HEADER,
@@ -38,6 +39,7 @@ import {
   GraphModel,
   HEADER_H,
   LABEL_MAX,
+  LIST_ROW_H,
   MARGIN,
   MAX_BUNDLE_EDGES,
   NODE_H,
@@ -198,6 +200,10 @@ function syntheticProjection(
     observedTargetProviders: [],
     sourceComparisons: [],
     packageMeasures: [],
+    tagPools: [],
+    orphanPoolTags: [],
+    poolFamilies: [],
+    copyGroupingFacets: [],
     completeness: {
       total: {
         unknownResolutions: 0,
@@ -359,14 +365,15 @@ describe('buildGraphModel', () => {
         ],
       }),
     );
-    expect(model.nodes.map((n) => n.label).sort()).toEqual([
-      'alpha-pkg',
-      'https://cdn.test/alpha.js',
-      'named-source',
-    ]);
+    expect(
+      dependencyNodesOf(model)
+        .map((n) => n.label)
+        .sort(),
+    ).toEqual(['alpha-pkg', 'https://cdn.test/alpha.js', 'named-source']);
   });
 
-  // T1-AC-04: labels above 36 chars truncate to 35 + `…`, full text as tooltip.
+  // T1-AC-04: labels above the budget truncate with `…`, full text as tooltip.
+  // Dependency nodes give two chars of LABEL_MAX (44) to the expand arrow → 41 + `…`.
   it('truncates long labels and keeps the full text as tooltip', () => {
     const long = '@nf-lab/a-very-long-package-name-that-overflows';
     const short = 'fits-within-the-limit';
@@ -380,8 +387,8 @@ describe('buildGraphModel', () => {
     );
     // Codepoint label sort puts `@nf-lab/…` before `fits-…`.
     const [truncated, fits] = model.nodes;
-    expect(truncated.label).toBe(`${long.slice(0, 35)}…`);
-    expect(truncated.label.length).toBe(36);
+    expect(truncated.label).toBe(`${long.slice(0, LABEL_MAX - 3)}…`);
+    expect(truncated.label.length).toBe(LABEL_MAX - 2);
     expect(truncated.labelTooltip).toBe(long);
     expect(fits.label).toBe(short);
     expect(fits.labelTooltip).toBeNull();
@@ -398,9 +405,9 @@ describe('buildGraphModel', () => {
       }),
     );
     const [node] = dependencyNodesOf(model);
-    // Budget = LABEL_MAX - 7 (tag) - 2 (gap) = 27 → 26 chars + `…`.
-    expect(node.label).toBe(`${long.slice(0, 26)}…`);
-    expect(node.label.length).toBe(27);
+    // Budget = LABEL_MAX - 2 (arrow) - 7 (tag) - 2 (gap) = 33 → 32 chars + `…`.
+    expect(node.label).toBe(`${long.slice(0, 32)}…`);
+    expect(node.label.length).toBe(33);
     expect(node.labelTooltip).toBe(long);
     expect(node.subLabel).toBe('21.2.12');
     expect(node.subLabelTooltip).toBeNull();
@@ -426,9 +433,9 @@ describe('buildGraphModel', () => {
     expect(node.subLabel).toBe(`${tag.slice(0, SUB_LABEL_MAX - 1)}…`);
     expect(node.subLabel!.length).toBe(SUB_LABEL_MAX);
     expect(node.subLabelTooltip).toBe(tag);
-    // Label budget from the displayed tag: 36 - 16 - 2 = 18 chars.
-    expect(node.label.length).toBe(18);
-    expect(node.label.length + 2 + node.subLabel!.length).toBeLessThanOrEqual(LABEL_MAX);
+    // Label budget from the displayed tag: 44 - 2 (arrow) - 16 - 2 = 24 chars.
+    expect(node.label.length).toBe(24);
+    expect(node.label.length + 2 + node.subLabel!.length + 2).toBeLessThanOrEqual(LABEL_MAX);
   });
 
   // A claim-less relation carries no deviation evidence: the all-own-selected
@@ -474,9 +481,9 @@ describe('buildGraphModel', () => {
     expect(model.droppedRelationIds).toEqual([]);
     expect(model.edges.length).toBe(1);
     // The edge must anchor at the remote node (column 0), not the same-ID
-    // copy: right-mid (304, 67) → left-mid inside the `unknown` cluster
-    // (454, 54 + CLUSTER_HEADER + CLUSTER_PAD + 13 = 99), dx = max(24, 75).
-    expect(model.edges[0].path).toBe('M 304,67 C 379,67 379,99 454,99');
+    // copy: right-mid (364, 67) → left-mid inside the `unknown` cluster
+    // (514, 54 + CLUSTER_HEADER + CLUSTER_PAD + 13 = 99), dx = max(24, 75).
+    expect(model.edges[0].path).toBe('M 364,67 C 439,67 439,99 514,99');
   });
 
   // Review regression: a relation without a rendered endpoint is never a
@@ -532,9 +539,9 @@ describe('buildGraphModel', () => {
     expect(model.height).toBe(MARGIN + HEADER_H + 3 * (NODE_H + NODE_VGAP) - NODE_VGAP + MARGIN);
 
     // mfe1 (row 1, column 0) → the single copy (cluster row 0, column 1):
-    // right-mid (304, 99) → left-mid (454, 86 + 13 = 99), dx = max(24, 75).
+    // right-mid (364, 99) → left-mid (514, 86 + 13 = 99), dx = max(24, 75).
     const mfe1Edge = model.edges.find((e) => e.sourceId === 'mfe1');
-    expect(mfe1Edge?.path).toBe('M 304,99 C 379,99 379,99 454,99');
+    expect(mfe1Edge?.path).toBe('M 364,99 C 439,99 439,99 514,99');
   });
 
   // T1-AC-06 (model level): a projection with no nodes flags empty.
@@ -575,25 +582,28 @@ describe('buildGraphModel', () => {
     }
   });
 
-  // T2-AC-01 (model level): the chunk column renders the host's chunk
-  // groups under `emitter · bundle` heads; claims without registered files
-  // stay qualified stubs.
-  it('derives frankenstein-live chunk clusters as emitter · bundle', () => {
+  // T2-AC-01 (model level): the build-files column renders every build
+  // under `emitter · bundle` heads — each copy's entry files plus its
+  // bundle's chunk files; builds without bundle info head by remote only.
+  it('derives frankenstein-live build-file clusters as emitter · bundle', () => {
     const model = modelOf('frankenstein-live');
     expect(clusterLabelsOf(model, 'chunks')).toEqual([
-      ['host · browser-angular_common', 1],
-      ['host · browser-angular_core', 5],
+      ['host · browser-angular_common', 3],
+      ['host · browser-angular_core', 11],
       ['host · browser-angular_platform_browser', 1],
-      ['host · browser-rxjs', 1],
+      ['host · browser-rxjs', 3],
       ['host · browser-tslib', 1],
+      ['mermaid', 1],
+      ['whiteboard', 7],
     ]);
-    const chunks = chunkNodesOf(model);
-    expect(chunks.length).toBe(9);
-    expect(chunks.filter((n) => n.qualifier === null).length).toBe(7);
+    const files = chunkNodesOf(model);
+    expect(files.length).toBe(27);
+    // The two former source-only stubs are covered by their entry files.
+    expect(files.every((n) => n.qualifier === null && n.href !== null)).toBe(true);
 
-    // 2 copies × browser-angular_common (1 file) + 6 × browser-angular_core
-    // (5 files) + 2 × browser-rxjs (1 file) + 2 stub references = 36.
-    expect(model.bundleEdgeRefs.length).toBe(36);
+    // The 36 chunk references minus the 2 replaced stubs, plus one entry
+    // reference per entrypoint of the 20 copies = 54.
+    expect(model.bundleEdgeRefs.length).toBe(54);
     expect(model.cappedEdges).toBe(0);
     const nodeKeys = new Set(model.nodes.map((n) => n.key));
     for (const ref of model.bundleEdgeRefs) {
@@ -611,10 +621,14 @@ describe('buildGraphModel', () => {
     expect(clusterLabelsOf(model, 'chunks')).toEqual([['mfe2 · browser-shared', 1]]);
     // Every consumer still relates to the copy through consume edges …
     expect(model.edges.length).toBe(projection.consumerRelations.length);
-    // … but the chunk column holds only the emitter's qualified claim.
-    const chunks = chunkNodesOf(model);
-    expect(chunks.map((n) => [n.label, n.qualifier])).toEqual([
-      ['browser-shared', 'source-only — no registered chunk list'],
+    // … but the build-files column holds only the emitter's file: the
+    // source-only bundle needs no stub once its entry file is listed.
+    expect(chunkNodesOf(model).map((n) => [n.label, n.qualifier, n.href])).toEqual([
+      [
+        '_nf_lab_conflict_lib.jvcc6K1csg.js',
+        null,
+        'http://localhost:4300/mfe2/_nf_lab_conflict_lib.jvcc6K1csg.js',
+      ],
     ]);
   });
 
@@ -779,6 +793,36 @@ describe('buildGraphModel', () => {
     ]);
   });
 
+  // Exclude mode inverts the selection: excluding one remote renders exactly
+  // what including every other remote renders.
+  it('excludes the selected remotes as the complement of including the rest', () => {
+    const projection = projectionOf('frankenstein-live');
+    const all = remoteNodesOf(buildGraphModel(projection)).map((n) => n.id);
+    const excluded = buildGraphModel(projection, {
+      selectedRemotes: new Set(['whiteboard']),
+      filterMode: 'exclude',
+    });
+    expect(excluded).toEqual(
+      buildGraphModel(projection, {
+        selectedRemotes: new Set(all.filter((name) => name !== 'whiteboard')),
+      }),
+    );
+    expect(excluded.edges.some((e) => e.sourceId === 'whiteboard')).toBe(false);
+    expect(dependencyNodesOf(excluded).length).toBeLessThan(20);
+  });
+
+  // Unlike an empty include selection, excluding every remote leaves no consumer.
+  it('renders no dependencies when every remote is excluded', () => {
+    const projection = projectionOf('co-declared-share');
+    const model = buildGraphModel(projection, {
+      selectedRemotes: new Set(['__NF-HOST__', 'mfe1', 'mfe2']),
+      filterMode: 'exclude',
+    });
+    expect(remoteNodesOf(model).length).toBe(3);
+    expect(dependencyNodesOf(model)).toEqual([]);
+    expect(model.edges).toEqual([]);
+  });
+
   // T3-AC-02 (model level): chunk attribution ignores the selection — with
   // only the borrowing consumer (mfe1) selected, the mfe2-sourced copy and
   // its qualified chunk stub stay although the emitter is unselected.
@@ -789,7 +833,7 @@ describe('buildGraphModel', () => {
     expect(clusterLabelsOf(model, 'dependencies')).toEqual([['mfe2', 1]]);
     expect(clusterLabelsOf(model, 'chunks')).toEqual([['mfe2 · browser-shared', 1]]);
     expect(chunkNodesOf(model).map((n) => [n.label, n.qualifier])).toEqual([
-      ['browser-shared', 'source-only — no registered chunk list'],
+      ['_nf_lab_conflict_lib.jvcc6K1csg.js', null],
     ]);
     expect(model.bundleEdgeRefs.length).toBe(1);
     expect(model.edges.map((e) => e.sourceId)).toEqual(['mfe1']);
@@ -817,9 +861,13 @@ describe('buildGraphModel', () => {
     expect(dependencyNodesOf(model).length).toBe(8);
     expect(model.edges.length).toBe(8);
     expect(remoteNodesOf(model).map((n) => n.id)).toEqual(['__NF-HOST__', 'mermaid', 'whiteboard']);
-    // The mermaid/whiteboard copies carry no bundle claims — the chunk
-    // column honestly empties instead of borrowing the host's evidence.
-    expect(chunkNodesOf(model)).toEqual([]);
+    // The mermaid/whiteboard copies carry no bundle claims — the column
+    // lists only their own entry files, never the host's chunk evidence.
+    expect(clusterLabelsOf(model, 'chunks')).toEqual([
+      ['mermaid', 1],
+      ['whiteboard', 7],
+    ]);
+    expect(chunkNodesOf(model).every((n) => n.qualifier === null)).toBe(true);
     const byLabel = new Map(model.clusters.map((c) => [c.label, c.colorIndex]));
     expect(byLabel.get('mermaid')).toBe(1);
     expect(byLabel.get('whiteboard')).toBe(2);
@@ -916,5 +964,195 @@ describe('graphAdjacencyOf', () => {
     expect(adjacency.get('remote:mfe1')).toEqual(new Set([dependency.key]));
     // The host consumes nothing in clean-skip — no adjacency entry.
     expect(adjacency.get('remote:__NF-HOST__')).toBeUndefined();
+  });
+});
+
+// share-pools Task 4: the group-by switch re-clusters the dependency
+// column from the projection's `copyGroupingFacets`; nothing else may move.
+describe('buildGraphModel — group-by (share-pools T4)', () => {
+  const GROUPINGS = ['provider', 'shareScope', 'pool', 'build'] as const;
+  const dependencyClusterLabels = (model: GraphModel) =>
+    model.clusters
+      .filter((cluster) => cluster.column === 'dependencies')
+      .map((cluster) => `${cluster.label} (${cluster.count})`);
+  const groupedModel = (id: FixtureId, groupBy: (typeof GROUPINGS)[number]) =>
+    buildGraphModel(projectionOf(id), { groupBy });
+
+  it('T4-AC-01: clusters by share scope, pool, and build', () => {
+    expect(dependencyClusterLabels(groupedModel('frankenstein-live', 'shareScope'))).toEqual([
+      `default share scope (${dependencyNodesOf(modelOf('frankenstein-live')).length})`,
+    ]);
+    expect(dependencyClusterLabels(groupedModel('scoped', 'shareScope'))).toEqual([
+      `(private) (${dependencyNodesOf(modelOf('scoped')).length})`,
+    ]);
+    expect(dependencyClusterLabels(groupedModel('strict-scope', 'shareScope'))).toEqual([
+      `strict (${dependencyNodesOf(modelOf('strict-scope')).length})`,
+    ]);
+    expect(dependencyClusterLabels(groupedModel('pool-tag-coherent', 'pool'))).toEqual([
+      'pool ui (2)',
+      '(not pooled) (1)',
+    ]);
+    // Host-provided utils carries no bundle; mfe1's dense-lib entrypoints do.
+    expect(dependencyClusterLabels(groupedModel('dense-chunking-only', 'build'))).toEqual([
+      'mfe1 · browser-shared (2)',
+      '(no build info) (1)',
+    ]);
+    // The host's per-package bundles are separate builds of one remote.
+    expect(dependencyClusterLabels(groupedModel('frankenstein-live', 'build'))).toContain(
+      'host · browser-angular_core (6)',
+    );
+  });
+
+  it('T4-AC-01: pool clusters explain themselves; only a remote build takes a hue', () => {
+    const model = groupedModel('pool-tag-anchored', 'pool');
+    const pool = model.clusters.find((cluster) => cluster.label === 'pool ui')!;
+    expect(pool.tooltip).toBe('formed by: mfe1 "ui", mfe2 "ui"');
+    for (const groupBy of ['shareScope', 'pool'] as const) {
+      const clusters = buildGraphModel(projectionOf('frankenstein-live'), {
+        groupBy,
+        participantColors: new Map([['whiteboard', 1]]),
+      }).clusters.filter((cluster) => cluster.column === 'dependencies');
+      expect(clusters.every((cluster) => cluster.colorIndex === null)).toBe(true);
+    }
+    const build = buildGraphModel(projectionOf('dense-chunking-only'), {
+      groupBy: 'build',
+      participantColors: new Map([['mfe1', 2]]),
+    }).clusters.filter((cluster) => cluster.column === 'dependencies');
+    expect(build.map((cluster) => [cluster.label, cluster.colorIndex])).toEqual([
+      ['mfe1 · browser-shared', 2],
+      ['(no build info)', null],
+    ]);
+  });
+
+  it('T4-AC-02: every grouping keeps the node and edge set', () => {
+    const identity = (model: GraphModel) => ({
+      nodes: model.nodes.map((node) => node.key).sort(),
+      edges: model.edges.map((edge) => edge.id).sort(),
+      refs: model.bundleEdgeRefs.map((ref) => ref.key).sort(),
+    });
+    for (const id of [
+      'frankenstein-live',
+      'scoped',
+      'pool-tag-coherent',
+      'dense-chunking-only',
+    ] as const) {
+      const provider = identity(groupedModel(id, 'provider'));
+      for (const groupBy of GROUPINGS)
+        expect(identity(groupedModel(id, groupBy))).toEqual(provider);
+    }
+  });
+
+  it('T4-AC-01: deterministic per grouping; provider equals the default', () => {
+    for (const groupBy of GROUPINGS) {
+      expect(groupedModel('pool-tag-anchored', groupBy)).toEqual(
+        groupedModel('pool-tag-anchored', groupBy),
+      );
+    }
+    expect(groupedModel('frankenstein-live', 'provider')).toEqual(modelOf('frankenstein-live'));
+  });
+});
+
+// Accordion: an open dependency lists its secondary entrypoints; build-files
+// groups collapse to one summary row unless open (at most one per column).
+describe('buildGraphModel — accordion', () => {
+  const copyIdOf = (id: FixtureId, label: string) =>
+    dependencyNodesOf(modelOf(id)).find((node) => node.label === label)!.id;
+
+  it('lists a flat build’s secondary copies under the open dependency', () => {
+    const projection = projectionOf('frankenstein-live');
+    const common = copyIdOf('frankenstein-live', '@angular/common');
+    const model = buildGraphModel(projection, { expandedCopyId: common });
+    expect(model.listItems.map((item) => [item.text, item.packageSelect])).toEqual([
+      ['@angular/common/http', null],
+      ['see usage details', '__GLOBAL__|@angular/common'],
+    ]);
+    expect(
+      dependencyNodesOf(model)
+        .filter((node) => node.expanded)
+        .map((n) => n.label),
+    ).toEqual(['@angular/common']);
+    // Rows (entrypoint + usage link) push the following node down by their height.
+    const before = dependencyNodesOf(modelOf('frankenstein-live'));
+    const after = dependencyNodesOf(model);
+    const index = before.findIndex((node) => node.id === common);
+    expect(after[index + 1].y - before[index + 1].y).toBe(2 * LIST_ROW_H + NODE_VGAP);
+  });
+
+  it('lists a dense build’s own entries-map secondaries', () => {
+    const lib = copyIdOf('dense-both', '@nf-lab/dense-lib');
+    const model = buildGraphModel(projectionOf('dense-both'), { expandedCopyId: lib });
+    expect(model.listItems.map((item) => [item.text, item.packageSelect])).toEqual([
+      ['@nf-lab/dense-lib/extra', null],
+      ['see usage details', '__GLOBAL__|@nf-lab/dense-lib'],
+    ]);
+    const utils = copyIdOf('dense-both', '@nf-lab/utils');
+    expect(
+      buildGraphModel(projectionOf('dense-both'), { expandedCopyId: utils }).listItems.map(
+        (item) => item.text,
+      ),
+    ).toEqual(['no secondary entrypoints', 'see usage details']);
+  });
+
+  it('collapses build groups to summary rows; one open group shows its files', () => {
+    const projection = projectionOf('frankenstein-live');
+    const collapsed = buildGraphModel(projection, { expandedBuildKey: null });
+    // Single-file builds show their file directly and cannot collapse.
+    expect(chunkNodesOf(collapsed).map((node) => (node.summary ? node.label : 'file'))).toEqual([
+      '3 files',
+      '11 files',
+      'file',
+      '3 files',
+      'file',
+      'file',
+      '7 files',
+    ]);
+    expect(collapsed.clusters.filter((c) => c.column === 'chunks').map((c) => c.expanded)).toEqual([
+      false,
+      false,
+      null,
+      false,
+      null,
+      null,
+      false,
+    ]);
+    // One reference per (copy, build): 20 copies, one build each.
+    expect(collapsed.bundleEdgeRefs.length).toBe(20);
+
+    const core = collapsed.clusters.find((c) => c.label === 'host · browser-angular_core')!;
+    const open = buildGraphModel(projection, { expandedBuildKey: core.key });
+    expect(open.clusters.find((c) => c.key === core.key)!.expanded).toBe(true);
+    expect(chunkNodesOf(open).filter((node) => !node.summary).length).toBe(14);
+    expect(chunkNodesOf(open).filter((node) => node.summary).length).toBe(3);
+    // Grouping and filtering never change the accordion's node identity rule.
+    expect(buildGraphModel(projection, { expandedBuildKey: core.key })).toEqual(open);
+  });
+
+  // The "see usage details" link must land on a Packages entry whose detail
+  // lists this very copy — checked against the real Packages VM for every
+  // copy of every fixture, so the two grouping rules cannot drift apart.
+  it('links every expandable copy to the Packages entry that lists it', () => {
+    let linked = 0;
+    for (const fixtureId of Object.keys(FIXTURES) as FixtureId[]) {
+      const model = ingestSnapshot(structuredClone(FIXTURES[fixtureId]));
+      for (const copy of model.resolutionProjection.copies) {
+        const link = buildGraphModel(model.resolutionProjection, {
+          expandedCopyId: copy.id,
+        }).listItems.find((item) => item.packageSelect !== null);
+        if (link === undefined) {
+          continue;
+        }
+        linked += 1;
+        const detail = buildPackagesVm(model, {
+          filter: 'all',
+          selectedParticipant: null,
+          selectedId: link.packageSelect,
+        }).detail;
+        expect(
+          detail?.blocks.map((block) => block.copyId),
+          `${fixtureId}: ${copy.id} -> ${link.packageSelect}`,
+        ).toContain(copy.id);
+      }
+    }
+    expect(linked).toBeGreaterThan(0);
   });
 });

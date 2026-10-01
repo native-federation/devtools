@@ -1,0 +1,232 @@
+.pools-definition,
+.pool-meta,
+.pool-note,
+.pool-band-note,
+.pool-verdict-why,
+.pools-legend {
+  font-size: 12px;
+  color: var(--nf-color-text-muted);
+}
+
+.pools-definition {
+  margin: 0 0 12px;
+}
+
+.mono {
+  font-family: var(--nf-font-mono);
+  font-size: 11px;
+}
+
+.pools-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.pools-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 10px;
+  margin-right: 4px;
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+
+.pool-card {
+  margin: 0 0 16px;
+  padding: 8px 12px;
+  border: 1px solid var(--nf-color-border);
+  border-radius: 6px;
+}
+
+.pool-card.selected {
+  border-color: var(--nf-color-accent);
+}
+
+.pool-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pool-name {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pool-scope,
+.pool-tag {
+  padding: 0 4px;
+  border: 1px solid var(--nf-color-border);
+  border-radius: 3px;
+  font-size: 10px;
+  color: var(--nf-color-text-muted);
+}
+
+.pool-graph-link {
+  margin-left: auto;
+  font-size: 12px;
+}
+
+/* A wide family scrolls inside its card, never the page. */
+.pool-matrix-wrap {
+  margin: 16px 0 4px;
+  overflow-x: auto;
+}
+
+.pool-matrix {
+  border-collapse: separate;
+  border-spacing: 2px;
+}
+
+.pool-matrix th {
+  padding: 1px 8px 1px 0;
+  font-weight: normal;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.pool-matrix thead th {
+  color: var(--nf-color-text-muted);
+}
+
+/* One width for the remote column in every pool, so the version columns line up across cards. */
+.pool-matrix thead th:first-child,
+.pool-matrix th[scope='row'] {
+  box-sizing: border-box;
+  width: 240px;
+  min-width: 240px;
+  padding-right: 12px;
+}
+
+.pool-band th {
+  padding-top: 6px;
+  font-weight: 600;
+  color: var(--nf-color-text-muted);
+}
+
+.pool-band-note {
+  font-weight: normal;
+}
+
+.pool-remote {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pool-redirected {
+  font-size: 11px;
+  color: var(--nf-color-text-muted);
+}
+
+.pool-matrix td {
+  min-width: 4.5em;
+  /* Digits have no descenders: a tight line box nudged down centres them optically. */
+  padding: 4px 6px 2px;
+  line-height: 1;
+  border-radius: 3px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--nf-color-text-muted);
+}
+
+.pool-matrix td[tabindex]:focus-visible {
+  outline: 2px solid var(--nf-color-focus-ring);
+  outline-offset: 1px;
+}
+
+/* Scoped to the cell (and the legend swatch) so the states outrank the muted cell text above. */
+.pool-matrix td[data-state='unchanged'],
+.pools-swatch[data-state='unchanged'] {
+  background: var(--nf-color-surface);
+}
+
+.pool-matrix td[data-state='conflict'],
+.pools-swatch[data-state='conflict'] {
+  background: var(--nf-color-conflict);
+  color: var(--nf-color-conflict-contrast);
+  font-weight: 700;
+}
+
+.pool-matrix td[data-state='isolated'],
+.pool-matrix td[data-state='not-shared'],
+.pools-swatch[data-state='isolated'] {
+  background: var(--nf-color-isolated-bg);
+  color: var(--nf-color-isolated-text);
+  font-weight: 600;
+}
+
+.pool-matrix td[data-state='serves-others'],
+.pools-swatch[data-state='serves-others'] {
+  background: var(--nf-color-serves-bg);
+  color: var(--nf-color-serves-text);
+  font-weight: 600;
+}
+
+.pool-matrix td[data-state] {
+  cursor: help;
+}
+
+/* Quiet by design: only the type carries colour, and only for isolation or a torn combination. */
+.pool-verdict {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 4px 0;
+  font-size: 12px;
+}
+
+.pool-verdict-type {
+  font-weight: 700;
+  color: var(--nf-color-text-muted);
+}
+
+.pool-verdict[data-tone='isolated'] .pool-verdict-type {
+  color: var(--nf-color-isolated-text);
+}
+
+.pool-verdict[data-tone='torn'] .pool-verdict-type {
+  color: var(--nf-color-conflict-text);
+}
+
+.pool-note {
+  margin: 2px 0;
+}
+
+.pool-orphan,
+.pools-version-warning {
+  padding: 0 4px;
+  border: 1px solid var(--nf-color-warning-border);
+  border-radius: 3px;
+  background: var(--nf-color-warning-bg);
+  color: var(--nf-color-warning-text);
+}
+
+.pools-version-warning {
+  margin: 0 0 12px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.pools-orphans-heading {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pools-orphans {
+  margin: 4px 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+}
+
+.pool-orphan {
+  width: fit-content;
+  margin: 2px 0;
+}

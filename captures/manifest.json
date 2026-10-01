@@ -11,7 +11,7 @@
     },
     "orchestratorCommit": "8e5e0b3",
     "probe": {
-      "file": "scripts/lab-capture-dump.js",
+      "file": "scripts/lab-capture-dump-v1.js",
       "schemaVersion": "lab-lossless-capture/1",
       "sha256": "c9060b95128f24b86bf723bda4e342629429126f4d739c6b409841486291bb00"
     }

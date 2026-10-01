@@ -1,0 +1,918 @@
+{
+  "schemaVersion": "lab-lossless-capture/1",
+  "capturedAt": "2026-09-30T11:30:40.897Z",
+  "scenario": {
+    "scenarioId": "pool-portfolio",
+    "orchestratorCommit": "4.7.0",
+    "ready": true,
+    "readyError": null
+  },
+  "page": {
+    "url": "http://localhost:4300/",
+    "origin": "http://localhost:4300",
+    "path": "/",
+    "title": "nf-lab pool-portfolio",
+    "readyState": "complete"
+  },
+  "collector": {
+    "probe": "lab-capture-dump/1",
+    "sanitization": "lossless"
+  },
+  "channels": {
+    "nativeFederationGlobals": {
+      "availability": "available",
+      "observedAt": "2026-09-30T11:30:40.895Z",
+      "data": {
+        "present": true,
+        "valueType": "object",
+        "namespaceKeys": [
+          "remotes",
+          "shared-externals"
+        ],
+        "namespace": {
+          "remotes": {
+            "products": {
+              "scopeUrl": "./products/",
+              "exposes": [
+                {
+                  "moduleName": "./main",
+                  "file": "main-JZC7PVTU.js"
+                }
+              ]
+            },
+            "search": {
+              "scopeUrl": "./search/",
+              "exposes": [
+                {
+                  "moduleName": "./main",
+                  "file": "main-JZC7PVTU.js"
+                }
+              ]
+            },
+            "settings": {
+              "scopeUrl": "./settings/",
+              "exposes": [
+                {
+                  "moduleName": "./main",
+                  "file": "main-JZC7PVTU.js"
+                }
+              ]
+            },
+            "profile": {
+              "scopeUrl": "./profile/",
+              "exposes": [
+                {
+                  "moduleName": "./main",
+                  "file": "main-JZC7PVTU.js"
+                }
+              ]
+            },
+            "cart": {
+              "scopeUrl": "./cart/",
+              "exposes": [
+                {
+                  "moduleName": "./main",
+                  "file": "main-JZC7PVTU.js"
+                }
+              ]
+            },
+            "orders": {
+              "scopeUrl": "./orders/",
+              "exposes": [
+                {
+                  "moduleName": "./main",
+                  "file": "main-SJMAHDUI.js"
+                }
+              ]
+            },
+            "invoices": {
+              "scopeUrl": "./invoices/",
+              "exposes": [
+                {
+                  "moduleName": "./main",
+                  "file": "main-SJMAHDUI.js"
+                }
+              ]
+            },
+            "contacts": {
+              "scopeUrl": "./contacts/",
+              "exposes": [
+                {
+                  "moduleName": "./main",
+                  "file": "main-SJMAHDUI.js"
+                }
+              ]
+            },
+            "onboarding": {
+              "scopeUrl": "./onboarding/",
+              "exposes": [
+                {
+                  "moduleName": "./main",
+                  "file": "main-SJMAHDUI.js"
+                }
+              ]
+            },
+            "reports": {
+              "scopeUrl": "./reports/",
+              "exposes": [
+                {
+                  "moduleName": "./main",
+                  "file": "main-SJMAHDUI.js"
+                }
+              ]
+            },
+            "legacy": {
+              "scopeUrl": "./legacy/",
+              "exposes": [
+                {
+                  "moduleName": "./main",
+                  "file": "main-SJMAHDUI.js"
+                }
+              ]
+            },
+            "__NF-HOST__": {
+              "scopeUrl": "./",
+              "exposes": []
+            }
+          },
+          "shared-externals": {
+            "__GLOBAL__": {
+              "@nf-lab/acme-core": {
+                "dirty": false,
+                "poolName": "acme",
+                "versions": [
+                  {
+                    "tag": "18.2.0",
+                    "host": true,
+                    "action": "share",
+                    "remotes": [
+                      {
+                        "name": "__NF-HOST__",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": "^18.0.0",
+                        "entries": {
+                          "@nf-lab/acme-core": "_nf_lab_acme_core._lqn63yOi7.js"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "18.1.3",
+                    "host": false,
+                    "action": "skip",
+                    "remotes": [
+                      {
+                        "name": "products",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-core": "_nf_lab_acme_core.CBL6eVZ92m.js"
+                        }
+                      },
+                      {
+                        "name": "search",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-core": "_nf_lab_acme_core.CBL6eVZ92m.js"
+                        }
+                      },
+                      {
+                        "name": "settings",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-core": "_nf_lab_acme_core.CBL6eVZ92m.js"
+                        }
+                      },
+                      {
+                        "name": "profile",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-core": "_nf_lab_acme_core.CBL6eVZ92m.js"
+                        }
+                      },
+                      {
+                        "name": "cart",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-core": "_nf_lab_acme_core.CBL6eVZ92m.js"
+                        }
+                      },
+                      {
+                        "name": "orders",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-core": "_nf_lab_acme_core.CBL6eVZ92m.js"
+                        },
+                        "servedBy": "orders"
+                      },
+                      {
+                        "name": "invoices",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-core": "_nf_lab_acme_core.CBL6eVZ92m.js"
+                        },
+                        "servedBy": "orders"
+                      },
+                      {
+                        "name": "contacts",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-core": "_nf_lab_acme_core.CBL6eVZ92m.js"
+                        },
+                        "servedBy": "orders"
+                      },
+                      {
+                        "name": "onboarding",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-core": "_nf_lab_acme_core.CBL6eVZ92m.js"
+                        },
+                        "servedBy": "orders"
+                      },
+                      {
+                        "name": "reports",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "entries": {
+                          "@nf-lab/acme-core": "_nf_lab_acme_core.CBL6eVZ92m.js"
+                        },
+                        "servedBy": "orders"
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "16.2.12",
+                    "host": false,
+                    "action": "scope",
+                    "remotes": [
+                      {
+                        "name": "legacy",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": "^16.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-core": "_nf_lab_acme_core.9F39ycxW9d.js"
+                        },
+                        "poolCause": "incompatible"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "@nf-lab/acme-common": {
+                "dirty": false,
+                "poolName": "acme",
+                "versions": [
+                  {
+                    "tag": "18.2.0",
+                    "host": true,
+                    "action": "share",
+                    "remotes": [
+                      {
+                        "name": "__NF-HOST__",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": "^18.0.0",
+                        "entries": {
+                          "@nf-lab/acme-common": "_nf_lab_acme_common.MmYG9ya5tm.js"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "18.1.3",
+                    "host": false,
+                    "action": "skip",
+                    "remotes": [
+                      {
+                        "name": "products",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-common": "_nf_lab_acme_common.xj02f30kez.js"
+                        }
+                      },
+                      {
+                        "name": "search",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-common": "_nf_lab_acme_common.xj02f30kez.js"
+                        }
+                      },
+                      {
+                        "name": "settings",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-common": "_nf_lab_acme_common.xj02f30kez.js"
+                        }
+                      },
+                      {
+                        "name": "profile",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-common": "_nf_lab_acme_common.xj02f30kez.js"
+                        }
+                      },
+                      {
+                        "name": "cart",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-common": "_nf_lab_acme_common.xj02f30kez.js"
+                        }
+                      },
+                      {
+                        "name": "orders",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-common": "_nf_lab_acme_common.xj02f30kez.js"
+                        },
+                        "servedBy": "orders"
+                      },
+                      {
+                        "name": "invoices",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-common": "_nf_lab_acme_common.xj02f30kez.js"
+                        },
+                        "servedBy": "orders"
+                      },
+                      {
+                        "name": "contacts",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-common": "_nf_lab_acme_common.xj02f30kez.js"
+                        },
+                        "servedBy": "orders"
+                      },
+                      {
+                        "name": "onboarding",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-common": "_nf_lab_acme_common.xj02f30kez.js"
+                        },
+                        "servedBy": "orders"
+                      },
+                      {
+                        "name": "reports",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "entries": {
+                          "@nf-lab/acme-common": "_nf_lab_acme_common.xj02f30kez.js"
+                        },
+                        "servedBy": "orders"
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "16.2.12",
+                    "host": false,
+                    "action": "scope",
+                    "remotes": [
+                      {
+                        "name": "legacy",
+                        "strictVersion": false,
+                        "cached": true,
+                        "requiredVersion": "^16.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-common": "_nf_lab_acme_common.zpK1ykCNPu.js"
+                        },
+                        "poolCause": "incompatible"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "@nf-lab/acme-router": {
+                "dirty": false,
+                "poolName": "acme",
+                "versions": [
+                  {
+                    "tag": "18.2.0",
+                    "host": true,
+                    "action": "share",
+                    "remotes": [
+                      {
+                        "name": "__NF-HOST__",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": "^18.0.0",
+                        "entries": {
+                          "@nf-lab/acme-router": "_nf_lab_acme_router.0upHOBLkHx.js"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "18.1.3",
+                    "host": false,
+                    "action": "skip",
+                    "remotes": [
+                      {
+                        "name": "products",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-router": "_nf_lab_acme_router.LZMoTvZiG2.js"
+                        }
+                      },
+                      {
+                        "name": "search",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-router": "_nf_lab_acme_router.LZMoTvZiG2.js"
+                        }
+                      },
+                      {
+                        "name": "settings",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-router": "_nf_lab_acme_router.LZMoTvZiG2.js"
+                        }
+                      },
+                      {
+                        "name": "profile",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-router": "_nf_lab_acme_router.LZMoTvZiG2.js"
+                        }
+                      },
+                      {
+                        "name": "cart",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-router": "_nf_lab_acme_router.LZMoTvZiG2.js"
+                        }
+                      },
+                      {
+                        "name": "orders",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-router": "_nf_lab_acme_router.LZMoTvZiG2.js"
+                        },
+                        "servedBy": "orders"
+                      },
+                      {
+                        "name": "invoices",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-router": "_nf_lab_acme_router.LZMoTvZiG2.js"
+                        },
+                        "servedBy": "orders"
+                      },
+                      {
+                        "name": "contacts",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-router": "_nf_lab_acme_router.LZMoTvZiG2.js"
+                        },
+                        "servedBy": "orders"
+                      },
+                      {
+                        "name": "onboarding",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-router": "_nf_lab_acme_router.LZMoTvZiG2.js"
+                        },
+                        "servedBy": "orders"
+                      },
+                      {
+                        "name": "reports",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "entries": {
+                          "@nf-lab/acme-router": "_nf_lab_acme_router.LZMoTvZiG2.js"
+                        },
+                        "servedBy": "orders"
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "16.2.12",
+                    "host": false,
+                    "action": "scope",
+                    "remotes": [
+                      {
+                        "name": "legacy",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": "^16.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-router": "_nf_lab_acme_router.AwUyup05cP.js"
+                        },
+                        "poolCause": "incompatible"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "@nf-lab/acme-forms": {
+                "dirty": false,
+                "poolName": "acme",
+                "versions": [
+                  {
+                    "tag": "18.1.3",
+                    "host": false,
+                    "action": "share",
+                    "remotes": [
+                      {
+                        "name": "orders",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-forms": "_nf_lab_acme_forms.IWzwv3bFmd.js"
+                        }
+                      },
+                      {
+                        "name": "invoices",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-forms": "_nf_lab_acme_forms.IWzwv3bFmd.js"
+                        }
+                      },
+                      {
+                        "name": "contacts",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-forms": "_nf_lab_acme_forms.IWzwv3bFmd.js"
+                        }
+                      },
+                      {
+                        "name": "onboarding",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-forms": "_nf_lab_acme_forms.IWzwv3bFmd.js"
+                        }
+                      },
+                      {
+                        "name": "reports",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "entries": {
+                          "@nf-lab/acme-forms": "_nf_lab_acme_forms.IWzwv3bFmd.js"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "16.2.12",
+                    "host": false,
+                    "action": "scope",
+                    "remotes": [
+                      {
+                        "name": "legacy",
+                        "strictVersion": false,
+                        "cached": true,
+                        "requiredVersion": "^16.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-forms": "_nf_lab_acme_forms.94Pg3JRWsX.js"
+                        },
+                        "poolCause": "incompatible"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "@nf-lab/acme-animations": {
+                "dirty": false,
+                "poolName": "acme",
+                "versions": [
+                  {
+                    "tag": "18.1.3",
+                    "host": false,
+                    "action": "share",
+                    "remotes": [
+                      {
+                        "name": "orders",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-animations": "_nf_lab_acme_animations.iX1JyydcgC.js"
+                        }
+                      },
+                      {
+                        "name": "invoices",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-animations": "_nf_lab_acme_animations.iX1JyydcgC.js"
+                        }
+                      },
+                      {
+                        "name": "contacts",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-animations": "_nf_lab_acme_animations.iX1JyydcgC.js"
+                        }
+                      },
+                      {
+                        "name": "onboarding",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-animations": "_nf_lab_acme_animations.iX1JyydcgC.js"
+                        }
+                      },
+                      {
+                        "name": "reports",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^18.0.0",
+                        "entries": {
+                          "@nf-lab/acme-animations": "_nf_lab_acme_animations.iX1JyydcgC.js"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "16.2.12",
+                    "host": false,
+                    "action": "scope",
+                    "remotes": [
+                      {
+                        "name": "legacy",
+                        "strictVersion": false,
+                        "cached": true,
+                        "requiredVersion": "^16.0.0",
+                        "pool": "acme",
+                        "entries": {
+                          "@nf-lab/acme-animations": "_nf_lab_acme_animations.3hwm9OyNIq.js"
+                        },
+                        "poolCause": "incompatible"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "orchestratorGlobal": {
+      "availability": "available",
+      "observedAt": "2026-09-30T11:30:40.896Z",
+      "data": {
+        "present": true,
+        "valueType": "object",
+        "keys": [
+          "storage"
+        ],
+        "storage": {
+          "__NATIVE_FEDERATION__": {
+            "version": "4.7.0",
+            "type": "globalThis",
+            "namespace": "__NATIVE_FEDERATION__",
+            "keys": [
+              "remotes",
+              "shared-externals",
+              "scoped-externals",
+              "shared-chunks"
+            ],
+            "hasGet": true
+          }
+        }
+      }
+    },
+    "domImportMaps": {
+      "availability": "available",
+      "observedAt": "2026-09-30T11:30:40.896Z",
+      "data": {
+        "count": 1,
+        "maps": [
+          {
+            "index": 0,
+            "type": "importmap-shim",
+            "text": "{\"imports\":{\"@nf-lab/acme-core\":\"./_nf_lab_acme_core._lqn63yOi7.js\",\"@nf-lab/acme-common\":\"./_nf_lab_acme_common.MmYG9ya5tm.js\",\"@nf-lab/acme-router\":\"./_nf_lab_acme_router.0upHOBLkHx.js\",\"@nf-lab/acme-forms\":\"./orders/_nf_lab_acme_forms.IWzwv3bFmd.js\",\"@nf-lab/acme-animations\":\"./orders/_nf_lab_acme_animations.iX1JyydcgC.js\",\"products/./main\":\"./products/main-JZC7PVTU.js\",\"search/./main\":\"./search/main-JZC7PVTU.js\",\"settings/./main\":\"./settings/main-JZC7PVTU.js\",\"profile/./main\":\"./profile/main-JZC7PVTU.js\",\"cart/./main\":\"./cart/main-JZC7PVTU.js\",\"orders/./main\":\"./orders/main-SJMAHDUI.js\",\"invoices/./main\":\"./invoices/main-SJMAHDUI.js\",\"contacts/./main\":\"./contacts/main-SJMAHDUI.js\",\"onboarding/./main\":\"./onboarding/main-SJMAHDUI.js\",\"reports/./main\":\"./reports/main-SJMAHDUI.js\",\"legacy/./main\":\"./legacy/main-SJMAHDUI.js\"},\"scopes\":{\"./legacy/\":{\"@nf-lab/acme-core\":\"./legacy/_nf_lab_acme_core.9F39ycxW9d.js\",\"@nf-lab/acme-common\":\"./legacy/_nf_lab_acme_common.zpK1ykCNPu.js\",\"@nf-lab/acme-router\":\"./legacy/_nf_lab_acme_router.AwUyup05cP.js\",\"@nf-lab/acme-forms\":\"./legacy/_nf_lab_acme_forms.94Pg3JRWsX.js\",\"@nf-lab/acme-animations\":\"./legacy/_nf_lab_acme_animations.3hwm9OyNIq.js\"},\"./orders/\":{\"@nf-lab/acme-core\":\"./orders/_nf_lab_acme_core.CBL6eVZ92m.js\",\"@nf-lab/acme-common\":\"./orders/_nf_lab_acme_common.xj02f30kez.js\",\"@nf-lab/acme-router\":\"./orders/_nf_lab_acme_router.LZMoTvZiG2.js\"},\"./invoices/\":{\"@nf-lab/acme-core\":\"./orders/_nf_lab_acme_core.CBL6eVZ92m.js\",\"@nf-lab/acme-common\":\"./orders/_nf_lab_acme_common.xj02f30kez.js\",\"@nf-lab/acme-router\":\"./orders/_nf_lab_acme_router.LZMoTvZiG2.js\"},\"./contacts/\":{\"@nf-lab/acme-core\":\"./orders/_nf_lab_acme_core.CBL6eVZ92m.js\",\"@nf-lab/acme-common\":\"./orders/_nf_lab_acme_common.xj02f30kez.js\",\"@nf-lab/acme-router\":\"./orders/_nf_lab_acme_router.LZMoTvZiG2.js\"},\"./onboarding/\":{\"@nf-lab/acme-core\":\"./orders/_nf_lab_acme_core.CBL6eVZ92m.js\",\"@nf-lab/acme-common\":\"./orders/_nf_lab_acme_common.xj02f30kez.js\",\"@nf-lab/acme-router\":\"./orders/_nf_lab_acme_router.LZMoTvZiG2.js\"},\"./reports/\":{\"@nf-lab/acme-core\":\"./orders/_nf_lab_acme_core.CBL6eVZ92m.js\",\"@nf-lab/acme-common\":\"./orders/_nf_lab_acme_common.xj02f30kez.js\",\"@nf-lab/acme-router\":\"./orders/_nf_lab_acme_router.LZMoTvZiG2.js\"}}}",
+            "parsed": true,
+            "map": {
+              "imports": {
+                "@nf-lab/acme-core": "./_nf_lab_acme_core._lqn63yOi7.js",
+                "@nf-lab/acme-common": "./_nf_lab_acme_common.MmYG9ya5tm.js",
+                "@nf-lab/acme-router": "./_nf_lab_acme_router.0upHOBLkHx.js",
+                "@nf-lab/acme-forms": "./orders/_nf_lab_acme_forms.IWzwv3bFmd.js",
+                "@nf-lab/acme-animations": "./orders/_nf_lab_acme_animations.iX1JyydcgC.js",
+                "products/./main": "./products/main-JZC7PVTU.js",
+                "search/./main": "./search/main-JZC7PVTU.js",
+                "settings/./main": "./settings/main-JZC7PVTU.js",
+                "profile/./main": "./profile/main-JZC7PVTU.js",
+                "cart/./main": "./cart/main-JZC7PVTU.js",
+                "orders/./main": "./orders/main-SJMAHDUI.js",
+                "invoices/./main": "./invoices/main-SJMAHDUI.js",
+                "contacts/./main": "./contacts/main-SJMAHDUI.js",
+                "onboarding/./main": "./onboarding/main-SJMAHDUI.js",
+                "reports/./main": "./reports/main-SJMAHDUI.js",
+                "legacy/./main": "./legacy/main-SJMAHDUI.js"
+              },
+              "scopes": {
+                "./legacy/": {
+                  "@nf-lab/acme-core": "./legacy/_nf_lab_acme_core.9F39ycxW9d.js",
+                  "@nf-lab/acme-common": "./legacy/_nf_lab_acme_common.zpK1ykCNPu.js",
+                  "@nf-lab/acme-router": "./legacy/_nf_lab_acme_router.AwUyup05cP.js",
+                  "@nf-lab/acme-forms": "./legacy/_nf_lab_acme_forms.94Pg3JRWsX.js",
+                  "@nf-lab/acme-animations": "./legacy/_nf_lab_acme_animations.3hwm9OyNIq.js"
+                },
+                "./orders/": {
+                  "@nf-lab/acme-core": "./orders/_nf_lab_acme_core.CBL6eVZ92m.js",
+                  "@nf-lab/acme-common": "./orders/_nf_lab_acme_common.xj02f30kez.js",
+                  "@nf-lab/acme-router": "./orders/_nf_lab_acme_router.LZMoTvZiG2.js"
+                },
+                "./invoices/": {
+                  "@nf-lab/acme-core": "./orders/_nf_lab_acme_core.CBL6eVZ92m.js",
+                  "@nf-lab/acme-common": "./orders/_nf_lab_acme_common.xj02f30kez.js",
+                  "@nf-lab/acme-router": "./orders/_nf_lab_acme_router.LZMoTvZiG2.js"
+                },
+                "./contacts/": {
+                  "@nf-lab/acme-core": "./orders/_nf_lab_acme_core.CBL6eVZ92m.js",
+                  "@nf-lab/acme-common": "./orders/_nf_lab_acme_common.xj02f30kez.js",
+                  "@nf-lab/acme-router": "./orders/_nf_lab_acme_router.LZMoTvZiG2.js"
+                },
+                "./onboarding/": {
+                  "@nf-lab/acme-core": "./orders/_nf_lab_acme_core.CBL6eVZ92m.js",
+                  "@nf-lab/acme-common": "./orders/_nf_lab_acme_common.xj02f30kez.js",
+                  "@nf-lab/acme-router": "./orders/_nf_lab_acme_router.LZMoTvZiG2.js"
+                },
+                "./reports/": {
+                  "@nf-lab/acme-core": "./orders/_nf_lab_acme_core.CBL6eVZ92m.js",
+                  "@nf-lab/acme-common": "./orders/_nf_lab_acme_common.xj02f30kez.js",
+                  "@nf-lab/acme-router": "./orders/_nf_lab_acme_router.LZMoTvZiG2.js"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "importShim": {
+      "availability": "available",
+      "observedAt": "2026-09-30T11:30:40.897Z",
+      "data": {
+        "present": true,
+        "valueType": "function",
+        "version": "2.8.4",
+        "map": {
+          "imports": {
+            "@nf-lab/acme-core": "http://localhost:4300/_nf_lab_acme_core._lqn63yOi7.js",
+            "@nf-lab/acme-common": "http://localhost:4300/_nf_lab_acme_common.MmYG9ya5tm.js",
+            "@nf-lab/acme-router": "http://localhost:4300/_nf_lab_acme_router.0upHOBLkHx.js",
+            "@nf-lab/acme-forms": "http://localhost:4300/orders/_nf_lab_acme_forms.IWzwv3bFmd.js",
+            "@nf-lab/acme-animations": "http://localhost:4300/orders/_nf_lab_acme_animations.iX1JyydcgC.js",
+            "products/./main": "http://localhost:4300/products/main-JZC7PVTU.js",
+            "search/./main": "http://localhost:4300/search/main-JZC7PVTU.js",
+            "settings/./main": "http://localhost:4300/settings/main-JZC7PVTU.js",
+            "profile/./main": "http://localhost:4300/profile/main-JZC7PVTU.js",
+            "cart/./main": "http://localhost:4300/cart/main-JZC7PVTU.js",
+            "orders/./main": "http://localhost:4300/orders/main-SJMAHDUI.js",
+            "invoices/./main": "http://localhost:4300/invoices/main-SJMAHDUI.js",
+            "contacts/./main": "http://localhost:4300/contacts/main-SJMAHDUI.js",
+            "onboarding/./main": "http://localhost:4300/onboarding/main-SJMAHDUI.js",
+            "reports/./main": "http://localhost:4300/reports/main-SJMAHDUI.js",
+            "legacy/./main": "http://localhost:4300/legacy/main-SJMAHDUI.js"
+          },
+          "scopes": {
+            "http://localhost:4300/legacy/": {
+              "@nf-lab/acme-core": "http://localhost:4300/legacy/_nf_lab_acme_core.9F39ycxW9d.js",
+              "@nf-lab/acme-common": "http://localhost:4300/legacy/_nf_lab_acme_common.zpK1ykCNPu.js",
+              "@nf-lab/acme-router": "http://localhost:4300/legacy/_nf_lab_acme_router.AwUyup05cP.js",
+              "@nf-lab/acme-forms": "http://localhost:4300/legacy/_nf_lab_acme_forms.94Pg3JRWsX.js",
+              "@nf-lab/acme-animations": "http://localhost:4300/legacy/_nf_lab_acme_animations.3hwm9OyNIq.js"
+            },
+            "http://localhost:4300/orders/": {
+              "@nf-lab/acme-core": "http://localhost:4300/orders/_nf_lab_acme_core.CBL6eVZ92m.js",
+              "@nf-lab/acme-common": "http://localhost:4300/orders/_nf_lab_acme_common.xj02f30kez.js",
+              "@nf-lab/acme-router": "http://localhost:4300/orders/_nf_lab_acme_router.LZMoTvZiG2.js"
+            },
+            "http://localhost:4300/invoices/": {
+              "@nf-lab/acme-core": "http://localhost:4300/orders/_nf_lab_acme_core.CBL6eVZ92m.js",
+              "@nf-lab/acme-common": "http://localhost:4300/orders/_nf_lab_acme_common.xj02f30kez.js",
+              "@nf-lab/acme-router": "http://localhost:4300/orders/_nf_lab_acme_router.LZMoTvZiG2.js"
+            },
+            "http://localhost:4300/contacts/": {
+              "@nf-lab/acme-core": "http://localhost:4300/orders/_nf_lab_acme_core.CBL6eVZ92m.js",
+              "@nf-lab/acme-common": "http://localhost:4300/orders/_nf_lab_acme_common.xj02f30kez.js",
+              "@nf-lab/acme-router": "http://localhost:4300/orders/_nf_lab_acme_router.LZMoTvZiG2.js"
+            },
+            "http://localhost:4300/onboarding/": {
+              "@nf-lab/acme-core": "http://localhost:4300/orders/_nf_lab_acme_core.CBL6eVZ92m.js",
+              "@nf-lab/acme-common": "http://localhost:4300/orders/_nf_lab_acme_common.xj02f30kez.js",
+              "@nf-lab/acme-router": "http://localhost:4300/orders/_nf_lab_acme_router.LZMoTvZiG2.js"
+            },
+            "http://localhost:4300/reports/": {
+              "@nf-lab/acme-core": "http://localhost:4300/orders/_nf_lab_acme_core.CBL6eVZ92m.js",
+              "@nf-lab/acme-common": "http://localhost:4300/orders/_nf_lab_acme_common.xj02f30kez.js",
+              "@nf-lab/acme-router": "http://localhost:4300/orders/_nf_lab_acme_router.LZMoTvZiG2.js"
+            }
+          },
+          "integrity": {}
+        }
+      }
+    }
+  },
+  "collectionErrors": []
+}

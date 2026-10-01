@@ -64,6 +64,18 @@ export function buildCapturePage(capture: Record<string, any>): Record<string, u
     sandbox['__NATIVE_FEDERATION__'] = structuredClone(globals.data.namespace);
   }
 
+  // Captures from before the lab recorded this channel lack it, like pages before orchestrator v4.7.
+  const orchestrator = channels.orchestratorGlobal;
+  if (orchestrator?.availability === 'available' && orchestrator.data?.present === true) {
+    const storage: Record<string, unknown> = {};
+    for (const [namespace, { hasGet, ...entry }] of Object.entries<any>(
+      orchestrator.data.storage,
+    )) {
+      storage[namespace] = Object.freeze({ ...entry, ...(hasGet && { get: () => undefined }) });
+    }
+    sandbox['__NF_ORCHESTRATOR__'] = Object.freeze({ storage: Object.freeze(storage) });
+  }
+
   const shim = channels.importShim;
   if (shim?.availability === 'available' && shim.data?.present === true) {
     const importShim = () => {};
@@ -151,8 +163,9 @@ export function buildFrankensteinPage(): FixturePage {
   sandbox['localStorage'] = localStorage;
   sandbox['sessionStorage'] = sessionStorage;
 
-  const scriptNodes = (sandbox['document'] as { querySelectorAll: (s: string) => unknown[] })
-    .querySelectorAll(IMPORT_MAP_SELECTOR);
+  const scriptNodes = (
+    sandbox['document'] as { querySelectorAll: (s: string) => unknown[] }
+  ).querySelectorAll(IMPORT_MAP_SELECTOR);
 
   return {
     sandbox,
@@ -323,5 +336,7 @@ function dataSnapshot(value: unknown, seen = new WeakSet<object>()): unknown {
 
 /** sha256 hex digest over the descriptor-level snapshot of the targets. */
 export function digestState(targets: Record<string, unknown>): string {
-  return createHash('sha256').update(JSON.stringify(dataSnapshot(targets))).digest('hex');
+  return createHash('sha256')
+    .update(JSON.stringify(dataSnapshot(targets)))
+    .digest('hex');
 }

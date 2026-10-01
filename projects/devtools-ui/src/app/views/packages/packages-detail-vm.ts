@@ -23,6 +23,7 @@ import type {
   ResolvedDependencyCopy,
   VersionRegistration,
 } from '../../shared/store/resolution';
+import { PoolChipVm, poolChipOf } from '../../shared/pool-chip';
 import { ChunkClaimVm, buildCopyChunkClaims } from './packages-chunk-vm';
 import {
   CanonicalIndexes,
@@ -71,6 +72,8 @@ export interface ConsumerRowVm {
   viaSpecifiers: string[];
   /** `select` payload for the /remotes cross-link. */
   remoteSelect: string;
+  /** The declaration's explicit pool tag; null when untagged or private. */
+  pool: PoolChipVm | null;
 }
 
 /** One mapped entrypoint file line of a copy block. */
@@ -132,6 +135,8 @@ export interface UnresolvedRowVm {
   offered: AnnotationVm | null;
   /** `select` payload for the /remotes cross-link. */
   remoteSelect: string;
+  /** The declaration's explicit pool tag; null when untagged or private. */
+  pool: PoolChipVm | null;
 }
 
 export interface PackageDetailVm {
@@ -417,6 +422,7 @@ function consumersOf(
       deviations: consumerDeviationsOf(declaration, registration, copyClaims, indexes),
       viaSpecifiers: specifiers.includes(group.packageName) ? [] : specifiers,
       remoteSelect: declaration.participant,
+      pool: poolChipOf(declaration, indexes.projection),
     });
   }
 
@@ -474,6 +480,7 @@ function consumersOf(
         ],
         viaSpecifiers: [],
         remoteSelect: declaration.participant,
+        pool: poolChipOf(declaration, indexes.projection),
       });
     } else {
       const registration = indexes.privateRegistrationById.get(subject.privateRegistrationId);
@@ -489,6 +496,7 @@ function consumersOf(
         deviations: [declaredUnder],
         viaSpecifiers: [],
         remoteSelect: registration.ownerRemote,
+        pool: null,
       });
     }
   }
@@ -580,6 +588,7 @@ export function buildDetail(
       declared: declaredOf(declaration, registration, group.scope),
       strict: declaration.strictVersion,
       remoteSelect: declaration.participant,
+      pool: poolChipOf(declaration, indexes.projection),
     };
     if (claims.length === 0) {
       unresolved.push({

@@ -5,6 +5,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { environment } from '../environments/environment';
 import { SnapshotExportService } from './shared/snapshot-export.service';
 import { FederationStore } from './shared/store/federation-store';
+import { hasPoolTags } from './views/pools/pools-view-model';
 import { CaptureStatusStrip } from './shell/capture-status-strip';
 
 @Component({
@@ -21,6 +22,11 @@ export class App {
   protected readonly shellExtras = environment.shellExtras;
 
   protected readonly capturing = computed(() => this.store.state().status === 'capturing');
+
+  protected readonly hasPools = computed(() => {
+    const model = this.store.model();
+    return model !== null && hasPoolTags(model.resolutionProjection);
+  });
 
   /**
    * Capture identity of the current snapshot. Read from the store directly,

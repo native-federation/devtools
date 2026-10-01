@@ -98,6 +98,8 @@ export interface ExternalRemoteV1 {
   pool?: string;
   /** Raw per-declaration anchor when the runtime declaration carries one. */
   servedBy?: string;
+  /** Why pooling made this copy serve itself (orchestrator v4.7+); raw, e.g. 'incompatible'. */
+  poolCause?: string;
   /** Normalized served files, fed by whichever spelling is present. */
   servedFiles: ServedFileV1[];
   /** Generation this participant's spelling discriminates. */
@@ -117,6 +119,8 @@ export interface ExternalVersionV1 {
 
 export interface ExternalV1 {
   dirty: boolean;
+  /** The pool this external resolves in, as the orchestrator (v4.7+) stored it. */
+  poolName?: string;
   versions: ExternalVersionV1[];
 }
 
@@ -164,6 +168,8 @@ export interface RuntimeRepositoriesV1 {
   sharedChunks: Record<string, Record<string, string[]>>;
   /** Aggregate of the participant generation discriminators. */
   generation: SnapshotGenerationV1;
+  /** `__NF_ORCHESTRATOR__.storage.__NATIVE_FEDERATION__.version`; absent before orchestrator v4.7. */
+  orchestratorVersion?: string;
 }
 
 export interface ImportMapEntryV1 {

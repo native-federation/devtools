@@ -63,10 +63,12 @@
   // awaited exactly as before — their envelope shape is unchanged. Live
   // pages (frankenstein-live) do not; instead of recording an error, fall
   // back to a settled-page condition and say so via `readySource`/`phase`
-  // — keys that exist ONLY in fallback mode. `orchestratorCommit` is the
-  // pinned lab commit in runner mode and null in fallback mode: a live
-  // deployment's version is provenance, recorded in the run manifest as
-  // far as observable, never stamped by the probe.
+  // — keys that exist ONLY in fallback mode. `orchestratorCommit` is null
+  // in fallback mode: a live deployment's version is provenance, recorded
+  // in the run manifest as far as observable, never stamped by the probe.
+  // In runner mode it is the version the page exposes on
+  // `__NF_ORCHESTRATOR__` (orchestrator v4.7+), or the pinned lab commit
+  // for an orchestrator that exposes none.
   const scenario = {
     scenarioId: null,
     orchestratorCommit: ORCHESTRATOR_COMMIT,
@@ -103,6 +105,10 @@
         )
       ]);
       scenario.ready = true;
+    }
+    if (scenario.orchestratorCommit !== null) {
+      const exposed = globalThis.__NF_ORCHESTRATOR__?.storage?.__NATIVE_FEDERATION__?.version;
+      if (typeof exposed === "string") scenario.orchestratorCommit = exposed;
     }
   } catch (error) {
     // Capture proceeds anyway (verify-scenario precedent): a failed
@@ -149,6 +155,41 @@
     }
   } catch (error) {
     addError("namespace-unreadable", "channels.nativeFederationGlobals", error && error.message);
+  }
+
+  // --- channel: orchestratorGlobal (__NF_ORCHESTRATOR__, orchestrator v4.7+) --
+  // The storage descriptor the orchestrator exposes for tools (native-federation/orchestrator#86).
+  // Absent before v4.7, which is an observation, not an error. Each entry's `get` is a function,
+  // so it is recorded as `hasGet` and never called.
+  const orchestratorGlobal = { availability: "unavailable", observedAt: now(), data: null };
+  try {
+    const value = globalThis.__NF_ORCHESTRATOR__;
+    if (value === undefined || value === null) {
+      orchestratorGlobal.data = { present: false };
+    } else {
+      const storageValue = value.storage;
+      const storage = {};
+      for (const namespace of Object.getOwnPropertyNames(storageValue ?? {})) {
+        const entry = storageValue[namespace];
+        const plain = {};
+        for (const key of Object.getOwnPropertyNames(entry)) {
+          if (key !== "get") plain[key] = entry[key];
+        }
+        storage[namespace] = {
+          ...cloneJson(plain, "channels.orchestratorGlobal.storage." + namespace),
+          hasGet: typeof entry.get === "function"
+        };
+      }
+      orchestratorGlobal.availability = "available";
+      orchestratorGlobal.data = {
+        present: true,
+        valueType: typeof value,
+        keys: Object.getOwnPropertyNames(value),
+        storage
+      };
+    }
+  } catch (error) {
+    addError("orchestrator-global-unreadable", "channels.orchestratorGlobal", error && error.message);
   }
 
   // --- channel: domImportMaps (tag inventory, document order) -------------
@@ -225,6 +266,7 @@
     },
     channels: {
       nativeFederationGlobals,
+      orchestratorGlobal,
       domImportMaps,
       importShim
     },

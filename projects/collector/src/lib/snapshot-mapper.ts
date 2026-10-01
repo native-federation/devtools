@@ -101,6 +101,8 @@ export function mapProbeResult(
   const globals = dataValue(rawProbe, 'globals');
 
   const { nfChannel, runtime } = mapRuntime(dataValue(globals, 'nativeFederation'), errors, limits);
+  const orchestratorVersion = mapOrchestratorVersion(dataValue(globals, 'orchestrator'), errors, limits);
+  if (runtime !== null && orchestratorVersion !== null) runtime.orchestratorVersion = orchestratorVersion;
   const { domChannel, documentMaps } = mapDocumentMaps(
     dataValue(rawProbe, 'importMaps'),
     errors,
@@ -177,6 +179,21 @@ function boundedReasonToken(value: unknown): string {
 }
 
 // --- runtime repositories -------------------------------------------------
+
+// A version token or nothing: anything else a page put there is dropped, never carried as text.
+const VERSION_TOKEN = /^[0-9A-Za-z.+-]{1,64}$/;
+
+function mapOrchestratorVersion(
+  summary: unknown,
+  errors: CollectionError[],
+  limits: CollectorLimits,
+): string | null {
+  const version = dataValue(summary, 'version');
+  if (version === undefined) return null;
+  if (typeof version === 'string' && VERSION_TOKEN.test(version)) return version;
+  appendError(errors, limits, 'mapper', 'orchestrator-version-invalid');
+  return null;
+}
 
 function mapRuntime(
   summary: unknown,
@@ -344,8 +361,10 @@ function toExternalScopes(
       if (!isObjectLike(externalRaw)) {
         continue;
       }
+      const poolName = dataValue(externalRaw, 'poolName');
       scopeOutput[pkg] = {
         dirty: dataValue(externalRaw, 'dirty') === true,
+        ...(typeof poolName === 'string' ? { poolName } : {}),
         versions: toExternalVersions(dataValue(externalRaw, 'versions'), errors, limits, `shared-externals.${pkg}`),
       };
     }
@@ -458,6 +477,7 @@ function toExternalRemotes(
     const bundle = dataValue(remoteRaw, 'bundle');
     const pool = dataValue(remoteRaw, 'pool');
     const servedBy = dataValue(remoteRaw, 'servedBy');
+    const poolCause = dataValue(remoteRaw, 'poolCause');
     remotes.push({
       name,
       requiredVersion,
@@ -468,6 +488,7 @@ function toExternalRemotes(
       bundle: typeof bundle === 'string' ? bundle : null,
       ...(typeof pool === 'string' ? { pool } : {}),
       ...(typeof servedBy === 'string' ? { servedBy } : {}),
+      ...(typeof poolCause === 'string' ? { poolCause } : {}),
       servedFiles:
         entries !== null
           ? Object.entries(entries).map(([entry, entryFile]) => ({ entry, file: entryFile }))

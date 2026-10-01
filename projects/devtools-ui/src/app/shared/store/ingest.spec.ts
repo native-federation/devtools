@@ -766,8 +766,16 @@ describe('ingestSnapshot — provenance carry', () => {
       capturedAt: '2026-08-11T11:56:25.504Z',
       collectorVersion: 'nf-devtools-collector/3',
       generation: 'v4',
+      // Captured before orchestrator v4.7 published __NF_ORCHESTRATOR__.
+      orchestratorVersion: null,
     });
     expect(model.channels).toEqual(FIXTURES['frankenstein-live'].channels);
+  });
+
+  it('carries the orchestrator version the runtime published', () => {
+    const snapshot = structuredClone(FIXTURES['frankenstein-live']);
+    snapshot.runtime!.orchestratorVersion = '4.7.0';
+    expect(ingestSnapshot(snapshot).provenance.orchestratorVersion).toBe('4.7.0');
   });
 });
 

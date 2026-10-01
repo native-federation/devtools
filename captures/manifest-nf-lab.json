@@ -1,0 +1,97 @@
+{
+  "schemaVersion": "lab-lossless-corpus/1",
+  "runId": "20260930T113012Z",
+  "createdAt": "2026-09-30T11:31:13.651Z",
+  "source": {
+    "playground": {
+      "repository": "native-federation/playground",
+      "branch": "lab/grouping-and-pooling",
+      "commit": "93a924e1e6648c28e3012626b8e6df44c09e13d4",
+      "runner": "lab/run-scenario.mjs"
+    },
+    "orchestratorCommit": "4.7.0",
+    "probe": {
+      "file": "scripts/lab-capture-dump.js",
+      "schemaVersion": "lab-lossless-capture/1",
+      "sha256": "58fa54295b66e6e24d8c1a49e0b8f0cf0e16907a6a4eb3aaed2de05f0eafe51f"
+    }
+  },
+  "collector": {
+    "kind": "playwright-cdp",
+    "interface": "headless-chromium",
+    "webMcpUsed": false,
+    "sanitization": "lossless"
+  },
+  "serving": {
+    "mode": "run-scenario-single-origin",
+    "origin": "http://localhost:4300",
+    "cacheControl": "no-store"
+  },
+  "expectedScenarios": [
+    "dense-both",
+    "dense-chunking-only",
+    "dense-externals-only",
+    "pool-portfolio",
+    "pool-showcase",
+    "pool-tag-anchored",
+    "pool-tag-coherent",
+    "pool-tag-islanded",
+    "pool-tag-orphan"
+  ],
+  "captures": [
+    {
+      "scenario": "dense-both",
+      "path": "dense-both/20260930T113012Z.json",
+      "runstamp": "20260930T113012Z",
+      "sha256": "76e8caefb716e059e7f32b569ee89776ea970ca84a4f286ea6065d2a06f9a4ee"
+    },
+    {
+      "scenario": "dense-chunking-only",
+      "path": "dense-chunking-only/20260930T113012Z.json",
+      "runstamp": "20260930T113012Z",
+      "sha256": "19241538f0b7f27edbede650c8261be8835964a08d7d86267b90441e90de90b4"
+    },
+    {
+      "scenario": "dense-externals-only",
+      "path": "dense-externals-only/20260930T113012Z.json",
+      "runstamp": "20260930T113012Z",
+      "sha256": "0154e7a1369923944802d9ebb7b9c83b7c7de76133fb3c1195920263c51b1775"
+    },
+    {
+      "scenario": "pool-portfolio",
+      "path": "pool-portfolio/20260930T113012Z.json",
+      "runstamp": "20260930T113012Z",
+      "sha256": "cabb9c5c39fa284b55095278bdd875ba151bc28f7ebb9870dca767382fd42ef5"
+    },
+    {
+      "scenario": "pool-showcase",
+      "path": "pool-showcase/20260930T113012Z.json",
+      "runstamp": "20260930T113012Z",
+      "sha256": "d649a089ca367a58959bd8e1fb7ac15f781d0a6fbdab1922b5e2c87d4d78bc5c"
+    },
+    {
+      "scenario": "pool-tag-anchored",
+      "path": "pool-tag-anchored/20260930T113012Z.json",
+      "runstamp": "20260930T113012Z",
+      "sha256": "ab7ae8d8d71f135488a157099cde14d603bc9f9b0b328aee14d7fcc4de0c7653"
+    },
+    {
+      "scenario": "pool-tag-coherent",
+      "path": "pool-tag-coherent/20260930T113012Z.json",
+      "runstamp": "20260930T113012Z",
+      "sha256": "c30bb26b476be675f723699d91d117bb17223ac7a3b4d31ea076644dd53acc6c"
+    },
+    {
+      "scenario": "pool-tag-islanded",
+      "path": "pool-tag-islanded/20260930T113012Z.json",
+      "runstamp": "20260930T113012Z",
+      "sha256": "08821e8a5147266c97eaaa956c1ef05225d2e2a4371aad72836945ef6c08b048"
+    },
+    {
+      "scenario": "pool-tag-orphan",
+      "path": "pool-tag-orphan/20260930T113012Z.json",
+      "runstamp": "20260930T113012Z",
+      "sha256": "effb0b5eaeb08e1ceef34c796720a08c81d47cbd26cd37ab7bbcac5d8ca3a018"
+    }
+  ]
+}

@@ -257,16 +257,11 @@ describe('RemotesView', () => {
     // The badge section is gone; one meta line carries the words.
     expect(el.querySelector('.capability')).toBeNull();
     const words = Array.from(el.querySelectorAll<HTMLElement>('.capability-word'));
-    expect(words.map((word) => word.textContent)).toEqual([
-      'dense chunking',
-      'dense externals',
-      'SRI',
-    ]);
+    expect(words.map((word) => word.textContent)).toEqual(['dense chunking', 'SRI']);
     expect(words[0].title).toBe(
-      'the registry records per-bundle chunk lists for this remote (config: features.denseChunking: true, default false, since core v4.0.0)',
+      "the registry records per-bundle chunk lists for this remote; this remote's registrations carry their serving bundle (config: features.denseChunking: true, default false, since core v4.0.0)",
     );
-    expect(words[1].title).toContain('(config: features.denseChunking: true');
-    expect(words[2].title).toContain('(config: features.integrityHashes: true');
+    expect(words[1].title).toContain('(config: features.integrityHashes: true');
   });
 
   // T8.6-AC-01 (DOM half): provides blocks with folded head, indented

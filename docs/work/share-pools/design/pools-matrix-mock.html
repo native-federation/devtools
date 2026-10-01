@@ -1,0 +1,503 @@
+<title>Pools Tab Mock-up</title>
+<style>
+  /* Layout: the devtools panel's own chrome — dense 12px UI, cards per pool, summary before detail. */
+  :root {
+    --bg: #ffffff;
+    --surface: #f1f3f4;
+    --border: #d9d9d9;
+    --text: #202124;
+    --muted: #5f6368;
+    --accent: #1a73e8;
+    --good: #137333;
+    --good-bg: #e6f4ea;
+    --warn: #8a5300;
+    --warn-bg: #fcf3d7;
+    --warn-border: #e3c26d;
+    --bad: #c5221f;
+    --bad-bg: #fce8e6;
+    --bad-border: #f1a9a4;
+    --own: #b95000;
+    --own-bg: #ffd9b3;
+    --own-border: #f0a35e;
+    --redirect-bg: #b7e4c4;
+    --p1: #2a78d6; --p2: #eb6834; --p3: #1baf7a; --p4: #eda100;
+    --p5: #e87ba4; --p6: #008300; --p7: #4a3aa7; --p8: #e34948; --p-host: #80868b;
+    --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      --bg: #202124; --surface: #292a2d; --border: #494c50; --text: #e8eaed; --muted: #9aa0a6;
+      --accent: #8ab4f8; --good: #81c995; --good-bg: #1e3326; --warn: #f0c674; --warn-bg: #35301f;
+      --warn-border: #6b5c2a; --bad: #f28b82; --bad-bg: #3c2322; --bad-border: #7a3b37; --own: #ffb870; --own-bg: #5a3313; --own-border: #a85c1c; --redirect-bg: #1f4a2c;
+      --p1: #3987e5; --p2: #d95926; --p3: #199e70; --p4: #c98500; --p5: #d55181; --p6: #008300; --p7: #9085e9; --p8: #e66767; --p-host: #9aa0a6;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme='dark'] {
+    --bg: #202124; --surface: #292a2d; --border: #494c50; --text: #e8eaed; --muted: #9aa0a6;
+    --accent: #8ab4f8; --good: #81c995; --good-bg: #1e3326; --warn: #f0c674; --warn-bg: #35301f;
+    --warn-border: #6b5c2a; --bad: #f28b82; --bad-bg: #3c2322; --bad-border: #7a3b37; --own: #ffb870; --own-bg: #5a3313; --own-border: #a85c1c; --redirect-bg: #1f4a2c;
+    --p1: #3987e5; --p2: #d95926; --p3: #199e70; --p4: #c98500; --p5: #d55181; --p6: #008300; --p7: #9085e9; --p8: #e66767; --p-host: #9aa0a6;
+    color-scheme: dark;
+  }
+
+  body { background: var(--bg); color: var(--text); font: 12px/1.45 var(--font-ui); }
+  .page { max-width: 1100px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 40px; display: grid; gap: 14px; }
+  .mono { font-family: var(--font-mono); font-size: 11px; }
+  .muted { color: var(--muted); }
+
+  .intro { display: grid; gap: 6px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 6px; }
+  .intro h1 { margin: 0; font-size: 13px; }
+  .intro p { margin: 0; max-width: 90ch; color: var(--muted); }
+
+  summary:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .tab-head { display: grid; gap: 4px; }
+  .tab-head h2 { margin: 0; font-size: 12px; }
+  .tab-head p { margin: 0; color: var(--muted); max-width: 110ch; }
+  .tab-head a { color: var(--accent); }
+
+  .pool { border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: grid; gap: 10px; min-width: 0; }
+  .pool-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+  .pool-name { margin: 0; font: 600 12px var(--font-mono); }
+  .pool-meta { color: var(--muted); }
+  .pool-head a { margin-left: auto; color: var(--accent); }
+
+  /* Quiet by design: only the icon and type carry colour, and only isolation gets one. */
+  .verdict { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+  .verdict .icon { font-weight: 700; width: 1.1em; text-align: center; flex: none; }
+  .verdict.good, .verdict.warn { color: var(--muted); }
+  .verdict.bad { color: var(--own); }
+  .type { font-weight: 700; letter-spacing: 0.02em; white-space: nowrap; }
+  .type .sub { font-weight: 600; opacity: 0.85; }
+  .verdict .detail { color: var(--text); min-width: 0; }
+  .verdict .detail .why { color: var(--muted); }
+  .verdicts { display: grid; gap: 2px; }
+
+  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 0 5px; border: 1px solid var(--border);
+    border-radius: 3px; font: 11px var(--font-mono); white-space: nowrap; background: var(--bg); color: var(--text); }
+  .chip::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--dot); }
+  .chip.host { background: var(--surface); }
+  .tag { padding: 0 4px; border: 1px solid var(--border); border-radius: 3px; font: 10px var(--font-mono); color: var(--muted); }
+
+  /* Option A: one box per build, holding the remotes that load it. */
+  .builds { display: flex; flex-wrap: wrap; gap: 10px; }
+  .build { flex: 1 1 260px; min-width: 0; border: 1px solid var(--border); border-top: 3px solid var(--dot);
+    border-radius: 4px; padding: 8px 10px; display: grid; gap: 6px; background: var(--surface); }
+  .build.own { border-color: var(--own-border); border-top-color: var(--own); background: var(--own-bg); }
+  .build-title { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+  .build-title b { font-weight: 600; }
+  .build-title .kind { color: var(--muted); }
+  .build.own .kind { color: var(--own); font-weight: 600; }
+  .members { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .moved { color: var(--good); font-size: 11px; cursor: help; margin-right: 4px; }
+  .pkgs { display: grid; grid-template-columns: max-content max-content; gap: 1px 12px; }
+  .pkgs .v { font-variant-numeric: tabular-nums; }
+  .pkgs .conflict { color: var(--bad); font-weight: 600; }
+  .flag { display: inline-block; margin-left: 6px; padding: 0 4px; border-radius: 3px; font: 600 10px var(--font-ui);
+    color: var(--bg); background: var(--bad); cursor: help; vertical-align: 1px; }
+
+  /* Option B: the package x remote matrix, each cell tinted with the colour of the build serving it. */
+  .matrix-wrap { overflow-x: auto; }
+  table.matrix { border-collapse: separate; border-spacing: 3px; }
+  .matrix th { text-align: left; font-weight: normal; padding: 2px 6px 2px 0; white-space: nowrap; }
+  .matrix th .notag { display: block; color: var(--muted); font-size: 10px; }
+  .matrix td { padding: 3px 8px; border-radius: 3px; white-space: nowrap; font: 11px var(--font-mono);
+    font-variant-numeric: tabular-nums; background: color-mix(in srgb, var(--dot) 22%, var(--bg));
+    border-left: 3px solid var(--dot); }
+  .matrix tr.band th { padding-top: 8px; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .matrix thead .scope { display: block; color: var(--muted); font-size: 10px; }
+  .matrix td.empty { background: none; border-left-color: transparent; color: var(--muted); }
+  .matrix td.own-copy { outline: 1px solid var(--bad); outline-offset: -1px; }
+  .matrix td small { color: var(--muted); margin-left: 6px; font-family: var(--font-ui); }
+  .matrix td.own-copy small { color: var(--bad); }
+  .matrix td.conflict { background: var(--bad-bg); outline: 2px solid var(--bad); outline-offset: -2px; color: var(--bad); font-weight: 600; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; color: var(--muted); font-size: 11px; }
+
+  /* Overview: every remote x every pooled package, coloured by what happened to that copy. */
+  .overview-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; }
+  table.overview-grid { border-collapse: separate; border-spacing: 2px; }
+  .overview-grid th { font-weight: normal; white-space: nowrap; text-align: left; padding: 1px 6px 1px 0; }
+  .overview-grid thead th.pool-col { text-align: center; font: 600 11px var(--font-mono); padding: 0 4px 2px;
+    border-bottom: 2px solid var(--pool-edge); }
+  .overview-grid thead th.pool-col a { color: inherit; text-decoration: none; }
+  .overview-grid thead th.pool-col a:hover { text-decoration: underline; }
+  .overview-grid thead th.pkg { font: 10px var(--font-mono); color: var(--muted); padding: 2px 4px; text-align: center; }
+  .overview-grid tr.band .band-note { font-weight: normal; }
+  .overview-grid tr.band th { padding-top: 6px; font-weight: 600; color: var(--muted); font-size: 11px; }
+  .overview-grid td { min-width: 4.5em; padding: 2px 5px; border-radius: 3px; text-align: center;
+    font: 10px var(--font-mono); font-variant-numeric: tabular-nums; cursor: default; }
+  .overview-grid td.gap-l { box-shadow: -4px 0 0 var(--bg); }
+  .s-same { background: var(--surface); color: var(--muted); }
+  .s-chosen { background: var(--redirect-bg); color: var(--good); font-weight: 600; }
+  .s-own { background: var(--own-bg); color: var(--own); font-weight: 600; }
+  .s-conflict { background: var(--bad); color: var(--bg); font-weight: 700; }
+  .s-none { color: var(--border); }
+  .swatch { display: inline-block; width: 12px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
+
+  details > summary { cursor: pointer; color: var(--muted); width: fit-content; }
+  details[open] > summary { margin-bottom: 6px; }
+  .notes { display: grid; gap: 2px; color: var(--muted); margin: 0; padding: 0; list-style: none; }
+  .orphans h3 { margin: 0 0 4px; font-size: 12px; }
+  .orphan { width: fit-content; padding: 0 5px; border: 1px solid var(--warn-border); border-radius: 3px;
+    background: var(--warn-bg); color: var(--warn); }
+
+  @media (max-width: 520px) { .pool-head a { margin-left: 0; } }
+</style>
+
+<div class="page">
+  <section class="intro" aria-label="About this mock-up">
+    <h1>Pools tab mock-up</h1>
+    <p>
+      Uses the data from the lab's <span class="mono">pool-showcase</span> scenario on orchestrator 4.7.0: four
+      pools plus a larger twelve-remote family. Each pool shows a matrix of what happened to every remote's copy of
+      every package, grouped by the build it loads. Problem pools come first.
+    </p>
+  </section>
+
+  <header class="tab-head">
+    <h2>Pools</h2>
+    <p>
+      A pool is a set of packages that must come from the same build. Each pool lists its builds and the remotes
+      that load them.
+      <a href="https://native-federation.com/docs/v4/orchestrator/pooling/">Pooling docs</a>
+    </p>
+  </header>
+
+  <div class="legend" aria-label="Matrix colours">
+    <span><span class="swatch s-conflict"></span>conflict</span>
+    <span><span class="swatch s-own"></span>isolated / not shared</span>
+    <span><span class="swatch s-chosen"></span>build that serves other remotes</span>
+    <span><span class="swatch s-same"></span>unchanged or redirected</span>
+    <span>· not used. Hover a cell for details.</span>
+  </div>
+
+  <div id="pools"></div>
+
+  <section class="orphans" aria-label="Tags that formed no pool">
+    <h3>Tags that formed no pool</h3>
+    <div class="orphan">@nf-lab/icons: tag "icons" by catalog joined nothing. Likely a typo or a missing sibling.</div>
+  </section>
+</div>
+
+<script>
+  const HOST = 'host';
+  // Example data: what the showcase capture holds, restated per pool as builds and served cells.
+  // A larger portfolio: one framework family across the host and eleven remotes.
+  const ACME = ['@acme/core', '@acme/common', '@acme/router', '@acme/forms', '@acme/animations', '@acme/core/rxjs-interop'];
+  const ON_HOST = ['products', 'search', 'settings', 'profile', 'cart'];
+  const ON_ORDERS = ['orders', 'invoices', 'customers', 'reports', 'onboarding'];
+  const hostVersions = { '@acme/core': '18.2.0', '@acme/common': '18.2.0', '@acme/router': '18.2.0', '@acme/core/rxjs-interop': '18.2.0' };
+  const ordersVersions = Object.fromEntries(ACME.map((p) => [p, '18.1.3']));
+  const legacyVersions = Object.fromEntries(ACME.map((p) => [p, '16.2.12']));
+  const served = (versions, build, note) =>
+    Object.fromEntries(Object.entries(versions).map(([p, v]) => [p, note ? [v, build, note] : [v, build]]));
+  const FRAMEWORK = {
+    name: 'acme',
+    packages: ACME,
+    remotes: [
+      { name: HOST },
+      ...ON_HOST.map((name) => ({ name, tag: 'acme' })),
+      ...ON_ORDERS.map((name) => ({ name, tag: name === 'reports' ? undefined : 'acme' })),
+      { name: 'legacy', tag: 'acme' },
+    ],
+    verdict: {
+      kind: 'bad',
+      type: 'Isolated',
+      cause: 'version conflict',
+      detail: 'legacy', why: '2 conflicts',
+    },
+    also: [
+      {
+        kind: 'warn',
+        type: 'Redirected',
+        cause: 'would mix builds',
+        detail: '4 remotes → build of orders', why: 'host has no forms, animations',
+      },
+    ],
+    // Each copy's declared range and whether its range accepts the shared tag (semver in the real tab).
+    shared: { '@acme/core': '18.2.0', '@acme/common': '18.2.0', '@acme/router': '18.2.0', '@acme/forms': '18.1.3',
+      '@acme/animations': '18.1.3', '@acme/core/rxjs-interop': '18.2.0' },
+    ranges: {
+      legacy: Object.fromEntries(ACME.map((p) => [p, {
+        range: '^16.0.0', strict: p === '@acme/core' || p === '@acme/router', accepts: false }])),
+    },
+    // legacy is strict on core and router only: those two conflict, the rest follow it into isolation.
+    conflicts: {
+      legacy: {
+        '@acme/core': { range: '^16.0.0', shared: '18.2.0' },
+        '@acme/router': { range: '^16.0.0', shared: '18.2.0' },
+      },
+    },
+    builds: [
+      { owner: HOST, members: [{ name: HOST }, ...ON_HOST.map((name) => ({ name }))], versions: hostVersions, note: 'host precedence' },
+      {
+        owner: 'orders',
+        members: ON_ORDERS.map((name) => ({ name, moved: name !== 'orders' })),
+        versions: ordersVersions,
+      },
+      { owner: 'legacy', own: true, members: [{ name: 'legacy' }], versions: legacyVersions },
+    ],
+    cells: {
+      [HOST]: served(hostVersions, HOST),
+      ...Object.fromEntries(ON_HOST.map((name) => [name, served(hostVersions, HOST, 'from host')])),
+      orders: served(ordersVersions, 'orders'),
+      ...Object.fromEntries(ON_ORDERS.filter((n) => n !== 'orders').map((name) => [name, served(ordersVersions, 'orders', 'from orders')])),
+      legacy: served(legacyVersions, 'legacy', 'own copy'),
+    },
+    notes: ['reports declares no tag, but uses these packages, so it takes part in the pool.'],
+  };
+
+  const POOLS = [
+    FRAMEWORK,
+    {
+      name: 'charts',
+      packages: ['@nf-lab/chart-core', '@nf-lab/chart-dom'],
+      remotes: [
+        { name: 'account', tag: 'charts' },
+        { name: 'catalog', tag: 'charts' },
+      ],
+      verdict: {
+        kind: 'bad',
+        type: 'Isolated',
+        cause: 'version conflict',
+        detail: 'catalog', why: '1 conflict',
+      },
+      // Strict copies whose range `semver` says rejects the shared tag; the evidence, not a culprit.
+      conflicts: { catalog: { '@nf-lab/chart-dom': { range: '^1.0.0', shared: '2.0.0' } } },
+      builds: [
+        { owner: 'account', members: [{ name: 'account' }], versions: { '@nf-lab/chart-core': '1.0.0', '@nf-lab/chart-dom': '2.0.0' } },
+        { owner: 'catalog', own: true, members: [{ name: 'catalog' }], versions: { '@nf-lab/chart-core': '1.1.0', '@nf-lab/chart-dom': '1.1.0' } },
+      ],
+      cells: {
+        account: { '@nf-lab/chart-core': ['1.0.0', 'account', 'no shared copy'], '@nf-lab/chart-dom': ['2.0.0', 'account'] },
+        catalog: { '@nf-lab/chart-core': ['1.1.0', 'catalog', 'own copy'], '@nf-lab/chart-dom': ['1.1.0', 'catalog', 'own copy'] },
+      },
+      notes: ['Nobody shares @nf-lab/chart-core: both remotes load their own.'],
+    },
+    {
+      name: 'ui',
+      packages: ['@nf-lab/ui-core', '@nf-lab/ui-dom'],
+      remotes: [
+        { name: HOST },
+        { name: 'catalog', tag: 'ui' },
+        { name: 'checkout', tag: 'ui' },
+        { name: 'admin' },
+      ],
+      verdict: {
+        kind: 'warn',
+        type: 'Redirected',
+        cause: 'would mix builds',
+        detail: 'checkout, admin → build of catalog', why: 'host has no ui-dom',
+      },
+      builds: [
+        {
+          owner: 'catalog',
+          members: [{ name: 'catalog' }, { name: 'checkout', moved: true }, { name: 'admin', moved: true }],
+          versions: { '@nf-lab/ui-core': '1.0.0', '@nf-lab/ui-dom': '1.0.0' },
+        },
+        { owner: HOST, members: [{ name: HOST }], versions: { '@nf-lab/ui-core': '2.0.0' }, note: 'host precedence' },
+      ],
+      cells: {
+        [HOST]: { '@nf-lab/ui-core': ['2.0.0', HOST] },
+        catalog: { '@nf-lab/ui-core': ['1.0.0', 'catalog'], '@nf-lab/ui-dom': ['1.0.0', 'catalog'] },
+        checkout: { '@nf-lab/ui-core': ['1.0.0', 'catalog', 'from catalog'], '@nf-lab/ui-dom': ['1.0.0', 'catalog', 'from catalog'] },
+        admin: { '@nf-lab/ui-core': ['1.0.0', 'catalog', 'from catalog'], '@nf-lab/ui-dom': ['1.0.0', 'catalog', 'from catalog'] },
+      },
+      notes: ['admin declares no tag, but uses these packages, so it takes part in the pool.'],
+    },
+    {
+      name: 'form-kit',
+      packages: ['@nf-lab/form-core', '@nf-lab/form-dom'],
+      remotes: [
+        { name: 'account', tag: 'form-kit' },
+        { name: 'checkout', tag: 'forms' },
+      ],
+      verdict: { kind: 'good', type: 'One build', detail: 'build of checkout' },
+      builds: [
+        {
+          owner: 'checkout',
+          members: [{ name: 'checkout' }, { name: 'account' }],
+          versions: { '@nf-lab/form-core': '1.1.0', '@nf-lab/form-dom': '1.1.0' },
+        },
+      ],
+      cells: {
+        account: { '@nf-lab/form-core': ['1.1.0', 'checkout', 'from checkout'], '@nf-lab/form-dom': ['1.1.0', 'checkout', 'from checkout'] },
+        checkout: { '@nf-lab/form-core': ['1.1.0', 'checkout'], '@nf-lab/form-dom': ['1.1.0', 'checkout'] },
+      },
+      notes: ['Tags "form-kit" and "forms" form one pool because both tag the same packages.'],
+    },
+  ];
+
+  const ICON = { good: '✓', warn: '↪', bad: '✕' };
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  // The panel's eight remote colours, in first-seen order; the host keeps its neutral.
+  const colourIndex = new Map();
+  const colourOf = (name) => {
+    if (name === HOST) return 'var(--p-host)';
+    if (!colourIndex.has(name)) colourIndex.set(name, (colourIndex.size % 8) + 1);
+    return `var(--p${colourIndex.get(name)})`;
+  };
+  const dot = (name) => `--dot: ${colourOf(name)}`;
+  const chip = (name) => `<span class="chip${name === HOST ? ' host' : ''}" style="${dot(name)}">${esc(name)}</span>`;
+
+  const conflictOf = (pool, remote, pkg) => pool.conflicts?.[remote]?.[pkg];
+  const flag = (c) =>
+    `<span class="flag" tabindex="0" title="Needs ${esc(c.range)}, shared is ${esc(c.shared)}">conflict</span>`;
+
+  function verdictHtml(v) {
+    return `<div class="verdict ${v.kind}" role="status">
+      <span class="icon" aria-hidden="true">${ICON[v.kind]}</span>
+      <span class="type">${esc(v.type)}${v.cause ? ` <span class="sub">· ${esc(v.cause)}</span>` : ''}</span>
+      <span class="detail">${esc(v.detail)}${v.why ? ` <span class="why">· ${esc(v.why)}</span>` : ''}</span>
+    </div>`;
+  }
+
+  function boxesHtml(pool) {
+    return `<div class="builds">${pool.builds
+      .map((b) => `<div class="build${b.own ? ' own' : ''}" style="${dot(b.owner)}">
+        <div class="build-title"><b>${esc(b.owner)}'s build</b><span class="kind">${
+          b.own ? 'own copy, used by nobody else' : b.note ?? `used by ${b.members.length}`}</span></div>
+        <div class="members">${b.members
+          .map((m) => chip(m.name) + (m.moved
+            ? `<span class="moved" tabindex="0" title="The shared versions would have mixed builds for ${esc(m.name)}, so it is redirected to this build.">↪ redirected</span>`
+            : ''))
+          .join(' ')}</div>
+        <div class="pkgs mono">${pool.packages
+          .map((p) => {
+            const c = conflictOf(pool, b.owner, p);
+            return `<span class="${c ? 'conflict' : ''}">${esc(p)}</span><span class="v${c ? ' conflict' : ''}">${esc(
+              b.versions[p] ?? '—')}${c ? flag(c) : ''}</span>`;
+          })
+          .join('')}</div>
+      </div>`)
+      .join('')}</div>`;
+  }
+
+  // Remotes as rows, grouped by the build that serves them, so each build is one coloured band and a
+  // large portfolio grows the table downwards. Packages as columns, with a shared npm scope said once.
+  function matrixHtml(pool) {
+    const scopes = new Set(pool.packages.map((p) => (p.startsWith('@') ? p.split('/')[0] : '')));
+    const scope = scopes.size === 1 ? [...scopes][0] : '';
+    const short = (p) => (scope ? p.slice(scope.length + 1) : p);
+    const remoteOf = new Map(pool.remotes.map((r) => [r.name, r]));
+    const head = pool.packages
+      .map((p, i) => `<th scope="col" class="mono">${i === 0 && scope ? `<span class="scope">${esc(scope)}/</span>` : scope ? '<span class="scope">&nbsp;</span>' : ''}${esc(short(p))}</th>`)
+      .join('');
+    const rowOf = (name) => {
+      const r = remoteOf.get(name);
+      const label = r.tag ? ` <span class="tag">${esc(r.tag)}</span>` : name === HOST ? '' : ' <span class="tag">no tag</span>';
+      const cells = pool.packages
+        .map((p) => {
+          const cell = pool.cells[name]?.[p];
+          if (!cell) return '<td class="empty">—</td>';
+          // The band already names the build, so a cell carries only its version (and a conflict).
+          const [version, build] = cell;
+          const c = conflictOf(pool, name, p);
+          if (c) return `<td class="conflict" style="${dot(build)}">${esc(version)}${flag(c)}</td>`;
+          return `<td style="${dot(build)}">${esc(version)}</td>`;
+        })
+        .join('');
+      return `<tr><th scope="row">${chip(name)}${label}</th>${cells}</tr>`;
+    };
+    const body = pool.builds
+      .map((b) => `<tr class="band"><th colspan="${pool.packages.length + 1}">${esc(b.owner)}'s build${b.own ? ' · own copy' : ''}</th></tr>${b.members.map((m) => rowOf(m.name)).join('')}`)
+      .join('');
+    return `<div class="matrix-wrap"><table class="matrix"><thead><tr><th></th>${head}</tr></thead><tbody>${body}</tbody></table></div>
+      <div class="legend"><span>Rows are grouped by the build that serves them; cell colour = that build.</span>${
+        pool.conflicts ? '<span>Red = its version range does not accept the shared version (hover for the range).</span>' : ''}</div>`;
+  }
+
+  function poolHtml(pool) {
+    const tags = [...new Set(pool.remotes.filter((r) => r.tag).map((r) => r.tag))];
+    const notes = pool.notes.length ? `<ul class="notes">${pool.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : '';
+    const body = statusMatrixHtml(pool) + notes;
+    return `<article class="pool" id="pool-${esc(pool.name)}" aria-label="pool ${esc(pool.name)}">
+      <header class="pool-head">
+        <h3 class="pool-name">pool ${esc(pool.name)}</h3>
+        <span class="pool-meta">${pool.packages.length} packages · ${pool.remotes.length} remotes · ${
+          tags.length > 1 ? 'tags' : 'tag'}: ${tags.map(esc).join(', ')}</span>
+        <a href="#pools">show in Graph</a>
+      </header>
+      <div class="verdicts">${[pool.verdict, ...(pool.also ?? [])].map(verdictHtml).join('')}</div>
+      ${body}
+    </article>`;
+  }
+
+  // What happened to one remote's copy of one package: the overview's cell state.
+  function stateOf(pool, remote, pkg) {
+    const cell = pool.cells[remote]?.[pkg];
+    if (!cell) return null;
+    const conflict = conflictOf(pool, remote, pkg);
+    if (conflict) return { cls: 's-conflict', label: 'conflict', text: `Conflict: needs ${conflict.range}, shared is ${conflict.shared}` };
+    const build = pool.builds.find((b) => b.members.some((m) => m.name === remote));
+    const member = build?.members.find((m) => m.name === remote);
+    if (build?.own) {
+      const culprits = Object.keys(pool.conflicts?.[remote] ?? {}).length;
+      const why = culprits > 0 ? `follows ${remote}'s ${culprits === 1 ? 'conflict' : 'conflicts'}, since a pool comes from one build` : 'runs the whole pool from its own build';
+      const range = pool.ranges?.[remote]?.[pkg];
+      const shared = pool.shared?.[pkg];
+      let detail = '';
+      if (range && shared) {
+        detail = range.accepts
+          ? ` Its range (${range.range}) accepts the shared ${shared}.`
+          : !range.strict
+            ? ` Its own range (${range.range}, not strict) wouldn't have blocked the shared ${shared}.`
+            : '';
+      }
+      return { cls: 's-own', label: 'isolated', text: `Isolated: ${why}.${detail}` };
+    }
+    if (cell[2] === 'no shared copy') return { cls: 's-own', label: 'not shared', text: 'Not shared: no remote shares this package, so each loads its own' };
+    if (member?.moved) return { cls: 's-same', label: 'redirected', text: `Redirected to ${build.owner}'s build` };
+    if (build.owner === remote && build.members.length > 1) {
+      const others = build.members.length - 1;
+      return { cls: 's-chosen', label: 'serves others', text: `Serves ${others} other remote${others === 1 ? '' : 's'}` };
+    }
+    return { cls: 's-same', label: 'unchanged', text: `Unchanged: ${build.owner === remote ? 'its own build' : `${build.owner}'s build`}` };
+  }
+
+  // Remotes as rows, grouped under the build they load (matching the boxes), the pool's packages as columns.
+  function statusMatrixHtml(pool) {
+    const scopes = new Set(pool.packages.map((x) => x.split('/')[0]));
+    const scope = scopes.size === 1 && pool.packages[0].startsWith('@') ? [...scopes][0] : '';
+    const short = (p) => (scope ? p.slice(scope.length + 1) : p);
+    const remoteOf = new Map(pool.remotes.map((r) => [r.name, r]));
+    const head = pool.packages.map((p) => `<th class="pkg" scope="col" title="${esc(p)}">${esc(short(p))}</th>`).join('');
+    const row = (remote) => {
+      const r = remoteOf.get(remote);
+      const tag = r.tag ? ` <span class="tag">${esc(r.tag)}</span>` : remote === HOST ? '' : ' <span class="tag">no tag</span>';
+      const cells = pool.packages.map((p) => {
+        const state = stateOf(pool, remote, p);
+        if (!state) return `<td class="s-none" aria-label="does not use ${esc(p)}">·</td>`;
+        const version = pool.cells[remote][p][0];
+        return `<td class="${state.cls}" tabindex="0" title="${esc(`${remote} · ${p} ${version}\n${state.text}`)}">${esc(version)}</td>`;
+      }).join('');
+      const moved = pool.builds.some((b) => b.members.some((m) => m.name === remote && m.moved));
+      return `<tr><th scope="row">${chip(remote)}${tag}${moved ? ' <span class="moved">↪ redirected</span>' : ''}</th>${cells}</tr>`;
+    };
+    const bandNote = (b) => {
+      if (b.own) return 'isolated';
+      const others = b.members.length - 1;
+      const redirected = b.members.filter((m) => m.moved).length;
+      const parts = [];
+      if (others > 0) parts.push(`serves ${others} other${others === 1 ? '' : 's'}`);
+      if (redirected > 0) parts.push(`${redirected} redirected`);
+      if (b.note) parts.push(b.note);
+      return parts.join(' · ');
+    };
+    const body = pool.builds.map((b) => {
+      const note = bandNote(b);
+      return `<tr class="band"><th colspan="${pool.packages.length + 1}">Build of ${esc(b.owner)}${
+        note ? ` <span class="band-note">· ${esc(note)}</span>` : ''}</th></tr>${b.members.map((m) => row(m.name)).join('')}`;
+    }).join('');
+    return `<div class="matrix-wrap"><table class="overview-grid">
+      <thead><tr><th>${scope ? `<span class="muted mono">${esc(scope)}/</span>` : ''}</th>${head}</tr></thead>
+      <tbody>${body}</tbody></table></div>`;
+  }
+
+  const root = document.getElementById('pools');
+  root.style.display = 'grid';
+  root.style.gap = '12px';
+  root.innerHTML = POOLS.map(poolHtml).join('');
+</script>

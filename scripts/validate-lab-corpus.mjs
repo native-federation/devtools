@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Validate the lab lossless capture corpus against its run manifest
- * (`captures/manifest.json`).
+ * Validate the lab lossless capture corpora against their run manifests
+ * (one per corpus, see scripts/lab-corpora.mjs).
  *
  * Adapted from the research repo's `validate-frankenstein-corpus.mjs`,
  * reduced to the manifest-level checks that make sense for a lossless
@@ -19,40 +19,76 @@
  */
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { LAB_CORPORA } from "./lab-corpora.mjs";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CAPTURES_DIR = join(REPO_ROOT, "captures");
-const MANIFEST_PATH = join(CAPTURES_DIR, "manifest.json");
-const PROBE_PATH = join(REPO_ROOT, "scripts", "lab-capture-dump.js");
 
 const MANIFEST_SCHEMA = "lab-lossless-corpus/1";
 const CAPTURE_SCHEMA = "lab-lossless-capture/1";
-const EXPECTED_SCENARIOS = [
-  "clean-skip",
-  "strict-split",
-  "scope-isolation",
-  "strict-scope",
-  "scoped",
-  "non-dense",
-  "dynamic-init-native",
-  "dynamic-init-shim",
-  "dynamic-override",
-  "self-fill",
-  "co-declared-share",
-  "pooling-anchor"
-];
 const CHANNELS = ["nativeFederationGlobals", "domImportMaps", "importShim"];
 const SRI = /^sha(256|384|512)-[A-Za-z0-9+/=]+$/;
 
 const issues = [];
+const manifestPaths = new Set();
 const issue = (location, message) => issues.push(`${location}: ${message}`);
 const sha256 = (buffer) => createHash("sha256").update(buffer).digest("hex");
 
 // --- per-scenario losslessness evidence (observed shapes, not hypotheses)
 const sharedVersions = (ns, scope, pkg) =>
   ns["shared-externals"]?.[scope]?.[pkg]?.versions ?? [];
+// Every participant of a scope as { pkg, tag, action, remote } rows.
+const participantRows = (ns, scope = "__GLOBAL__") =>
+  Object.entries(ns["shared-externals"]?.[scope] ?? {}).flatMap(([pkg, external]) =>
+    (external.versions ?? []).flatMap((version) =>
+      (version.remotes ?? []).map((remote) => ({ pkg, tag: version.tag, action: version.action, remote }))
+    )
+  );
+const DENSE = "@nf-lab/dense-lib";
+const denseEvidence = ({ chunking, externals }) => (ns, env, loc) => {
+  const rows = participantRows(ns).filter((row) => row.pkg.startsWith(DENSE));
+  const keys = [...new Set(rows.map((row) => row.pkg))].sort();
+  const expectedKeys = externals ? [DENSE] : [DENSE, `${DENSE}/extra`];
+  if (JSON.stringify(keys) !== JSON.stringify(expectedKeys))
+    issue(loc, `expected registry keys ${expectedKeys.join(",")}, saw ${keys.join(",")}`);
+  const entryCounts = rows.map((row) => Object.keys(row.remote.entries ?? {}).length);
+  if (!entryCounts.every((count) => count === (externals ? 2 : 1)))
+    issue(loc, `expected ${externals ? 2 : 1} entries per ${DENSE} participant, saw ${entryCounts.join(",")}`);
+  if (!rows.every((row) => ("bundle" in row.remote) === chunking))
+    issue(loc, `expected bundle ${chunking ? "on every" : "on no"} ${DENSE} participant`);
+  const chunkList = ns["shared-chunks"]?.mfe1?.["browser-shared"] ?? [];
+  if (chunking ? chunkList.length === 0 : "shared-chunks" in ns)
+    issue(loc, chunking ? "expected a non-empty mfe1 browser-shared chunk list" : "expected no shared-chunks repository");
+};
+const UI = ["@nf-lab/ui-core", "@nf-lab/ui-dom"];
+const uiRows = (ns) => participantRows(ns).filter((row) => UI.includes(row.pkg));
+const noAnchors = (ns, loc) => {
+  if (participantRows(ns).some((row) => "servedBy" in row.remote)) issue(loc, "expected no servedBy anchor");
+};
+// Orchestrator v4.7 pooling results (native-federation/orchestrator#87).
+const poolNames = (ns, pkgs) =>
+  pkgs.map((pkg) => ns["shared-externals"]?.["__GLOBAL__"]?.[pkg]?.poolName ?? "-").join(",");
+const expectPoolName = (ns, loc, pkgs, name) => {
+  const seen = poolNames(ns, pkgs);
+  if (seen !== pkgs.map(() => name).join(",")) issue(loc, `expected poolName '${name}' on ${pkgs.join(", ")}, saw ${seen}`);
+};
+const expectIsolated = (ns, loc, pkgs, remote) => {
+  const rows = participantRows(ns).filter((row) => pkgs.includes(row.pkg) && row.remote.name === remote);
+  if (rows.length !== pkgs.length || !rows.every((row) => row.action === "scope" && row.remote.poolCause === "incompatible"))
+    issue(loc, `expected every ${remote} copy of ${pkgs.join(", ")} scoped with poolCause 'incompatible'`);
+};
+const expectServedBy = (ns, loc, pkg, remotes, anchor) => {
+  const seen = participantRows(ns)
+    .filter((row) => row.pkg === pkg && "servedBy" in row.remote)
+    .map((row) => `${row.remote.name}:${row.remote.servedBy}`)
+    .sort();
+  const expected = remotes.map((remote) => `${remote}:${anchor}`).sort();
+  if (JSON.stringify(seen) !== JSON.stringify(expected))
+    issue(loc, `expected ${pkg} anchors ${expected.join(",")}, saw ${seen.join(",")}`);
+};
+
 const EVIDENCE = {
   "clean-skip": (ns, env, loc) => {
     const versions = sharedVersions(ns, "__GLOBAL__", "@nf-lab/conflict-lib");
@@ -272,7 +308,69 @@ const EVIDENCE = {
       if (Object.prototype.hasOwnProperty.call(chunks ?? {}, "browser-shared"))
         issue(loc, `${remote} unexpectedly records a browser-shared chunk list`);
     }
-  }
+  },
+  "dense-chunking-only": denseEvidence({ chunking: true, externals: false }),
+  "dense-externals-only": denseEvidence({ chunking: false, externals: true }),
+  "dense-both": denseEvidence({ chunking: true, externals: true }),
+  // Tagged family already served whole by mfe1's build: pooling writes nothing.
+  "pool-tag-coherent": (ns, env, loc) => {
+    const rows = uiRows(ns);
+    if (rows.length !== 4 || !rows.every((row) => row.remote.pool === "ui"))
+      issue(loc, "expected four ui participants, all tagged pool 'ui'");
+    if (rows.some((row) => row.action === "scope")) issue(loc, "expected no scope rows");
+    noAnchors(ns, loc);
+  },
+  // Gate 1: mfe1 islanded across the whole family; ui-core is left with no share row.
+  "pool-tag-islanded": (ns, env, loc) => {
+    const mfe1 = uiRows(ns).filter((row) => row.remote.name === "mfe1");
+    if (mfe1.length !== 2 || !mfe1.every((row) => row.action === "scope"))
+      issue(loc, "expected every mfe1 ui member in a scope row");
+    if (sharedVersions(ns, "__GLOBAL__", "@nf-lab/ui-core").some((version) => version.action === "share"))
+      issue(loc, "expected ui-core without a share row (scoped-only)");
+    noAnchors(ns, loc);
+    expectPoolName(ns, loc, UI, "ui");
+    expectIsolated(ns, loc, UI, "mfe1");
+  },
+  // Gate 2: the family is anchored onto mfe1's build for every remote, untagged mfe3 included.
+  "pool-tag-anchored": (ns, env, loc) => {
+    const skips = uiRows(ns).filter((row) => row.pkg === "@nf-lab/ui-core" && row.action === "skip");
+    const anchored = skips.map((row) => `${row.remote.name}:${row.remote.servedBy}:${row.remote.pool ?? "-"}`).sort();
+    const expected = ["mfe1:mfe1:ui", "mfe2:mfe1:ui", "mfe3:mfe1:-"];
+    if (JSON.stringify(anchored) !== JSON.stringify(expected))
+      issue(loc, `expected ui-core skip anchors ${expected.join(",")}, saw ${anchored.join(",")}`);
+  },
+  // A single tagged member joins nothing: no pool forms, nothing is written.
+  "pool-tag-orphan": (ns, env, loc) => {
+    const tagged = participantRows(ns).filter((row) => "pool" in row.remote);
+    if (tagged.length !== 1 || tagged[0].pkg !== "@nf-lab/ui-core" || tagged[0].remote.name !== "mfe1")
+      issue(loc, "expected exactly one pool tag: ui-core on mfe1");
+    noAnchors(ns, loc);
+  },
+  // Four independent pools: ui redirected onto catalog, charts isolating catalog, form-kit one build
+  // under two tags (named after the alphabetically first of the tied tags), icons an orphan tag.
+  "pool-showcase": (ns, env, loc) => {
+    expectPoolName(ns, loc, UI, "ui");
+    expectPoolName(ns, loc, ["@nf-lab/chart-core", "@nf-lab/chart-dom"], "charts");
+    expectPoolName(ns, loc, ["@nf-lab/form-core", "@nf-lab/form-dom"], "form-kit");
+    expectPoolName(ns, loc, ["@nf-lab/icons"], "-");
+    // The anchor names itself too, as in pool-tag-anchored.
+    expectServedBy(ns, loc, "@nf-lab/ui-core", ["admin", "catalog", "checkout"], "catalog");
+    expectIsolated(ns, loc, ["@nf-lab/chart-core", "@nf-lab/chart-dom"], "catalog");
+  },
+  // One family across twelve remotes: four redirected onto orders, legacy isolated.
+  "pool-portfolio": (ns, env, loc) => {
+    const family = ["core", "common", "router", "forms", "animations"].map((name) => `@nf-lab/acme-${name}`);
+    expectPoolName(ns, loc, family, "acme");
+    // servedBy only where the build differs from the version's basis: on the host-shared members;
+    // forms and animations are shared from orders' build already.
+    const onOrders = ["contacts", "invoices", "onboarding", "orders", "reports"];
+    for (const pkg of family.slice(0, 3)) expectServedBy(ns, loc, pkg, onOrders, "orders");
+    expectServedBy(ns, loc, "@nf-lab/acme-forms", [], "orders");
+    expectIsolated(ns, loc, family, "legacy");
+    const onHost = ["products", "search", "settings", "profile", "cart"];
+    if (participantRows(ns).some((row) => onHost.includes(row.remote.name) && "servedBy" in row.remote))
+      issue(loc, "expected the host-build remotes without a servedBy anchor");
+  },
 };
 
 // --- live-capture evidence (frankenstein-live, report rows 12–16) --------
@@ -367,148 +465,56 @@ const livePhaseIdentity = (phases, loc) => {
     issue(loc, "effective shim map differs between phases");
 };
 
-// --- manifest ------------------------------------------------------------
-let manifest;
-try {
-  manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"));
-} catch (error) {
-  console.error(`captures/manifest.json: unreadable (${error.message}) — run scripts/build-lab-manifest.mjs`);
-  process.exit(1);
-}
+// --- per corpus: manifest, capture entries, live captures ----------------
+function validateCorpus(corpus) {
+  const MANIFEST_PATH = join(CAPTURES_DIR, corpus.manifest);
+  const EXPECTED_SCENARIOS = corpus.scenarios;
 
-if (manifest.schemaVersion !== MANIFEST_SCHEMA)
-  issue("manifest.schemaVersion", `expected ${MANIFEST_SCHEMA}, saw ${manifest.schemaVersion}`);
-if (!/^\d{8}T\d{6}Z$/.test(manifest.runId ?? ""))
-  issue("manifest.runId", `not a runstamp: ${manifest.runId}`);
-if (!/^[0-9a-f]{40}$/.test(manifest.source?.playground?.commit ?? ""))
-  issue("manifest.source.playground.commit", "not a full commit hash");
-if (!manifest.source?.orchestratorCommit)
-  issue("manifest.source.orchestratorCommit", "missing");
-if (manifest.collector?.sanitization !== "lossless")
-  issue("manifest.collector.sanitization", `expected lossless, saw ${manifest.collector?.sanitization}`);
-if (manifest.collector?.kind !== "chrome-devtools-mcp")
-  issue("manifest.collector.kind", `expected chrome-devtools-mcp, saw ${manifest.collector?.kind}`);
-if (JSON.stringify(manifest.expectedScenarios) !== JSON.stringify(EXPECTED_SCENARIOS))
-  issue("manifest.expectedScenarios", "does not match the catalog");
-
-// Probe drift: the manifest pins the probe that produced the corpus.
-try {
-  const probeHash = sha256(readFileSync(PROBE_PATH));
-  if (manifest.source?.probe?.sha256 !== probeHash)
-    issue(
-      "manifest.source.probe.sha256",
-      "does not match scripts/lab-capture-dump.js — probe changed since capture; re-capture or rebuild the manifest"
-    );
-} catch (error) {
-  issue("scripts/lab-capture-dump.js", `unreadable (${error.message})`);
-}
-
-// --- capture entries -----------------------------------------------------
-const manifestScenarios = (manifest.captures ?? []).map((c) => c.scenario);
-if (JSON.stringify([...manifestScenarios].sort()) !== JSON.stringify([...EXPECTED_SCENARIOS].sort()))
-  issue("manifest.captures", `scenario set mismatch: [${manifestScenarios.join(",")}]`);
-
-const manifestPaths = new Set();
-for (const entry of manifest.captures ?? []) {
-  const loc = `manifest.captures[${entry.scenario}]`;
-  manifestPaths.add(entry.path);
-  let buffer;
+  // --- manifest ------------------------------------------------------------
+  let manifest;
   try {
-    buffer = readFileSync(join(CAPTURES_DIR, entry.path));
-  } catch {
-    issue(loc, `capture file missing: ${entry.path}`);
-    continue;
-  }
-  if (sha256(buffer) !== entry.sha256) {
-    issue(loc, `sha256 mismatch for ${entry.path}`);
-    continue;
-  }
-
-  let env;
-  try {
-    env = JSON.parse(buffer.toString("utf8"));
+    manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"));
   } catch (error) {
-    issue(loc, `unparseable JSON (${error.message})`);
-    continue;
+    issue(`captures/${corpus.manifest}`, `unreadable (${error.message}) — run scripts/build-lab-manifest.mjs --corpus ${corpus.id}`);
+    return { captures: 0, live: 0, runId: null, probe: "" };
   }
 
-  // Envelope structure
-  if (env.schemaVersion !== CAPTURE_SCHEMA)
-    issue(loc, `schemaVersion ${env.schemaVersion} !== ${CAPTURE_SCHEMA}`);
-  if (env.scenario?.scenarioId !== entry.scenario)
-    issue(loc, `scenarioId ${env.scenario?.scenarioId} !== ${entry.scenario}`);
-  if (env.scenario?.ready !== true)
-    issue(loc, `capture taken without resolved readiness (readyError: ${env.scenario?.readyError})`);
-  // Fallback-mode keys are live-capture-only: a lab capture carrying them
-  // means the runner readiness contract was silently bypassed.
-  for (const liveOnly of ["readySource", "phase"])
-    if (liveOnly in (env.scenario ?? {}))
-      issue(loc, `lab capture carries fallback-mode scenario key '${liveOnly}' — probe ran without __NF_SCENARIO_READY__`);
-  if (env.scenario?.orchestratorCommit !== manifest.source?.orchestratorCommit)
-    issue(loc, "orchestratorCommit differs from manifest");
-  if (env.page?.origin !== manifest.serving?.origin)
-    issue(loc, `page.origin ${env.page?.origin} !== serving.origin ${manifest.serving?.origin}`);
-  if (env.collector?.sanitization !== "lossless") issue(loc, "collector.sanitization !== lossless");
-  if (!Array.isArray(env.collectionErrors) || env.collectionErrors.length > 0)
-    issue(loc, `collectionErrors not empty: ${JSON.stringify(env.collectionErrors)}`);
-  for (const name of CHANNELS) {
-    const channel = env.channels?.[name];
-    if (!channel) {
-      issue(loc, `channel ${name} missing`);
-      continue;
-    }
-    if (channel.availability !== "available") issue(loc, `channel ${name} not available`);
-    if (Number.isNaN(Date.parse(channel.observedAt ?? "")))
-      issue(loc, `channel ${name} observedAt not a timestamp`);
-  }
+  if (manifest.schemaVersion !== MANIFEST_SCHEMA)
+    issue("manifest.schemaVersion", `expected ${MANIFEST_SCHEMA}, saw ${manifest.schemaVersion}`);
+  if (!/^\d{8}T\d{6}Z$/.test(manifest.runId ?? ""))
+    issue("manifest.runId", `not a runstamp: ${manifest.runId}`);
+  if (!/^[0-9a-f]{40}$/.test(manifest.source?.playground?.commit ?? ""))
+    issue("manifest.source.playground.commit", "not a full commit hash");
+  if (!manifest.source?.orchestratorCommit)
+    issue("manifest.source.orchestratorCommit", "missing");
+  if (manifest.collector?.sanitization !== "lossless")
+    issue("manifest.collector.sanitization", `expected lossless, saw ${manifest.collector?.sanitization}`);
+  if (manifest.collector?.kind !== corpus.collector.kind)
+    issue("manifest.collector.kind", `expected ${corpus.collector.kind}, saw ${manifest.collector?.kind}`);
+  if (JSON.stringify(manifest.expectedScenarios) !== JSON.stringify(EXPECTED_SCENARIOS))
+    issue("manifest.expectedScenarios", "does not match the catalog");
 
-  // Per-scenario losslessness evidence
-  const ns = env.channels?.nativeFederationGlobals?.data?.namespace;
-  if (!ns) {
-    issue(loc, "namespace clone missing");
-  } else {
-    EVIDENCE[entry.scenario]?.(ns, env, loc);
-  }
-}
-
-// --- live captures (frankenstein-live) -----------------------------------
-const LIVE_SCENARIO = "frankenstein-live";
-const live = manifest.liveCaptures;
-if (live) {
-  const lloc = "manifest.liveCaptures";
-  if (live.scenarioId !== LIVE_SCENARIO)
-    issue(`${lloc}.scenarioId`, `expected ${LIVE_SCENARIO}, saw ${live.scenarioId}`);
-  if (live.collector?.kind !== "chrome-devtools-mcp")
-    issue(`${lloc}.collector.kind`, `expected chrome-devtools-mcp, saw ${live.collector?.kind}`);
-  if (live.collector?.sanitization !== "lossless")
-    issue(`${lloc}.collector.sanitization`, "expected lossless");
-
-  // Provenance: sidecar is the source of truth, the manifest embeds it.
-  let sidecar = null;
+  // Probe drift: the manifest pins the probe that produced the corpus. A corpus that can no longer be
+  // re-captured names a preserved copy (scripts/lab-capture-dump-v1.js) instead of the current probe.
+  const probeFile = manifest.source?.probe?.file ?? "scripts/lab-capture-dump.js";
   try {
-    sidecar = JSON.parse(readFileSync(join(CAPTURES_DIR, LIVE_SCENARIO, "provenance.json"), "utf8"));
+    const probeHash = sha256(readFileSync(join(REPO_ROOT, probeFile)));
+    if (manifest.source?.probe?.sha256 !== probeHash)
+      issue(
+        "manifest.source.probe.sha256",
+        `does not match ${probeFile} — probe changed since capture; re-capture or rebuild the manifest`
+      );
   } catch (error) {
-    issue(`captures/${LIVE_SCENARIO}/provenance.json`, `unreadable (${error.message})`);
+    issue(probeFile, `unreadable (${error.message})`);
   }
-  if (sidecar && JSON.stringify(sidecar) !== JSON.stringify(live.provenance))
-    issue(`${lloc}.provenance`, "differs from the provenance.json sidecar — rebuild the manifest");
-  const prov = live.provenance;
-  if (
-    !prov?.captureUrl ||
-    !prov?.captureDate ||
-    prov?.deploymentDependent !== true ||
-    prov?.regenerableFromCheckouts !== false ||
-    !prov?.deployment?.orchestrator?.bestKnown
-  )
-    issue(
-      `${lloc}.provenance`,
-      "missing required fields (captureUrl, captureDate, deploymentDependent: true, regenerableFromCheckouts: false, deployment.orchestrator.bestKnown)"
-    );
-  manifestPaths.add(`${LIVE_SCENARIO}/provenance.json`);
 
-  const phases = new Map();
-  for (const entry of live.files ?? []) {
-    const loc = `${lloc}[${entry.phase}]`;
+  // --- capture entries -----------------------------------------------------
+  const manifestScenarios = (manifest.captures ?? []).map((c) => c.scenario);
+  if (JSON.stringify([...manifestScenarios].sort()) !== JSON.stringify([...EXPECTED_SCENARIOS].sort()))
+    issue("manifest.captures", `scenario set mismatch: [${manifestScenarios.join(",")}]`);
+
+  for (const entry of manifest.captures ?? []) {
+    const loc = `manifest.captures[${entry.scenario}]`;
     manifestPaths.add(entry.path);
     let buffer;
     try {
@@ -521,6 +527,7 @@ if (live) {
       issue(loc, `sha256 mismatch for ${entry.path}`);
       continue;
     }
+
     let env;
     try {
       env = JSON.parse(buffer.toString("utf8"));
@@ -528,20 +535,23 @@ if (live) {
       issue(loc, `unparseable JSON (${error.message})`);
       continue;
     }
+
+    // Envelope structure
     if (env.schemaVersion !== CAPTURE_SCHEMA)
       issue(loc, `schemaVersion ${env.schemaVersion} !== ${CAPTURE_SCHEMA}`);
-    if (env.scenario?.scenarioId !== LIVE_SCENARIO)
-      issue(loc, `scenarioId ${env.scenario?.scenarioId} !== ${LIVE_SCENARIO}`);
+    if (env.scenario?.scenarioId !== entry.scenario)
+      issue(loc, `scenarioId ${env.scenario?.scenarioId} !== ${entry.scenario}`);
     if (env.scenario?.ready !== true)
-      issue(loc, `capture taken without settled page (readyError: ${env.scenario?.readyError})`);
-    if (env.scenario?.readySource !== "page-settled")
-      issue(loc, `expected readySource page-settled, saw ${env.scenario?.readySource}`);
-    if (env.scenario?.orchestratorCommit !== null)
-      issue(loc, "live capture must not stamp a lab orchestratorCommit");
-    if (env.scenario?.phase !== entry.phase)
-      issue(loc, `scenario.phase ${env.scenario?.phase} !== manifest phase ${entry.phase}`);
-    if (env.page?.url !== prov?.captureUrl)
-      issue(loc, `page.url ${env.page?.url} !== provenance.captureUrl ${prov?.captureUrl}`);
+      issue(loc, `capture taken without resolved readiness (readyError: ${env.scenario?.readyError})`);
+    // Fallback-mode keys are live-capture-only: a lab capture carrying them
+    // means the runner readiness contract was silently bypassed.
+    for (const liveOnly of ["readySource", "phase"])
+      if (liveOnly in (env.scenario ?? {}))
+        issue(loc, `lab capture carries fallback-mode scenario key '${liveOnly}' — probe ran without __NF_SCENARIO_READY__`);
+    if (env.scenario?.orchestratorCommit !== manifest.source?.orchestratorCommit)
+      issue(loc, "orchestratorCommit differs from manifest");
+    if (env.page?.origin !== manifest.serving?.origin)
+      issue(loc, `page.origin ${env.page?.origin} !== serving.origin ${manifest.serving?.origin}`);
     if (env.collector?.sanitization !== "lossless") issue(loc, "collector.sanitization !== lossless");
     if (!Array.isArray(env.collectionErrors) || env.collectionErrors.length > 0)
       issue(loc, `collectionErrors not empty: ${JSON.stringify(env.collectionErrors)}`);
@@ -555,22 +565,133 @@ if (live) {
       if (Number.isNaN(Date.parse(channel.observedAt ?? "")))
         issue(loc, `channel ${name} observedAt not a timestamp`);
     }
-    phases.set(entry.phase, env);
 
+    // Per-scenario losslessness evidence
     const ns = env.channels?.nativeFederationGlobals?.data?.namespace;
-    if (!ns) issue(loc, "namespace clone missing");
-    else liveEvidence(ns, env, loc);
+    if (!ns) {
+      issue(loc, "namespace clone missing");
+    } else {
+      EVIDENCE[entry.scenario]?.(ns, env, loc);
+    }
+    // Captures from a v4.7+ lab carry the exposed version, and the probe stamps it.
+    if (manifest.source?.orchestratorCommit === "4.7.0") {
+      const exposed = env.channels?.orchestratorGlobal?.data?.storage?.["__NATIVE_FEDERATION__"]?.version;
+      if (exposed !== "4.7.0") issue(loc, `expected orchestratorGlobal version 4.7.0, saw ${exposed}`);
+    }
   }
-  if (!phases.has("01-initial")) issue(lloc, "phase 01-initial missing");
-  livePhaseIdentity(phases, lloc);
+
+  // --- live captures (frankenstein-live) -----------------------------------
+  const LIVE_SCENARIO = "frankenstein-live";
+  const live = corpus.live ? manifest.liveCaptures : null;
+  if (!corpus.live && manifest.liveCaptures) issue("manifest.liveCaptures", `corpus ${corpus.id} carries no live captures`);
+  if (live) {
+    const lloc = "manifest.liveCaptures";
+    if (live.scenarioId !== LIVE_SCENARIO)
+      issue(`${lloc}.scenarioId`, `expected ${LIVE_SCENARIO}, saw ${live.scenarioId}`);
+    if (live.collector?.kind !== "chrome-devtools-mcp")
+      issue(`${lloc}.collector.kind`, `expected chrome-devtools-mcp, saw ${live.collector?.kind}`);
+    if (live.collector?.sanitization !== "lossless")
+      issue(`${lloc}.collector.sanitization`, "expected lossless");
+
+    // Provenance: sidecar is the source of truth, the manifest embeds it.
+    let sidecar = null;
+    try {
+      sidecar = JSON.parse(readFileSync(join(CAPTURES_DIR, LIVE_SCENARIO, "provenance.json"), "utf8"));
+    } catch (error) {
+      issue(`captures/${LIVE_SCENARIO}/provenance.json`, `unreadable (${error.message})`);
+    }
+    if (sidecar && JSON.stringify(sidecar) !== JSON.stringify(live.provenance))
+      issue(`${lloc}.provenance`, "differs from the provenance.json sidecar — rebuild the manifest");
+    const prov = live.provenance;
+    if (
+      !prov?.captureUrl ||
+      !prov?.captureDate ||
+      prov?.deploymentDependent !== true ||
+      prov?.regenerableFromCheckouts !== false ||
+      !prov?.deployment?.orchestrator?.bestKnown
+    )
+      issue(
+        `${lloc}.provenance`,
+        "missing required fields (captureUrl, captureDate, deploymentDependent: true, regenerableFromCheckouts: false, deployment.orchestrator.bestKnown)"
+      );
+    manifestPaths.add(`${LIVE_SCENARIO}/provenance.json`);
+
+    const phases = new Map();
+    for (const entry of live.files ?? []) {
+      const loc = `${lloc}[${entry.phase}]`;
+      manifestPaths.add(entry.path);
+      let buffer;
+      try {
+        buffer = readFileSync(join(CAPTURES_DIR, entry.path));
+      } catch {
+        issue(loc, `capture file missing: ${entry.path}`);
+        continue;
+      }
+      if (sha256(buffer) !== entry.sha256) {
+        issue(loc, `sha256 mismatch for ${entry.path}`);
+        continue;
+      }
+      let env;
+      try {
+        env = JSON.parse(buffer.toString("utf8"));
+      } catch (error) {
+        issue(loc, `unparseable JSON (${error.message})`);
+        continue;
+      }
+      if (env.schemaVersion !== CAPTURE_SCHEMA)
+        issue(loc, `schemaVersion ${env.schemaVersion} !== ${CAPTURE_SCHEMA}`);
+      if (env.scenario?.scenarioId !== LIVE_SCENARIO)
+        issue(loc, `scenarioId ${env.scenario?.scenarioId} !== ${LIVE_SCENARIO}`);
+      if (env.scenario?.ready !== true)
+        issue(loc, `capture taken without settled page (readyError: ${env.scenario?.readyError})`);
+      if (env.scenario?.readySource !== "page-settled")
+        issue(loc, `expected readySource page-settled, saw ${env.scenario?.readySource}`);
+      if (env.scenario?.orchestratorCommit !== null)
+        issue(loc, "live capture must not stamp a lab orchestratorCommit");
+      if (env.scenario?.phase !== entry.phase)
+        issue(loc, `scenario.phase ${env.scenario?.phase} !== manifest phase ${entry.phase}`);
+      if (env.page?.url !== prov?.captureUrl)
+        issue(loc, `page.url ${env.page?.url} !== provenance.captureUrl ${prov?.captureUrl}`);
+      if (env.collector?.sanitization !== "lossless") issue(loc, "collector.sanitization !== lossless");
+      if (!Array.isArray(env.collectionErrors) || env.collectionErrors.length > 0)
+        issue(loc, `collectionErrors not empty: ${JSON.stringify(env.collectionErrors)}`);
+      for (const name of CHANNELS) {
+        const channel = env.channels?.[name];
+        if (!channel) {
+          issue(loc, `channel ${name} missing`);
+          continue;
+        }
+        if (channel.availability !== "available") issue(loc, `channel ${name} not available`);
+        if (Number.isNaN(Date.parse(channel.observedAt ?? "")))
+          issue(loc, `channel ${name} observedAt not a timestamp`);
+      }
+      phases.set(entry.phase, env);
+
+      const ns = env.channels?.nativeFederationGlobals?.data?.namespace;
+      if (!ns) issue(loc, "namespace clone missing");
+      else liveEvidence(ns, env, loc);
+    }
+    if (!phases.has("01-initial")) issue(lloc, "phase 01-initial missing");
+    livePhaseIdentity(phases, lloc);
+  }
+
+  return {
+    captures: manifest.captures?.length ?? 0,
+    live: live ? live.files.length : 0,
+    runId: manifest.runId,
+    probe: manifest.source?.probe?.sha256 ?? "",
+  };
 }
 
+const summaries = LAB_CORPORA.map((corpus) => [corpus, validateCorpus(corpus)]);
+
 // --- stray files: everything under captures/ must be accounted for ------
-const onDisk = readdirSync(CAPTURES_DIR, { recursive: true, encoding: "utf8" })
-  .filter((f) => f.endsWith(".json"))
-  .map((f) => f.replaceAll("\\", "/"));
+const onDisk = readdirSync(CAPTURES_DIR, { recursive: true, withFileTypes: true })
+  .filter((d) => d.isFile())
+  .map((d) => relative(CAPTURES_DIR, join(d.parentPath, d.name)).replaceAll("\\", "/"));
 for (const file of onDisk) {
-  if (file === "manifest.json") continue;
+  if (file === "README.md") continue;
+  if (LAB_CORPORA.some((corpus) => corpus.manifest === file)) continue;
   if (file.startsWith("frankenstein/")) continue; // research-corpus subset, own provenance
   if (!manifestPaths.has(file)) issue(`captures/${file}`, "not listed in the manifest (stray capture)");
 }
@@ -580,8 +701,9 @@ if (issues.length > 0) {
   console.error(`\n${issues.length} issue(s).`);
   process.exit(1);
 }
-console.log(
-  `corpus valid: ${manifest.captures.length} captures` +
-    (live ? ` + ${live.files.length} live phases` : "") +
-    `, runId ${manifest.runId}, probe ${manifest.source.probe.sha256.slice(0, 12)}…`
-);
+for (const [corpus, summary] of summaries)
+  console.log(
+    `corpus ${corpus.id} valid: ${summary.captures} captures` +
+      (summary.live ? ` + ${summary.live} live phases` : "") +
+      `, runId ${summary.runId}, probe ${summary.probe.slice(0, 12)}…`
+  );

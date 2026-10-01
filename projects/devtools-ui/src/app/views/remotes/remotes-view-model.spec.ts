@@ -130,18 +130,15 @@ describe('buildRemoteDetail — identity, selection, capabilities', () => {
   });
 
   // T8.6-AC-06: the capability tooltips carry the source-verified
-  // `(config: …)` provenance verbatim (T8.5 amendment) — both dense facets
-  // deliberately cite the SAME flag.
+  // `(config: …)` provenance verbatim (T8.5 amendment). Chunk lists and
+  // `bundle` are both denseChunking facets, so the live host gets one dense
+  // chunking line naming both, and no multi-entry line (v4 `file` spelling).
   it('grounds the live capability matrix with the verified config provenance', () => {
     const host = detailOf('frankenstein-live', NF_HOST);
     expect(host.capabilities).toEqual([
       {
         label: 'dense chunking',
-        note: 'the registry records per-bundle chunk lists for this remote (config: features.denseChunking: true, default false, since core v4.0.0)',
-      },
-      {
-        label: 'dense externals',
-        note: 'shared participants carry their serving bundle (config: features.denseChunking: true, default false, since core v4.0.0)',
+        note: "the registry records per-bundle chunk lists for this remote; this remote's registrations carry their serving bundle (config: features.denseChunking: true, default false, since core v4.0.0)",
       },
       {
         label: 'SRI',
@@ -152,6 +149,48 @@ describe('buildRemoteDetail — identity, selection, capabilities', () => {
     for (const remote of ['whiteboard', 'mermaid']) {
       const detail = detailOf('frankenstein-live', remote);
       expect(detail.capabilities.map((capability) => capability.label)).toEqual(['SRI']);
+    }
+  });
+});
+
+// share-pools T1: `bundle` is a denseChunking facet (core
+// `bundle-shared.ts`), and a multi-entry `entries` map is the only stored trace
+// of denseExternals — shared with host-side `convertFlatSharedInfo`.
+describe('buildRemoteDetail — dense capabilities (share-pools T1)', () => {
+  const labelsOf = (fixture: keyof typeof FIXTURES, remote: string) =>
+    detailOf(fixture, remote).capabilities.map((capability) => capability.label);
+
+  it('T1-AC-01: bundles with single-entry maps show dense chunking only', () => {
+    for (const remote of ['mfe1', 'mfe2']) {
+      expect(labelsOf('pooling-anchor', remote)).toContain('dense chunking');
+      expect(labelsOf('pooling-anchor', remote)).not.toContain('multi-entry registrations');
+    }
+  });
+
+  it('T1-AC-02: a multi-entry map shows the badge citing both producer flags', () => {
+    const detail = detailOf('synthetic-dense-entries', 'mfe-dense');
+    expect(detail.capabilities).toContainEqual({
+      label: 'multi-entry registrations',
+      note: 'a registration of this remote maps several entrypoints in one entries map (config: features.denseExternals: true at build, default false, since core v4.3.0 — or feature.convertFlatSharedInfo: true on the host, default false; the registry does not record which)',
+    });
+    // Its registrations carry no bundle and the fixture records no chunk lists.
+    expect(labelsOf('synthetic-dense-entries', 'mfe-dense')).not.toContain('dense chunking');
+  });
+
+  // Real witnesses from the nf-lab corpus (share-pools T2): each build flag alone, and both.
+  it.each([
+    ['dense-chunking-only', ['dense chunking']],
+    ['dense-externals-only', ['multi-entry registrations']],
+    ['dense-both', ['dense chunking', 'multi-entry registrations']],
+  ] as const)('%s: mfe1 shows exactly its dense capabilities', (fixture, expected) => {
+    expect(labelsOf(fixture, 'mfe1').filter((label) => label !== 'SRI')).toEqual(expected);
+  });
+
+  it('T1-AC-03: a flat, bundle-less build shows neither dense capability', () => {
+    for (const remote of modelOf('non-dense').remotes.map((entity) => entity.name)) {
+      const labels = labelsOf('non-dense', remote);
+      expect(labels).not.toContain('dense chunking');
+      expect(labels).not.toContain('multi-entry registrations');
     }
   });
 });
@@ -1133,5 +1172,41 @@ describe('buildRemoteDetail — private claim states ground on mappingState (T8-
       expect(claim.copyTag).toBe('2.0.0');
     }
     expect(scoped.claims.map((claim) => claim.file)).toEqual(['main.js', 'extra.js']);
+  });
+});
+
+// share-pools T5: pool chips in the remote's provides / consumes rows.
+describe('buildRemoteDetail — pool chips (share-pools T5)', () => {
+  const tagsOf = (fixture: keyof typeof FIXTURES, remote: string) => {
+    const detail = detailOf(fixture, remote);
+    const rows = [
+      ...detail.provides.flatMap((block) => [block, ...block.secondaries]),
+      ...detail.consumes,
+      ...detail.unresolved,
+    ];
+    return Object.fromEntries(rows.map((row) => [row.packageName, row.pool?.tag ?? null]));
+  };
+
+  it('T5-AC-01: mfe1 provides the tagged family; mfe2 consumes it, tagged too', () => {
+    expect(tagsOf('pool-tag-coherent', 'mfe1')).toEqual({
+      '@nf-lab/ui-core': 'ui',
+      '@nf-lab/ui-dom': 'ui',
+    });
+    expect(tagsOf('pool-tag-coherent', 'mfe2')).toEqual({
+      '@nf-lab/ui-core': 'ui',
+      '@nf-lab/ui-dom': 'ui',
+    });
+    expect(tagsOf('pool-tag-anchored', 'mfe3')).toEqual({
+      '@nf-lab/ui-core': null,
+      '@nf-lab/ui-dom': null,
+    });
+  });
+
+  it('T5-AC-01: the orphan tag is flagged on its declaring remote', () => {
+    const detail = detailOf('pool-tag-orphan', 'mfe1');
+    const core = [...detail.provides, ...detail.consumes].find(
+      (row) => row.packageName === '@nf-lab/ui-core',
+    )!;
+    expect(core.pool).toMatchObject({ tag: 'ui', orphan: true });
   });
 });

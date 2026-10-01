@@ -38,6 +38,8 @@ export interface StoreProvenance {
   capturedAt: string;
   collectorVersion: string;
   generation: SnapshotGenerationV1;
+  /** Published by orchestrator v4.7+ on `__NF_ORCHESTRATOR__`; null when the page published none. */
+  orchestratorVersion: string | null;
 }
 
 /** Joined effective resolution of one participant row. */

@@ -1285,3 +1285,43 @@ describe('buildPackagesVm — grounded annotations and purity (T7.5-AC-06)', () 
     expect(JSON.stringify(model)).toBe(modelBefore);
   });
 });
+
+// share-pools T5: a declaration's explicit pool tag renders as a
+// chip; an orphan tag (joined nothing) is flagged. Untagged rows get none.
+describe('buildPackageDetail — pool chips (share-pools T5)', () => {
+  const chipsOf = (fixture: keyof typeof FIXTURES, pkg: string) => {
+    const detail = vmOf(fixture, { selectedId: `__GLOBAL__|${pkg}` }).detail!;
+    return detail.blocks
+      .flatMap((block) => block.consumers)
+      .map((consumer) => ({ name: consumer.name, pool: consumer.pool }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  };
+
+  it('T5-AC-01: both family members carry the tag for both remotes', () => {
+    for (const pkg of ['@nf-lab/ui-core', '@nf-lab/ui-dom']) {
+      const chips = chipsOf('pool-tag-coherent', pkg);
+      expect(chips.map((chip) => chip.name)).toEqual(['mfe1', 'mfe2']);
+      for (const { pool } of chips) {
+        expect(pool).toEqual({
+          tag: 'ui',
+          note: 'explicit pool tag declared by this remote (config: pool on the shared external) — member of pool ui',
+          orphan: false,
+          poolSelect: 'tag-pool:["__GLOBAL__","@nf-lab/ui-core",0]',
+        });
+      }
+    }
+  });
+
+  it('T5-AC-01: an orphan tag warns; an untagged declaration shows no chip', () => {
+    const chips = chipsOf('pool-tag-orphan', '@nf-lab/ui-core');
+    expect(chips.find((chip) => chip.name === 'mfe1')!.pool).toMatchObject({
+      tag: 'ui',
+      orphan: true,
+      poolSelect: null,
+    });
+    expect(chips.find((chip) => chip.name === 'mfe1')!.pool!.note).toContain(
+      'likely a typo or a missing sibling',
+    );
+    expect(chips.find((chip) => chip.name === 'mfe2')!.pool).toBeNull();
+  });
+});

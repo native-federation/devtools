@@ -155,6 +155,35 @@ describe('App', () => {
     expect(el.querySelectorAll('.strip-entry')).toHaveLength(0);
   });
 
+  // share-pools T6-AC-04/06: the Pools tab appears only for a
+  // capture carrying pool tags (a pool or an orphan tag).
+  it('shows the Pools tab only when the capture carries pool tags', async () => {
+    const navOf = async (id: FixtureId) => {
+      TestBed.overrideProvider(SNAPSHOT_PROVIDER, { useValue: new SequenceSnapshotProvider([id]) });
+      const fixture = TestBed.createComponent(App);
+      await settle(fixture);
+      return Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll('.shell-nav a'),
+      ).map((a) => a.textContent?.trim());
+    };
+    expect(await navOf('pool-tag-orphan')).toEqual([
+      'Packages',
+      'Remotes',
+      'Import Map',
+      'Graph',
+      'Pools',
+    ]);
+  });
+
+  it('hides the Pools tab without pool tags', async () => {
+    TestBed.overrideProvider(SNAPSHOT_PROVIDER, {
+      useValue: new SequenceSnapshotProvider(['frankenstein-live']),
+    });
+    const fixture = TestBed.createComponent(App);
+    await settle(fixture);
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Pools');
+  });
+
   // T8-AC-08: lab fixtures carry the v4.5 generation.
   it('shows the v4.5 generation badge for a lab fixture', async () => {
     TestBed.overrideProvider(SNAPSHOT_PROVIDER, {

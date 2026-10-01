@@ -27,6 +27,15 @@
   --nf-color-warning-bg: #fcf3d7;
   --nf-color-warning-border: #e3c26d;
 
+  /* Pool matrix states (views/pools): conflict, isolated / not shared, a build serving others. */
+  --nf-color-conflict: #8c1d2f;
+  --nf-color-conflict-text: #8c1d2f;
+  --nf-color-conflict-contrast: #ffffff;
+  --nf-color-isolated-text: #b95000;
+  --nf-color-isolated-bg: #ffd9b3;
+  --nf-color-serves-text: #137333;
+  --nf-color-serves-bg: #b7e4c4;
+
   /* Participant identity hues (CVD-validated set + order, light-surface
    * steps). Count and numbering are the contract of
    * shared/kit/participant-colors.ts (PARTICIPANT_PALETTE_SIZE): assignment
@@ -59,6 +68,14 @@
     --nf-color-warning-bg: #35301f;
     --nf-color-warning-border: #6b5c2a;
 
+    --nf-color-conflict: #9a2436;
+    --nf-color-conflict-text: #f28b82;
+    --nf-color-conflict-contrast: #ffffff;
+    --nf-color-isolated-text: #ffb870;
+    --nf-color-isolated-bg: #5a3313;
+    --nf-color-serves-text: #81c995;
+    --nf-color-serves-bg: #1f4a2c;
+
     /* Same eight hues, stepped for the dark surface — not a new palette. */
     --nf-participant-color-1: #3987e5;
     --nf-participant-color-2: #d95926;
@@ -85,6 +102,14 @@
   --nf-color-warning-text: #f0c674;
   --nf-color-warning-bg: #35301f;
   --nf-color-warning-border: #6b5c2a;
+
+  --nf-color-conflict: #9a2436;
+  --nf-color-conflict-text: #f28b82;
+  --nf-color-conflict-contrast: #ffffff;
+  --nf-color-isolated-text: #ffb870;
+  --nf-color-isolated-bg: #5a3313;
+  --nf-color-serves-text: #81c995;
+  --nf-color-serves-bg: #1f4a2c;
 
   /* Same eight hues, stepped for the dark surface — not a new palette. */
   --nf-participant-color-1: #3987e5;

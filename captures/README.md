@@ -25,7 +25,12 @@ repository, `nf/playground`, branch `lab/v2-scenarios` — see
 `lab-lossless-capture/1`: the full `__NATIVE_FEDERATION__` registry
 namespace cloned **losslessly** (no allowlist, no caps), the DOM
 import-map tag inventory, and the effective `importShim.getImportMap()`
-copy including SRI integrity hash values.
+copy including SRI integrity hash values. Captures from orchestrator
+v4.7 on can also carry an `orchestratorGlobal` channel: the
+`__NF_ORCHESTRATOR__` storage descriptor with its exposed `version`
+(`get` recorded as `hasGet`, never called). Older pages record it as
+`{ present: false }`, and captures from before the channel existed don't
+have it at all.
 
 Produced by evaluating `scripts/lab-capture-dump.js` unchanged in the
 served scenario page (chrome-devtools MCP session; the probe is one
@@ -58,6 +63,45 @@ ready promise, so lab behavior is unchanged — verified A→A on
 timestamps). The manifest pins the *current* probe (regeneration
 contract); the validator additionally rejects any lab capture carrying
 fallback-mode scenario keys.
+
+## nf-lab scenario corpus (share-pools)
+
+Nine scenarios witnessing explicit pool tags and the dense remoteEntry
+formats, listed in `captures/manifest-nf-lab.json` (own manifest: a
+different playground commit and collector than the V2 corpus). Captured
+on orchestrator **v4.7.0**, so the records carry `poolName`/`poolCause`
+and the `orchestratorGlobal` channel, and the probe stamps the exposed
+version (`4.7.0`) as `orchestratorCommit`. Same envelope and serving
+origin as the V2 corpus; scenario ids are unique across both corpora
+because they share the `captures/` root. The corpus table lives in
+`scripts/lab-corpora.mjs`.
+
+The V2 corpus cannot be re-captured (its runner is gone) and stays the
+pre-4.7 coverage (orchestrator v4.6.0, `8e5e0b3`). Its manifest pins
+`scripts/lab-capture-dump-v1.js`, a byte-identical copy of the probe that
+produced it; the validator hashes whichever probe file a manifest names.
+
+| Scenario | Witnesses |
+|---|---|
+| `pool-tag-coherent` | tagged family already served whole by one build — pooling writes nothing |
+| `pool-tag-islanded` | gate 1: one remote scoped across the whole family; a member left with no share row |
+| `pool-tag-anchored` | gate 2: `servedBy` onto one remote build, an untagged remote included |
+| `pool-tag-orphan` | a tag that joins nothing — no pool forms |
+| `pool-showcase` | four independent pools on one page: redirected, version conflict, one build under two tags, orphan tag |
+| `pool-portfolio` | one family across the host and eleven remotes: the host's build, a redirect group, one isolated remote strict on two packages |
+| `dense-chunking-only` | `bundle` + a `browser-shared` chunk list, flat entries |
+| `dense-externals-only` | one registration with a two-entry `entries` map, no bundle |
+| `dense-both` | both |
+
+Source: `native-federation/playground`, branch `lab/grouping-and-pooling`,
+directory `lab/` (esbuild adapter, core 4.7.0, fake `@nf-lab/*` packages;
+see its README). Captured headlessly (Playwright Chromium over CDP,
+es-module-shims in shim mode). Regeneration, from the playground `lab/`:
+
+1. `node capture-all.mjs ../../devtools/captures <runstamp>`,
+2. `node scripts/build-lab-manifest.mjs --corpus nf-lab --playground ../angular-examples`,
+3. `node scripts/validate-lab-corpus.mjs` (validates both corpora),
+4. `node scripts/derive-fixtures.mjs`.
 
 ## Frankenstein-live captures (V2, rows 12–16)
 

@@ -333,6 +333,12 @@ describe('normalizeRegistryEvidence — corpus-backed declarations', () => {
           path: [...participantPath, 'servedBy'],
           state: anchorCase.hasServedBy ? 'present' : 'missing',
         },
+        // The v4.6.0 corpus predates `poolCause` (orchestrator v4.7).
+        {
+          source: 'snapshot',
+          path: [...participantPath, 'poolCause'],
+          state: 'missing',
+        },
       ]);
     }
   });
@@ -680,8 +686,8 @@ describe('normalizeRegistryEvidence — lossless identity and diagnostics', () =
       0,
     ];
 
-    expect(declaration).toMatchObject({ pool: null, servedBy: 'owner' });
-    expect(declaration.provenance.evidence.slice(-2)).toEqual([
+    expect(declaration).toMatchObject({ pool: null, servedBy: 'owner', poolCause: null });
+    expect(declaration.provenance.evidence.slice(-3, -1)).toEqual([
       {
         source: 'snapshot',
         path: [...participantPath, 'pool'],

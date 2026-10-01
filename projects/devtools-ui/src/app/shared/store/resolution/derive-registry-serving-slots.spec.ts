@@ -60,6 +60,7 @@ function seededEvidence(registrations: SeedRegistration[]): CanonicalRegistryEvi
           generation: 'v4.5',
           pool: null,
           servedBy: null,
+          poolCause: null,
           entrypointCandidateIds: [],
           provenance: EMPTY_PROVENANCE,
         });
@@ -85,6 +86,7 @@ function seededEvidence(registrations: SeedRegistration[]): CanonicalRegistryEvi
     shareScope: '__GLOBAL__',
     packageName: 'pkg',
     dirty: false,
+    poolName: null,
     versionRegistrationIds: versionIds,
     provenance: EMPTY_PROVENANCE,
   });

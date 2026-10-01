@@ -30,6 +30,7 @@ export type DerivationRule =
   | 'shared-chunks-lists'
   | 'integrity-map-present'
   | 'participant-bundle'
+  | 'multi-entry-map'
   | 'generation-aggregate'
   | 'mapped-multiplicity'
   | 'strict-scope-policy';
@@ -141,15 +142,14 @@ export interface RemoteChunkAttribution {
 }
 
 /**
- * Capability badges of one remote. Dense externals keys on participants
- * carrying `bundle` — multi-key `entries` was observed nowhere and must
- * not be the marker.
+ * Capability badges of one remote. Chunk lists and participant `bundle` are
+ * both denseChunking facets; `rule` names the first facet found.
  */
 export interface RemoteBadges {
   remote: string;
-  denseChunking: { present: boolean; rule: 'shared-chunks-lists' };
+  denseChunking: { present: boolean; rule: 'shared-chunks-lists' | 'participant-bundle' };
   sri: { present: boolean; rule: 'integrity-map-present' };
-  denseExternals: { present: boolean; rule: 'participant-bundle' };
+  multiEntry: { present: boolean; rule: 'multi-entry-map' };
 }
 
 /** Per-snapshot generation badge from the mapper-recorded provenance. */

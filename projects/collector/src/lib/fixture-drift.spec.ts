@@ -26,10 +26,13 @@ describe('corpus-derived fixtures equal fresh pipeline output (T5-AC-01, T2.1-AC
     expect(deriveCaptureSnapshot(capture)).toEqual(FIXTURES[id as keyof typeof FIXTURES]);
   });
 
-  it('covers all twelve lab scenarios plus the live capture', () => {
-    expect(derivedIds).toHaveLength(13);
+  // 12 v2 lab scenarios + 9 nf-lab scenarios (scripts/lab-corpora.mjs) + the live capture.
+  it('covers every lab scenario of both corpora plus the live capture', () => {
+    expect(derivedIds).toHaveLength(22);
     expect(derivedIds).toContain('co-declared-share');
     expect(derivedIds).toContain('pooling-anchor');
+    expect(derivedIds).toContain('pool-tag-anchored');
+    expect(derivedIds).toContain('dense-externals-only');
     expect(derivedIds).toContain(LIVE_ID);
   });
 
@@ -111,5 +114,44 @@ describe('frankenstein-live fixture provenance (T5-AC-02)', () => {
       expect(typeof participant.file).toBe('string');
       expect(participant.entries).toBeNull();
     }
+  });
+});
+
+// The lab probe records __NF_ORCHESTRATOR__ from orchestrator v4.7 on; no corpus capture carries
+// the channel yet, so this adds one to a stored capture in the shape a 4.7.0 page produced.
+describe('orchestratorGlobal channel', () => {
+  const withOrchestratorGlobal = () => {
+    const capture = structuredClone(loadLabCapture('pool-tag-coherent'));
+    capture['channels'].orchestratorGlobal = {
+      availability: 'available',
+      observedAt: capture['capturedAt'],
+      data: {
+        present: true,
+        valueType: 'object',
+        keys: ['storage'],
+        storage: {
+          __NATIVE_FEDERATION__: {
+            version: '4.7.0',
+            type: 'globalThis',
+            namespace: '__NATIVE_FEDERATION__',
+            keys: ['remotes', 'shared-externals', 'scoped-externals', 'shared-chunks'],
+            hasGet: true,
+          },
+        },
+      },
+    };
+    return capture;
+  };
+
+  it('derives the exposed orchestrator version into the snapshot', () => {
+    const snapshot = deriveCaptureSnapshot(withOrchestratorGlobal());
+    expect(snapshot.runtime!.orchestratorVersion).toBe('4.7.0');
+    expect(snapshot.errors).toEqual([]);
+  });
+
+  it('leaves a capture without the channel exactly as before', () => {
+    expect(deriveCaptureSnapshot(loadLabCapture('pool-tag-coherent'))).toEqual(
+      FIXTURES['pool-tag-coherent'],
+    );
   });
 });

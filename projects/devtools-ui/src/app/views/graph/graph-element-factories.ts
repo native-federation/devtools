@@ -10,6 +10,8 @@ import {
   participantDisplay,
 } from '../../shared/view-conventions';
 import {
+  CHECKBOX_GAP,
+  CHECKBOX_SIZE,
   COL_GAP,
   DependencyGraphNode,
   GraphEdge,
@@ -26,6 +28,7 @@ import {
   NODE_W,
   RemoteGraphNode,
   SUB_LABEL_MAX,
+  TOGGLE_W,
 } from './graph-types';
 
 /**
@@ -58,7 +61,9 @@ function truncated(
  * never exceed `LABEL_MAX`; the floor is a pure defensive bound.
  */
 function dependencyLabelBudget(shownTag: string | null): number {
-  return shownTag === null ? LABEL_MAX : Math.max(12, LABEL_MAX - shownTag.length - 2);
+  // The expand arrow takes about two characters of the label budget.
+  const budget = LABEL_MAX - 2;
+  return shownTag === null ? budget : Math.max(12, budget - shownTag.length - 2);
 }
 
 /**
@@ -127,12 +132,17 @@ export function remoteNodeAt(remote: RemoteProjection, rowIndex: number): Remote
   // Chip convention: the `__NF-HOST__` sentinel reads as `host`; the
   // verbatim name stays reachable as tooltip, and `id` stays canonical.
   const display = participantDisplay(remote.name);
-  const base = nodeBaseAt('remote', remote.name, display, columnX(0), y);
+  const x = columnX(0);
+  // The checkbox takes about two characters of the label budget.
+  const base = nodeBaseAt('remote', remote.name, display, x, y, LABEL_MAX - 2);
   return {
     ...base,
     labelTooltip: display === remote.name ? base.labelTooltip : remote.name,
+    labelX: x + LABEL_PAD + CHECKBOX_SIZE + CHECKBOX_GAP,
     kind: 'remote',
     isHost: remote.isHost,
+    checkX: x + LABEL_PAD,
+    checkY: y + (NODE_H - CHECKBOX_SIZE) / 2,
   };
 }
 
@@ -156,8 +166,10 @@ export function dependencyNodeAt(
     subLabel: tag === null ? null : tag.label,
     subLabelTooltip: tag === null ? null : tag.labelTooltip,
     isolated: isIsolated(copy),
-    subLabelX: x + NODE_W - LABEL_PAD,
+    expanded: false,
+    subLabelX: x + NODE_W - LABEL_PAD - TOGGLE_W,
     subLabelY: y + LABEL_BASELINE,
+    toggleX: x + NODE_W - LABEL_PAD,
   };
 }
 
@@ -219,9 +231,16 @@ export function dependencyClusterOf(
   }
 }
 
+/** Tooltip of a chunk stub: why no file is listed. */
+export function stubTooltipOf(claim: BundleClaim): string {
+  return claim.status === 'ambiguous'
+    ? `${claim.bundle} — several source registrations name a bundle; none is chosen, so no chunk files are attributed`
+    : `${claim.bundle} — the copy's source names this bundle, but its remote recorded no split chunk files for it: the copy's own file is the whole output`;
+}
+
 /** Qualifier line of a chunk stub; only `mapped-source` claims list files. */
 export function stubQualifierOf(claim: BundleClaim): string {
   return claim.status === 'ambiguous'
     ? 'ambiguous — no unique source'
-    : 'source-only — no registered chunk list';
+    : 'no chunk files recorded for this bundle';
 }

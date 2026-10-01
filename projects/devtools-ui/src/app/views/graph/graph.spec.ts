@@ -79,6 +79,10 @@ async function createView(fixtureId: FixtureId | null, extraProviders: Provider[
  * default here.
  */
 async function createSeededView(projection: CanonicalResolutionProjection): Promise<HTMLElement> {
+  return (await createSeededViewFixture(projection)).el;
+}
+
+async function createSeededViewFixture(projection: CanonicalResolutionProjection) {
   await TestBed.configureTestingModule({
     imports: [GraphView],
     providers: [
@@ -91,7 +95,7 @@ async function createSeededView(projection: CanonicalResolutionProjection): Prom
   }).compileComponents();
   const fixture = TestBed.createComponent(GraphView);
   fixture.detectChanges();
-  return fixture.nativeElement as HTMLElement;
+  return { fixture, el: fixture.nativeElement as HTMLElement };
 }
 
 /** Minimal canonical seeds (branded-ID casts) for the seeded harness. */
@@ -170,6 +174,10 @@ function seededProjection(
     observedTargetProviders: [],
     sourceComparisons: [],
     packageMeasures: [],
+    tagPools: [],
+    orphanPoolTags: [],
+    poolFamilies: [],
+    copyGroupingFacets: [],
     completeness: {
       total: {
         unknownResolutions: 0,
@@ -197,6 +205,17 @@ function textOf(node: Element | null): string {
 }
 
 /** Normalized cluster label texts in render order. */
+/** Opens a build-files group (the column starts collapsed) by clicking its header. */
+function openBuild(el: HTMLElement, label: string): void {
+  const group = Array.from(el.querySelectorAll<SVGGElement>('g.graph-cluster.toggle')).find(
+    (candidate) => textOf(candidate.querySelector('.graph-cluster-label')).startsWith(label),
+  );
+  if (group === undefined) {
+    throw new Error(`no build group labelled ${label}`);
+  }
+  group.dispatchEvent(new MouseEvent('click'));
+}
+
 function clusterLabels(el: HTMLElement): string[] {
   return Array.from(el.querySelectorAll('.graph-cluster-label')).map((label) => textOf(label));
 }
@@ -212,7 +231,7 @@ function nodeByLabel(el: HTMLElement, kind: 'remote' | 'dependency', label: stri
 }
 
 const TOOLBAR_HINT =
-  'click remotes to filter · hover to trace · dashed node = isolated copy · dotted edge = borrowed';
+  'click remotes to include · click a dependency or build to expand · hover to trace · dashed node = isolated copy · dotted edge = borrowed';
 
 describe('GraphView', () => {
   // T1-AC-01: one dependency node with a solid and a dotted consume edge;
@@ -298,6 +317,93 @@ describe('GraphView', () => {
     }
   });
 
+  // share-pools T4: the switch re-clusters in place and keeps the
+  // forbidden vocabulary out of every grouping's labels and tooltips.
+  it('switches the dependency grouping from the toolbar', async () => {
+    const forbidden = /\b(loaded|downloaded|fetched|executed|wire cost|byte size|cache hit)\b/i;
+    const { fixture, el } = await createViewFixture('pool-tag-coherent');
+    const buttons = Array.from(el.querySelectorAll<HTMLButtonElement>('.graph-group-by-button'));
+    expect(buttons.map((button) => textOf(button))).toEqual([
+      'Provider',
+      'Share scope',
+      'Pool',
+      'Build',
+    ]);
+    expect(buttons[0].getAttribute('aria-pressed')).toBe('true');
+    const nodeKeys = () =>
+      Array.from(el.querySelectorAll('.graph-node .graph-node-label'))
+        .map((label) => textOf(label))
+        .sort();
+    const before = nodeKeys();
+
+    buttons[2].click();
+    await settle(fixture);
+    expect(buttons[2].getAttribute('aria-pressed')).toBe('true');
+    expect(
+      Array.from(el.querySelectorAll('.graph-cluster-label')).map((label) => textOf(label)),
+    ).toEqual(['pool ui (2)', '(not pooled) (1)', 'host (1)', 'mfe1 (2)']);
+    expect(el.querySelector('.graph-cluster title')?.textContent?.trim()).toBe(
+      'formed by: mfe1 "ui", mfe2 "ui"',
+    );
+    expect(nodeKeys()).toEqual(before);
+
+    for (const button of buttons) {
+      button.click();
+      await settle(fixture);
+      expect(el.textContent).not.toMatch(forbidden);
+    }
+  });
+
+  // Accordion: one open dependency and one open build group at a time.
+  it('opens one dependency and one build group at a time', async () => {
+    const { fixture, el } = await createViewFixture('frankenstein-live');
+    const click = (node: Element) => {
+      node.dispatchEvent(new MouseEvent('click'));
+      fixture.detectChanges();
+    };
+    click(nodeByLabel(el, 'dependency', '@angular/common'));
+    expect(Array.from(el.querySelectorAll('.graph-list-text')).map((t) => textOf(t))).toEqual([
+      '@angular/common/http',
+      'see usage details',
+    ]);
+    click(nodeByLabel(el, 'dependency', 'rxjs'));
+    expect(Array.from(el.querySelectorAll('.graph-list-text')).map((t) => textOf(t))).toEqual([
+      'rxjs/operators',
+      'see usage details',
+    ]);
+    const usage = el.querySelector('a.graph-list-link');
+    expect(textOf(usage)).toBe('see usage details');
+    expect(usage?.getAttribute('href')).toBe(
+      `/packages?select=${encodeURIComponent('__GLOBAL__|rxjs')}`,
+    );
+    expect(el.querySelectorAll('.graph-node.dependency.expanded').length).toBe(1);
+    expect(textOf(nodeByLabel(el, 'dependency', 'rxjs').querySelector('.graph-node-toggle'))).toBe(
+      '▾',
+    );
+    expect(
+      textOf(nodeByLabel(el, 'dependency', '@angular/common').querySelector('.graph-node-toggle')),
+    ).toBe('▸');
+    click(nodeByLabel(el, 'dependency', 'rxjs'));
+    expect(el.querySelectorAll('.graph-list-item').length).toBe(0);
+
+    // Three single-file builds always show their file.
+    openBuild(el, 'host · browser-rxjs');
+    fixture.detectChanges();
+    expect(el.querySelectorAll('.graph-node.chunk:not(.summary)').length).toBe(3 + 3);
+    openBuild(el, 'whiteboard');
+    fixture.detectChanges();
+    expect(el.querySelectorAll('.graph-node.chunk:not(.summary)').length).toBe(3 + 7);
+    const toggleOf = (label: string) =>
+      Array.from(el.querySelectorAll('g.graph-cluster.toggle'))
+        .find((group) => textOf(group.querySelector('.graph-cluster-label')).startsWith(label))!
+        .querySelector('.graph-cluster-toggle');
+    expect(textOf(toggleOf('whiteboard'))).toBe('▾');
+    expect(textOf(toggleOf('host · browser-rxjs'))).toBe('▸');
+    // A summary row toggles its group too.
+    click(el.querySelector('.graph-node.chunk.summary')!);
+    expect(el.querySelectorAll('.graph-node.chunk:not(.summary)').length).toBe(3 + 3);
+  });
+
   // T1-AC-06: a capture producing no nodes says so; a missing snapshot
   // reuses the panel's existing empty wording.
   it('renders the two empty states honestly', async () => {
@@ -323,35 +429,59 @@ describe('GraphView', () => {
     const el = await createView('frankenstein-live');
 
     const headers = Array.from(el.querySelectorAll('.graph-column-header')).map((h) => textOf(h));
-    expect(headers).toEqual(['Remotes', 'Dependencies', 'Chunks']);
+    expect(headers).toEqual(['Remotes', 'Dependencies', 'Build files']);
     expect(clusterLabels(el)).toEqual([
       'host (12)',
       'mermaid (1)',
       'whiteboard (7)',
-      'host · browser-angular_common (1)',
-      'host · browser-angular_core (5)',
+      'host · browser-angular_common (3)',
+      'host · browser-angular_core (11)',
       'host · browser-angular_platform_browser (1)',
-      'host · browser-rxjs (1)',
+      'host · browser-rxjs (3)',
       'host · browser-tslib (1)',
+      'mermaid (1)',
+      'whiteboard (7)',
     ]);
-    expect(el.querySelectorAll('.graph-node.chunk').length).toBe(9);
-    expect(el.querySelectorAll('.graph-node.chunk.stub').length).toBe(2);
+    // The build-files column starts collapsed: one summary row per
+    // multi-file build; single-file builds show their file directly.
+    expect(el.querySelectorAll('.graph-node.chunk').length).toBe(7);
+    expect(el.querySelectorAll('.graph-node.chunk.summary').length).toBe(4);
+    expect(el.querySelectorAll('a.graph-chunk-link[href]').length).toBe(3);
+    expect(el.querySelectorAll('.graph-cluster.toggle').length).toBe(4);
   });
 
-  // T2-AC-02 + T2-AC-03: the emitting source remote carries the chunk
-  // column's qualified stub, the borrowing consumer contributes nothing,
-  // and no file is fabricated; bundle references stay unrendered (Task 3).
-  it('renders the clean-skip stub under the emitting remote without fabricated files', async () => {
+  // T2-AC-02 + T2-AC-03: the emitting source remote carries the copy's
+  // entry file (linked), the borrowing consumer contributes nothing, and no
+  // chunk file is fabricated; bundle references stay unrendered (Task 3).
+  it('renders the clean-skip entry file under the emitting remote without fabricated chunks', async () => {
     const projection = ingestSnapshot(structuredClone(FIXTURES['clean-skip'])).resolutionProjection;
     const el = await createView('clean-skip');
 
     expect(clusterLabels(el)).toEqual(['mfe2 (1)', 'mfe2 · browser-shared (1)']);
+    // One file: shown directly, no summary row and no toggle.
+    expect(el.querySelector('.graph-node.chunk.summary')).toBeNull();
+    expect(el.querySelector('.graph-cluster.toggle')).toBeNull();
     expect(el.querySelectorAll('.graph-node.chunk').length).toBe(1);
-    const stub = el.querySelector('.graph-node.chunk.stub');
-    expect(textOf(stub?.querySelector('.graph-node-label') ?? null)).toBe('browser-shared');
-    expect(textOf(stub?.querySelector('.graph-node-qualifier') ?? null)).toBe(
-      'source-only — no registered chunk list',
+    expect(el.querySelector('.graph-node.chunk.stub')).toBeNull();
+    const link = el.querySelector('.graph-node.chunk a.graph-chunk-link');
+    expect(textOf(link?.querySelector('.graph-node-label') ?? null)).toBe(
+      '_nf_lab_conflict_lib.jvcc6K1csg.js',
     );
+    expect(link?.getAttribute('href')).toBe(
+      'http://localhost:4300/mfe2/_nf_lab_conflict_lib.jvcc6K1csg.js',
+    );
+    expect(link?.getAttribute('target')).toBe('_blank');
+    // The click opens the tab itself instead of relying on SVG link navigation.
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    const click = new MouseEvent('click', { cancelable: true });
+    link!.dispatchEvent(click);
+    expect(open).toHaveBeenCalledWith(
+      'http://localhost:4300/mfe2/_nf_lab_conflict_lib.jvcc6K1csg.js',
+      '_blank',
+      'noopener',
+    );
+    expect(click.defaultPrevented).toBe(true);
+    open.mockRestore();
     // Rendered paths are exactly the consume edges (hit + visible per
     // relation) — bundle-edge references wait for the hover trace.
     expect(el.querySelectorAll('path').length).toBe(2 * projection.consumerRelations.length);
@@ -456,11 +586,12 @@ describe('GraphView', () => {
       textOf(group.querySelector('.graph-cluster-label')).startsWith('mermaid'),
     );
     expect(mermaid?.classList.contains('hue-8')).toBe(true);
-    // No other cluster is colored under this lookup.
+    // Only mermaid's clusters are colored under this lookup: its dependency
+    // cluster and its build-files cluster.
     expect(
       clusters.filter((group) => Array.from(group.classList).some((c) => c.startsWith('hue-')))
         .length,
-    ).toBe(1);
+    ).toBe(2);
   });
 
   // ---- Task 3: hover trace and click-to-filter ----
@@ -470,21 +601,25 @@ describe('GraphView', () => {
   // everything else dims; leaving the graph area restores everything.
   it('reveals the hovered dependency bundle edges and dims the untraced rest', async () => {
     const { fixture, el } = await createViewFixture('frankenstein-live');
+    openBuild(el, 'host · browser-angular_core');
+    fixture.detectChanges();
     const core = nodeByLabel(el, 'dependency', '@angular/core');
     core.dispatchEvent(new MouseEvent('mouseenter'));
     fixture.detectChanges();
 
-    // Exactly the hovered copy's 5 references to the browser-angular_core
-    // files appear as bundle edges — nothing else is revealed.
-    expect(el.querySelectorAll('path.graph-bundle-edge').length).toBe(5);
+    // Exactly the hovered copy's entry file plus its 5 browser-angular_core
+    // chunk files appear as bundle edges — nothing else is revealed.
+    expect(el.querySelectorAll('path.graph-bundle-edge').length).toBe(6);
     expect(core.classList.contains('dim')).toBe(false);
     expect(nodeByLabel(el, 'remote', 'host').classList.contains('dim')).toBe(false);
     expect(nodeByLabel(el, 'remote', 'mermaid').classList.contains('dim')).toBe(true);
     expect(nodeByLabel(el, 'remote', 'whiteboard').classList.contains('dim')).toBe(true);
 
+    // The open group's 11 files plus the other six builds' summary rows.
     const chunks = Array.from(el.querySelectorAll('g.graph-node.chunk'));
-    expect(chunks.length).toBe(9);
-    expect(chunks.filter((chunk) => !chunk.classList.contains('dim')).length).toBe(5);
+    expect(chunks.length).toBe(17);
+    // Lit: @angular/core's entry file and its 5 chunk files.
+    expect(chunks.filter((chunk) => !chunk.classList.contains('dim')).length).toBe(6);
     const dependencies = Array.from(el.querySelectorAll('g.graph-node.dependency'));
     expect(dependencies.filter((node) => !node.classList.contains('dim')).length).toBe(1);
     const edgeGroups = Array.from(el.querySelectorAll('g.graph-edge-group'));
@@ -565,6 +700,41 @@ describe('GraphView', () => {
     expect(textOf(el.querySelector('.graph-toolbar-hint'))).toBe(TOOLBAR_HINT);
   });
 
+  // Exclude mode: checkboxes start all ticked, clicking a remote unticks it
+  // and hides its consumers; switching back keeps the selection as an include.
+  it('inverts the remote selection in exclude mode with checkbox feedback', async () => {
+    const { fixture, el } = await createViewFixture('frankenstein-live');
+    const checked = () =>
+      Array.from(el.querySelectorAll('g.graph-node.remote'))
+        .filter((node) => node.getAttribute('aria-checked') === 'true')
+        .map((node) => textOf(node.querySelector('.graph-node-label')));
+    const modeButton = (label: string) =>
+      Array.from(el.querySelectorAll<HTMLButtonElement>('.graph-filter-mode-button')).find(
+        (button) => textOf(button) === label,
+      )!;
+    expect(checked()).toEqual([]);
+
+    modeButton('Exclude').click();
+    fixture.detectChanges();
+    expect(modeButton('Exclude').getAttribute('aria-pressed')).toBe('true');
+    expect(checked()).toEqual(['host', 'mermaid', 'whiteboard']);
+    expect(el.querySelectorAll('.graph-remote-check-mark').length).toBe(3);
+    expect(textOf(el.querySelector('.graph-toolbar-hint'))).toContain('click remotes to exclude');
+
+    nodeByLabel(el, 'remote', 'whiteboard').dispatchEvent(new MouseEvent('click'));
+    fixture.detectChanges();
+    expect(checked()).toEqual(['host', 'mermaid']);
+    expect(nodeByLabel(el, 'remote', 'whiteboard').classList.contains('excluded')).toBe(true);
+    expect(nodeByLabel(el, 'remote', 'whiteboard').classList.contains('selected')).toBe(false);
+    expect(textOf(el.querySelector('.graph-toolbar'))).toContain('excluding 1 remote');
+    expect(el.querySelectorAll('.graph-node.dependency').length).toBeLessThan(20);
+
+    modeButton('Include').click();
+    fixture.detectChanges();
+    expect(checked()).toEqual(['whiteboard']);
+    expect(el.querySelectorAll('.graph-node.dependency').length).toBe(7);
+  });
+
   // T3-AC-04: the toolbar switches hint line ↔ filter state; the cap
   // message appears only when references were actually capped.
   it('switches the toolbar states and shows the cap message only when capped', async () => {
@@ -613,9 +783,15 @@ describe('GraphView', () => {
 
   // T3-AC-04: the cap message renders with the honest overflow count when
   // the reference budget is exceeded (seeded — no fixture reaches the cap).
+  // References are (copy, chunk file) pairs, so 41 copies sharing one
+  // 100-file group reach 4100 refs while rendering ~140 nodes; one file per
+  // ref (4100 chunk nodes) made jsdom take 8–10s and time out.
   it('shows the cap message when bundle references were capped', async () => {
-    const files = Array.from({ length: MAX_BUNDLE_EDGES + 100 }, (_, i) => `chunk-${i}.js`);
-    const el = await createSeededView(
+    const copyCount = 41;
+    const files = Array.from({ length: 100 }, (_, i) => `chunk-${i}.js`);
+    const copyIds = Array.from({ length: copyCount }, (_, i) => `copy-${i}`);
+    expect(copyCount * files.length).toBe(MAX_BUNDLE_EDGES + 100);
+    const { fixture, el } = await createSeededViewFixture(
       seededProjection({
         remotes: [
           {
@@ -625,13 +801,18 @@ describe('GraphView', () => {
             resolvedScopeUrl: 'https://page.test/host/',
           },
         ],
-        copies: [seededCopy('copy-1', ['claim-1'])],
-        consumerRelations: [seededRelation('host', 'copy-1')],
-        bundleClaims: [seededClaim('claim-1', 'copy-1', ['group-1'])],
+        copies: copyIds.map((id) => seededCopy(id, [`claim-${id}`])),
+        // One consume edge raises the cap to 1 + MAX_BUNDLE_EDGES → 99 over.
+        consumerRelations: [seededRelation('host', 'copy-0')],
+        bundleClaims: copyIds.map((id) => seededClaim(`claim-${id}`, id, ['group-1'])),
         chunkGroups: [seededChunkGroup('group-1', files)],
       }),
     );
 
+    // Collapsed, the 4100 references merge onto one summary row per copy.
+    expect(el.querySelector('.graph-toolbar-cap')).toBeNull();
+    openBuild(el, 'host · bundle-x');
+    fixture.detectChanges();
     expect(textOf(el.querySelector('.graph-toolbar-cap'))).toBe(
       '99 additional bundle links hidden to keep the graph responsive.',
     );

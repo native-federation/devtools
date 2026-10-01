@@ -25,7 +25,8 @@
                 "input": "projects/devtools-ui/public"
               }
             ],
-            "styles": ["projects/devtools-ui/src/styles.css"]
+            "styles": ["projects/devtools-ui/src/styles.css"],
+            "allowedCommonJsDependencies": ["semver"]
           },
           "configurations": {
             "production": {

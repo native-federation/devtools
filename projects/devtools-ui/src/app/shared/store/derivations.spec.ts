@@ -261,8 +261,7 @@ describe('deriveFederation — resolution arrows (T7-AC-03)', () => {
 describe('deriveFederation — secondary-entry parent linking (T7-AC-04)', () => {
   it('links the live subpath externals across all four corpus spellings', () => {
     const derived = deriveFixture('frankenstein-live');
-    const parentOf = (packageName: string) =>
-      factsOf(derived, NF_HOST, packageName).parentLink;
+    const parentOf = (packageName: string) => factsOf(derived, NF_HOST, packageName).parentLink;
 
     expect(parentOf('@angular/common/http')).toEqual({
       parentPackage: '@angular/common',
@@ -311,22 +310,31 @@ describe('deriveFederation — secondary-entry parent linking (T7-AC-04)', () =>
 });
 
 describe('deriveFederation — capability badges (T7-AC-05)', () => {
-  it('derives the live badge matrix: host fully dense, whiteboard/mermaid SRI only', () => {
+  it('derives the live badge matrix: host dense chunking + SRI, whiteboard/mermaid SRI only', () => {
     const derived = deriveFixture('frankenstein-live');
     const badgesOf = (remote: string) =>
       derived.remoteBadges.find((badges) => badges.remote === remote)!;
 
     const host = badgesOf(NF_HOST);
-    expect(host.denseChunking.present).toBe(true);
-    expect(host.denseExternals.present).toBe(true);
+    expect(host.denseChunking).toEqual({ present: true, rule: 'shared-chunks-lists' });
+    // Released v4 spells every participant as a single `file`.
+    expect(host.multiEntry.present).toBe(false);
     expect(host.sri.present).toBe(true);
 
     for (const remote of ['whiteboard', 'mermaid']) {
       const badges = badgesOf(remote);
       expect(badges.sri.present).toBe(true);
       expect(badges.denseChunking.present).toBe(false);
-      expect(badges.denseExternals.present).toBe(false);
+      expect(badges.multiEntry.present).toBe(false);
     }
+  });
+
+  it('derives multi-entry from a participant serving several entrypoints', () => {
+    const badges = deriveFixture('synthetic-dense-entries').remoteBadges.find(
+      (entry) => entry.remote === 'mfe-dense',
+    )!;
+    expect(badges.multiEntry.present).toBe(true);
+    expect(badges.denseChunking.present).toBe(false);
   });
 
   it('derives the generation badge from provenance: released v4 live, v4.5 lab', () => {
@@ -490,9 +498,9 @@ describe('deriveFederation — provenance tags (T7-AC-08)', () => {
         }
       }
       for (const badges of derived.remoteBadges) {
-        expect(badges.denseChunking.rule).toBe('shared-chunks-lists');
+        expect(['shared-chunks-lists', 'participant-bundle']).toContain(badges.denseChunking.rule);
         expect(badges.sri.rule).toBe('integrity-map-present');
-        expect(badges.denseExternals.rule).toBe('participant-bundle');
+        expect(badges.multiEntry.rule).toBe('multi-entry-map');
       }
       expect(derived.generationBadge.rule).toBe('generation-aggregate');
       for (const conflict of derived.packageConflicts) {

@@ -47,6 +47,8 @@ export interface SharedExternalRecord {
   shareScope: string;
   packageName: string;
   dirty: boolean;
+  /** Stored pool name (orchestrator v4.7+), or null when the raw key is absent; never inferred. */
+  poolName: string | null;
   versionRegistrationIds: VersionRegistrationId[];
   provenance: EvidenceProvenance;
 }
@@ -87,6 +89,8 @@ export interface ParticipantDeclaration {
   pool: string | null;
   /** Direct snapshot anchor, or null when the raw key is absent; never inferred. */
   servedBy: string | null;
+  /** Stored reason pooling made this copy serve itself (v4.7+), or null when absent; never inferred. */
+  poolCause: string | null;
   entrypointCandidateIds: EntrypointCandidateId[];
   provenance: EvidenceProvenance;
 }

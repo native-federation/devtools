@@ -1,0 +1,132 @@
+<section class="view pools-view">
+  <h1>Pools</h1>
+  @if (vm(); as vm) {
+    <p class="pools-definition">
+      {{ definition }}
+      <a [href]="docsUrl" target="_blank" rel="noopener noreferrer">Pooling docs</a>
+    </p>
+    @if (vm.versionWarning) {
+      <p class="pools-version-warning" role="note">{{ vm.versionWarning }}</p>
+    }
+    @if (vm.emptyNote) {
+      <p class="view-observation">{{ vm.emptyNote }}</p>
+    }
+    @if (vm.pools.length > 0) {
+      <ul class="pools-legend" aria-label="Cell colours">
+        @for (entry of legend; track entry.state) {
+          <li>
+            <span class="pools-swatch" [attr.data-state]="entry.state"></span>{{ entry.label }}
+          </li>
+        }
+        <li>· not used</li>
+      </ul>
+    }
+    @for (pool of vm.pools; track pool.id) {
+      <article
+        class="pool-card"
+        [class.selected]="selectedId() === pool.id"
+        [attr.data-pool-id]="pool.id"
+      >
+        <header class="pool-head">
+          <h2 class="pool-name mono">pool {{ pool.name }}</h2>
+          @if (pool.scopeLabel) {
+            <span
+              class="pool-scope mono"
+              [title]="'share scope — configured via shareScope: ' + pool.scopeLabel"
+              >{{ pool.scopeLabel }}</span
+            >
+          }
+          <span class="pool-meta">{{ pool.counts }} · {{ pool.tags }}</span>
+          <a
+            class="pool-graph-link"
+            [routerLink]="['/graph']"
+            [queryParams]="{ group: 'pool', select: pool.id }"
+            >show in Graph</a
+          >
+        </header>
+        <div class="pool-matrix-wrap">
+          <table class="pool-matrix">
+            <thead>
+              <tr>
+                <th scope="col" class="pool-scope-prefix mono">
+                  {{ pool.scopePrefix }}{{ pool.scopePrefix ? '/' : '' }}
+                </th>
+                @for (column of pool.columns; track column.packageName) {
+                  <th scope="col" class="mono" [title]="column.packageName">{{ column.label }}</th>
+                }
+              </tr>
+            </thead>
+            @for (band of pool.bands; track band.label) {
+              <tbody>
+                <tr class="pool-band">
+                  <th scope="rowgroup" [attr.colspan]="pool.columns.length + 1">
+                    {{ band.label }}
+                    @if (band.note) {
+                      <span class="pool-band-note">· {{ band.note }}</span>
+                    }
+                  </th>
+                </tr>
+                @for (row of band.rows; track row.remote.name) {
+                  <tr>
+                    <th scope="row">
+                      <span class="pool-remote">
+                        <nf-participant-chip [name]="row.remote.name" [host]="row.remote.host" />
+                        @if (row.tag) {
+                          <span class="pool-tag mono">{{ row.tag }}</span>
+                        }
+                        @if (row.redirected) {
+                          <span class="pool-redirected">↪ redirected</span>
+                        }
+                      </span>
+                    </th>
+                    @for (cell of row.cells; track $index) {
+                      <td
+                        class="mono"
+                        [attr.data-state]="cell.state"
+                        [attr.tabindex]="cell.tooltip ? 0 : null"
+                        [attr.title]="cell.tooltip"
+                        [attr.aria-label]="cell.tooltip"
+                      >
+                        {{ cell.text }}
+                      </td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            }
+          </table>
+        </div>
+        @if (pool.verdict; as verdict) {
+          <p class="pool-verdict" [attr.data-tone]="verdict.tone" role="status">
+            <span class="pool-verdict-type"
+              ><span aria-hidden="true">{{ verdict.icon }}</span> {{ verdict.type
+              }}{{ verdict.cause ? ' · ' + verdict.cause : '' }}</span
+            >
+            <span class="pool-verdict-detail"
+              >{{ verdict.who }}
+              @if (verdict.why) {
+                <span class="pool-verdict-why"> · {{ verdict.why }}</span>
+              }
+            </span>
+          </p>
+        }
+        @if (pool.pendingNote) {
+          <p class="view-observation">{{ pool.pendingNote }}</p>
+        }
+        @for (note of pool.notes; track note) {
+          <p class="pool-note">{{ note }}</p>
+        }
+      </article>
+    }
+    @if (vm.orphans.length > 0) {
+      <h2 class="pools-orphans-heading">Tags that formed no pool</h2>
+      <ul class="pools-orphans">
+        @for (orphan of vm.orphans; track orphan) {
+          <li class="pool-orphan">{{ orphan }}</li>
+        }
+      </ul>
+    }
+  } @else {
+    <p class="view-observation">no captured snapshot to render</p>
+  }
+</section>

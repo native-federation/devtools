@@ -10,36 +10,25 @@
  * expected scenario set against this file. Re-running the builder over an
  * unchanged capture set is deterministic except for `createdAt`.
  *
- * Usage: node scripts/build-lab-manifest.mjs [--playground <path>]
+ * Usage: node scripts/build-lab-manifest.mjs [--corpus <id>] [--playground <path>]
+ * (corpora and their scenario catalogs: scripts/lab-corpora.mjs; default `v2`).
  */
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { corpusById } from "./lab-corpora.mjs";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CAPTURES_DIR = join(REPO_ROOT, "captures");
-const MANIFEST_PATH = join(CAPTURES_DIR, "manifest.json");
-const PROBE_PATH = join(REPO_ROOT, "scripts", "lab-capture-dump.js");
-
-// Catalog order from the playground scenario corpus (Task 1).
-const EXPECTED_SCENARIOS = [
-  "clean-skip",
-  "strict-split",
-  "scope-isolation",
-  "strict-scope",
-  "scoped",
-  "non-dense",
-  "dynamic-init-native",
-  "dynamic-init-shim",
-  "dynamic-override",
-  "self-fill",
-  "co-declared-share",
-  "pooling-anchor"
-];
 
 const args = process.argv.slice(2);
+const corpusFlag = args.indexOf("--corpus");
+const corpus = corpusById(corpusFlag !== -1 ? args[corpusFlag + 1] : "v2");
+const MANIFEST_PATH = join(CAPTURES_DIR, corpus.manifest);
+const PROBE_PATH = join(REPO_ROOT, corpus.probe);
+const EXPECTED_SCENARIOS = corpus.scenarios;
 const playgroundFlag = args.indexOf("--playground");
 const playgroundDir =
   playgroundFlag !== -1 && args[playgroundFlag + 1]
@@ -115,7 +104,7 @@ const LIVE_DIR = join(CAPTURES_DIR, LIVE_SCENARIO);
 let liveCaptures = null;
 let liveFiles = [];
 try {
-  liveFiles = readdirSync(LIVE_DIR).filter((f) => f.endsWith(".json")).sort();
+  if (corpus.live) liveFiles = readdirSync(LIVE_DIR).filter((f) => f.endsWith(".json")).sort();
 } catch {
   // No live capture directory — manifest stays lab-only.
 }
@@ -184,24 +173,19 @@ const manifest = {
   createdAt: new Date().toISOString(),
   source: {
     playground: {
-      repository: "nf/playground",
+      repository: corpus.repository,
       branch: git(playgroundDir, "branch", "--show-current"),
       commit: git(playgroundDir, "rev-parse", "HEAD"),
-      runner: "run-scenario.mjs"
+      runner: corpus.runner
     },
     orchestratorCommit: [...orchestratorCommits][0],
     probe: {
-      file: "scripts/lab-capture-dump.js",
+      file: corpus.probe,
       schemaVersion: "lab-lossless-capture/1",
       sha256: sha256(readFileSync(PROBE_PATH))
     }
   },
-  collector: {
-    kind: "chrome-devtools-mcp",
-    interface: "generic-devtools",
-    webMcpUsed: false,
-    sanitization: "lossless"
-  },
+  collector: { ...corpus.collector, sanitization: "lossless" },
   serving: {
     mode: "run-scenario-single-origin",
     origin: "http://localhost:4300",
@@ -214,7 +198,7 @@ if (liveCaptures) manifest.liveCaptures = liveCaptures;
 
 writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2) + "\n");
 console.log(
-  `wrote captures/manifest.json (runId ${runId}, ${captures.length} captures` +
+  `wrote captures/${corpus.manifest} (runId ${runId}, ${captures.length} captures` +
     (liveCaptures ? `, ${liveCaptures.files.length} live phases` : "") +
     `)`
 );

@@ -1,6 +1,7 @@
 /**
  * The fixed passive probe: page metadata, the four `__NATIVE_FEDERATION__`
- * repositories, DOM import-map inventory, and an `importShim` presence
+ * repositories, the orchestrator version published on `__NF_ORCHESTRATOR__`
+ * (v4.7+), DOM import-map inventory, and an `importShim` presence
  * summary. The repository schemas are the corpus-validated V2 shapes
  * (ground truth: captures/ + docs/work/v2/shape-validation.md) and accept
  * both registry-format generations — participants carry `entries` (v4.5+)
@@ -151,6 +152,7 @@ export const PASSIVE_PROBE_SOURCE = `(() => {
       file: schemas.string,
       name: schemas.string,
       pool: schemas.string,
+      poolCause: schemas.string,
       requiredVersion: schemas.string,
       servedBy: schemas.string,
       strictVersion: schemas.boolean
@@ -169,6 +171,7 @@ export const PASSIVE_PROBE_SOURCE = `(() => {
     type: "record",
     fields: {
       dirty: schemas.boolean,
+      poolName: schemas.string,
       versions: { type: "array", item: schemas.version }
     }
   };
@@ -283,6 +286,18 @@ export const PASSIVE_PROBE_SOURCE = `(() => {
     }
   }
 
+  // Only the plain version data property of the entry for the namespace read above; get is never called.
+  const orchestratorSummary = descriptorSummary("__NF_ORCHESTRATOR__");
+  if (Object.prototype.hasOwnProperty.call(orchestratorSummary, "value")) {
+    const path = "__NF_ORCHESTRATOR__.storage.__NATIVE_FEDERATION__";
+    const storage = readData(orchestratorSummary.value, "storage", "__NF_ORCHESTRATOR__.storage");
+    const entry = storage.status === "data" ? readData(storage.value, "__NATIVE_FEDERATION__", path) : null;
+    const version = entry && entry.status === "data" ? readData(entry.value, "version", path + ".version") : null;
+    delete orchestratorSummary.value;
+    const bounded = version && version.status === "data" ? boundedString(version.value, path + ".version") : null;
+    if (bounded !== null) orchestratorSummary.version = bounded;
+  }
+
   const importShimSummary = descriptorSummary("importShim");
   if (Object.prototype.hasOwnProperty.call(importShimSummary, "value")) delete importShimSummary.value;
 
@@ -330,6 +345,7 @@ export const PASSIVE_PROBE_SOURCE = `(() => {
     page,
     globals: {
       nativeFederation: nativeSummary,
+      orchestrator: orchestratorSummary,
       importShim: importShimSummary
     },
     importMaps,

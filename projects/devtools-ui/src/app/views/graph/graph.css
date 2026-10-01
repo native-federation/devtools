@@ -11,6 +11,91 @@
   color: var(--nf-color-text-muted);
 }
 
+.graph-cluster.toggle,
+.graph-node.dependency,
+.graph-node.chunk.summary {
+  cursor: pointer;
+}
+
+.graph-node.dependency.expanded rect {
+  stroke: var(--nf-color-accent);
+}
+
+.graph-node.chunk.summary .graph-node-label {
+  fill: var(--nf-color-text-muted);
+  font-style: italic;
+}
+
+.graph-cluster-toggle,
+.graph-node-toggle {
+  font-size: 11px;
+  fill: var(--nf-color-text-muted);
+}
+
+.graph-list-text {
+  font-family: var(--nf-font-mono);
+  font-size: 10px;
+  fill: var(--nf-color-text-muted);
+}
+
+.graph-list-item.dim {
+  opacity: 0.25;
+}
+
+.graph-cluster.focused rect {
+  stroke: var(--nf-color-accent);
+  stroke-width: 2;
+}
+
+.graph-cluster-link text {
+  font-size: 11px;
+  fill: var(--nf-color-accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.graph-list-link .graph-list-text {
+  font-family: inherit;
+  fill: var(--nf-color-accent);
+  cursor: pointer;
+}
+
+.graph-list-link:hover .graph-list-text {
+  text-decoration: underline;
+}
+
+.graph-chunk-link .graph-node-label {
+  fill: var(--nf-color-accent);
+  cursor: pointer;
+}
+
+.graph-chunk-link:hover .graph-node-label {
+  text-decoration: underline;
+}
+
+.graph-group-by {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.graph-group-by-label {
+  font-size: 12px;
+  color: var(--nf-color-text-muted);
+}
+
+.graph-group-by-button,
+.graph-filter-mode-button {
+  font-size: 12px;
+  padding: 1px 8px;
+}
+
+.graph-group-by-button.active,
+.graph-filter-mode-button.active {
+  border-color: var(--nf-color-accent);
+  color: var(--nf-color-accent);
+}
+
 .graph-toolbar-clear {
   font-size: 12px;
   padding: 1px 8px;
@@ -174,6 +259,32 @@
 
 .graph-node.remote {
   cursor: pointer;
+}
+
+/* Remote filter checkbox; ticked = the remote's consumers are shown. */
+.graph-node.remote .graph-remote-check {
+  fill: var(--nf-color-surface);
+  stroke: var(--nf-color-text-muted);
+  stroke-width: 1;
+}
+
+.graph-node.remote .graph-remote-check.checked {
+  fill: var(--nf-color-accent);
+  stroke: var(--nf-color-accent);
+}
+
+.graph-remote-check-mark {
+  fill: none;
+  stroke: var(--nf-color-surface);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.graph-node.remote.excluded .graph-node-label {
+  fill: var(--nf-color-text-muted);
+  text-decoration: line-through;
 }
 
 /* Selected consumer filter: distinct fill plus a heavier stroke. */

@@ -5,15 +5,54 @@
       <p class="view-observation">Nothing to graph.</p>
     } @else {
       <div class="graph-toolbar">
-        @if (selectedRemotes().size > 0) {
+        <div class="graph-group-by" role="group" aria-label="group dependencies by">
+          <span class="graph-group-by-label">group by</span>
+          @for (option of groupByOptions; track option.value) {
+            <button
+              type="button"
+              class="nf-button graph-group-by-button"
+              [class.active]="groupBy() === option.value"
+              [attr.aria-pressed]="groupBy() === option.value"
+              [title]="option.hint"
+              (click)="setGroupBy(option.value)"
+            >
+              {{ option.label }}
+            </button>
+          }
+        </div>
+        <div
+          class="graph-group-by graph-filter-mode"
+          role="group"
+          aria-label="remote selection mode"
+        >
+          <span class="graph-group-by-label">selection</span>
+          @for (option of filterModeOptions; track option.value) {
+            <button
+              type="button"
+              class="nf-button graph-filter-mode-button"
+              [class.active]="filterMode() === option.value"
+              [attr.aria-pressed]="filterMode() === option.value"
+              [title]="option.hint"
+              (click)="setFilterMode(option.value)"
+            >
+              {{ option.label }}
+            </button>
+          }
+        </div>
+        @if (focusLine(); as line) {
+          <span class="graph-toolbar-line">{{ line }}</span>
+          <button type="button" class="nf-button graph-toolbar-clear" (click)="clearSelection()">
+            Clear
+          </button>
+        } @else if (selectedRemotes().size > 0) {
           <span class="graph-toolbar-line">{{ filterLine(selectedRemotes().size) }}</span>
           <button type="button" class="nf-button graph-toolbar-clear" (click)="clearSelection()">
             Clear
           </button>
         } @else {
           <span class="graph-toolbar-line graph-toolbar-hint">
-            click remotes to filter · hover to trace · dashed node = isolated copy · dotted edge =
-            borrowed
+            click remotes to {{ filterMode() }} · click a dependency or build to expand · hover to
+            trace · dashed node = isolated copy · dotted edge = borrowed
           </span>
         }
         @if (vm.cappedEdges > 0) {
@@ -24,7 +63,7 @@
         <svg
           class="graph-canvas"
           role="img"
-          aria-label="Resolution graph: remotes, the dependency copies they resolve to, and the chunk files claimed by the copies' bundles"
+          aria-label="Resolution graph: remotes, the dependency copies they resolve to, and the files of the builds those copies come from"
           [attr.width]="vm.width"
           [attr.height]="vm.height"
           [attr.viewBox]="'0 0 ' + vm.width + ' ' + vm.height"
@@ -39,7 +78,13 @@
             <g
               class="graph-cluster"
               [class]="cluster.colorIndex !== null ? 'hue-' + cluster.colorIndex : ''"
+              [class.focused]="clusterFocused(cluster.poolId)"
+              [class.toggle]="cluster.expanded !== null"
+              (click)="cluster.expanded !== null && toggleBuild(cluster.key)"
             >
+              @if (cluster.tooltip) {
+                <title>{{ cluster.tooltip }}</title>
+              }
               <rect
                 [attr.x]="cluster.x"
                 [attr.y]="cluster.y"
@@ -50,6 +95,31 @@
               <text class="graph-cluster-label" [attr.x]="cluster.labelX" [attr.y]="cluster.labelY">
                 {{ cluster.label }} ({{ cluster.count }})
               </text>
+              @if (cluster.expanded !== null) {
+                <text
+                  class="graph-cluster-toggle"
+                  [attr.x]="cluster.x + cluster.width - 8"
+                  [attr.y]="cluster.labelY"
+                  text-anchor="end"
+                >
+                  {{ cluster.expanded ? '▾' : '▸' }}
+                </text>
+              }
+              @if (cluster.poolId) {
+                <a
+                  class="graph-cluster-link"
+                  [routerLink]="['/pools']"
+                  [queryParams]="{ select: cluster.poolId }"
+                >
+                  <text
+                    [attr.x]="cluster.x + cluster.width - 8"
+                    [attr.y]="cluster.labelY"
+                    text-anchor="end"
+                  >
+                    explain
+                  </text>
+                </a>
+              }
             </g>
           }
           @for (edge of vm.edges; track edge.id) {
@@ -75,13 +145,38 @@
               [attr.d]="edge.path"
             />
           }
+          @for (item of vm.listItems; track item.key) {
+            <g class="graph-list-item" [class.dim]="nodeDimmed(item.ownerKey)">
+              @if (item.tooltip) {
+                <title>{{ item.tooltip }}</title>
+              }
+              @if (item.packageSelect; as select) {
+                <a
+                  class="graph-list-link"
+                  [routerLink]="['/packages']"
+                  [queryParams]="{ select: select }"
+                >
+                  <text class="graph-list-text" [attr.x]="item.x" [attr.y]="item.y">
+                    {{ item.text }}
+                  </text>
+                </a>
+              } @else {
+                <text class="graph-list-text" [attr.x]="item.x" [attr.y]="item.y">
+                  {{ item.text }}
+                </text>
+              }
+            </g>
+          }
           @for (node of vm.nodes; track node.key) {
             @switch (node.kind) {
               @case ('remote') {
                 <g
                   class="graph-node remote"
                   [class.host]="node.isHost"
-                  [class.selected]="selectedRemotes().has(node.id)"
+                  [class.selected]="filterMode() === 'include' && selectedRemotes().has(node.id)"
+                  [class.excluded]="filterMode() === 'exclude' && selectedRemotes().has(node.id)"
+                  role="checkbox"
+                  [attr.aria-checked]="remoteChecked(node.id)"
                   [class.dim]="nodeDimmed(node.key)"
                   (mouseenter)="setHovered(node.key)"
                   (mouseleave)="setHovered(null)"
@@ -97,6 +192,23 @@
                     [attr.height]="node.height"
                     rx="4"
                   />
+                  <rect
+                    class="graph-remote-check"
+                    [class.checked]="remoteChecked(node.id)"
+                    [attr.x]="node.checkX"
+                    [attr.y]="node.checkY"
+                    width="10"
+                    height="10"
+                    rx="2"
+                  />
+                  @if (remoteChecked(node.id)) {
+                    <path
+                      class="graph-remote-check-mark"
+                      [attr.d]="
+                        'M' + (node.checkX + 2) + ' ' + (node.checkY + 5) + ' l2.5 2.5 l4 -5'
+                      "
+                    />
+                  }
                   <text class="graph-node-label" [attr.x]="node.labelX" [attr.y]="node.labelY">
                     {{ node.label }}
                   </text>
@@ -105,6 +217,8 @@
               @case ('dependency') {
                 <g
                   class="graph-node dependency"
+                  [class.expanded]="node.expanded"
+                  (click)="toggleDependency(node.id)"
                   [class.isolated]="node.isolated"
                   [class.dim]="nodeDimmed(node.key)"
                   (mouseenter)="setHovered(node.key)"
@@ -135,11 +249,21 @@
                       {{ node.subLabel }}
                     </text>
                   }
+                  <text
+                    class="graph-node-toggle"
+                    [attr.x]="node.toggleX"
+                    [attr.y]="node.subLabelY"
+                    text-anchor="end"
+                  >
+                    {{ node.expanded ? '▾' : '▸' }}
+                  </text>
                 </g>
               }
               @case ('chunk') {
                 <g
                   class="graph-node chunk"
+                  [class.summary]="node.summary"
+                  (click)="node.summary && toggleBuild(node.clusterKey)"
                   [class.stub]="node.qualifier !== null"
                   [class.dim]="nodeDimmed(node.key)"
                   (mouseenter)="setHovered(node.key)"
@@ -155,9 +279,23 @@
                     [attr.height]="node.height"
                     rx="4"
                   />
-                  <text class="graph-node-label" [attr.x]="node.labelX" [attr.y]="node.labelY">
-                    {{ node.label }}
-                  </text>
+                  @if (node.href) {
+                    <a
+                      class="graph-chunk-link"
+                      [attr.href]="node.href"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      (click)="openFile($event, node.href)"
+                    >
+                      <text class="graph-node-label" [attr.x]="node.labelX" [attr.y]="node.labelY">
+                        {{ node.label }}
+                      </text>
+                    </a>
+                  } @else {
+                    <text class="graph-node-label" [attr.x]="node.labelX" [attr.y]="node.labelY">
+                      {{ node.label }}
+                    </text>
+                  }
                   @if (node.qualifier !== null) {
                     <text
                       class="graph-node-qualifier"
