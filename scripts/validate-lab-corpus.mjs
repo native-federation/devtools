@@ -89,6 +89,9 @@ const expectServedBy = (ns, loc, pkg, remotes, anchor) => {
     issue(loc, `expected ${pkg} anchors ${expected.join(",")}, saw ${seen.join(",")}`);
 };
 
+const KIT = "@nf-lab/kit";
+const kitRows = (ns) => participantRows(ns).filter((row) => row.pkg === KIT);
+
 const EVIDENCE = {
   "clean-skip": (ns, env, loc) => {
     const versions = sharedVersions(ns, "__GLOBAL__", "@nf-lab/conflict-lib");
@@ -370,6 +373,39 @@ const EVIDENCE = {
     const onHost = ["products", "search", "settings", "profile", "cart"];
     if (participantRows(ns).some((row) => onHost.includes(row.remote.name) && "servedBy" in row.remote))
       issue(loc, "expected the host-build remotes without a servedBy anchor");
+  },
+  // The host shares kit 2.0.0; mfe1's non-strict ^1.0.0 rejects it but is stored as a plain skip,
+  // mfe2's strict one scopes.
+  "out-of-range-nonstrict": (ns, env, loc) => {
+    const rows = kitRows(ns).map((row) => `${row.remote.name}:${row.tag}:${row.action}:${row.remote.strictVersion}`).sort();
+    const expected = ["__NF-HOST__:2.0.0:share:true", "mfe1:1.2.0:skip:false", "mfe2:1.3.0:scope:true", "mfe3:2.0.0:share:true"];
+    if (JSON.stringify(rows) !== JSON.stringify(expected)) issue(loc, `expected kit rows ${expected.join(",")}, saw ${rows.join(",")}`);
+  },
+  // The shared 1.4.0 lacks eight secondaries; the map serves them from mfe1's and mfe2's builds.
+  "torn-many": (ns, env, loc) => {
+    const map = env.channels?.importShim?.data?.map?.imports ?? {};
+    const served = Object.entries(map)
+      .filter(([spec]) => spec.startsWith(`${KIT}/`))
+      .map(([spec, url]) => `${spec.slice(KIT.length + 1)}@${new URL(url).pathname.split("/")[1]}`)
+      .sort();
+    const expected = ["charts/legend@mfe2", "charts@mfe2", "date-picker@mfe2", "dialog@mfe1", "forms@mfe1", "table/paginator@mfe1", "table/sort@mfe1", "table@mfe1"];
+    if (JSON.stringify(served) !== JSON.stringify(expected)) issue(loc, `expected torn kit specifiers ${expected.join(",")}, saw ${served.join(",")}`);
+    if (sharedVersions(ns, "__GLOBAL__", KIT).find((v) => v.action === "share")?.tag !== "1.4.0") issue(loc, "expected kit 1.4.0 shared");
+  },
+  // One shared row of kit 1.2.0 with two copies; the host's declares only the package itself.
+  "merged-entrypoints": (ns, env, loc) => {
+    const versions = sharedVersions(ns, "__GLOBAL__", KIT);
+    const entries = (versions[0]?.remotes ?? []).map((r) => `${r.name}:${Object.keys(r.entries ?? {}).length}`).sort();
+    if (versions.length !== 1 || versions[0].tag !== "1.2.0" || versions[0].action !== "share" || entries.join(",") !== "__NF-HOST__:1,mfe1:3")
+      issue(loc, `expected one shared kit 1.2.0 row with host:1 and mfe1:3 entries, saw ${entries.join(",")}`);
+  },
+  // kit in global, team-a and strict, each with its own election.
+  "multi-scope": (ns, env, loc) => {
+    const shares = Object.entries(ns["shared-externals"] ?? {})
+      .flatMap(([scope, pkgs]) => (pkgs[KIT]?.versions ?? []).filter((v) => v.action === "share").map((v) => `${scope}:${v.tag}`))
+      .sort();
+    const expected = ["__GLOBAL__:1.4.0", "strict:1.3.0", "strict:2.0.0", "team-a:1.3.0"];
+    if (JSON.stringify(shares) !== JSON.stringify(expected)) issue(loc, `expected kit shares ${expected.join(",")}, saw ${shares.join(",")}`);
   },
 };
 

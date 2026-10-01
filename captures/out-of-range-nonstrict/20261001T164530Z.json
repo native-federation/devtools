@@ -1,0 +1,213 @@
+{
+  "schemaVersion": "lab-lossless-capture/1",
+  "capturedAt": "2026-10-01T16:45:43.635Z",
+  "scenario": {
+    "scenarioId": "out-of-range-nonstrict",
+    "orchestratorCommit": "4.7.0",
+    "ready": true,
+    "readyError": null
+  },
+  "page": {
+    "url": "http://localhost:4300/",
+    "origin": "http://localhost:4300",
+    "path": "/",
+    "title": "nf-lab out-of-range-nonstrict",
+    "readyState": "complete"
+  },
+  "collector": {
+    "probe": "lab-capture-dump/1",
+    "sanitization": "lossless"
+  },
+  "channels": {
+    "nativeFederationGlobals": {
+      "availability": "available",
+      "observedAt": "2026-10-01T16:45:43.634Z",
+      "data": {
+        "present": true,
+        "valueType": "object",
+        "namespaceKeys": [
+          "remotes",
+          "shared-externals"
+        ],
+        "namespace": {
+          "remotes": {
+            "mfe1": {
+              "scopeUrl": "./mfe1/",
+              "exposes": [
+                {
+                  "moduleName": "./main",
+                  "file": "main-I2IWCNAM.js"
+                }
+              ]
+            },
+            "mfe2": {
+              "scopeUrl": "./mfe2/",
+              "exposes": [
+                {
+                  "moduleName": "./main",
+                  "file": "main-I2IWCNAM.js"
+                }
+              ]
+            },
+            "mfe3": {
+              "scopeUrl": "./mfe3/",
+              "exposes": [
+                {
+                  "moduleName": "./main",
+                  "file": "main-I2IWCNAM.js"
+                }
+              ]
+            },
+            "__NF-HOST__": {
+              "scopeUrl": "./",
+              "exposes": []
+            }
+          },
+          "shared-externals": {
+            "__GLOBAL__": {
+              "@nf-lab/kit": {
+                "dirty": false,
+                "versions": [
+                  {
+                    "tag": "2.0.0",
+                    "action": "share",
+                    "host": true,
+                    "remotes": [
+                      {
+                        "name": "__NF-HOST__",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": "^2.0.0",
+                        "entries": {
+                          "@nf-lab/kit": "_nf_lab_kit.6ezSr-plfZ.js"
+                        }
+                      },
+                      {
+                        "name": "mfe3",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": "^2.0.0",
+                        "entries": {
+                          "@nf-lab/kit": "_nf_lab_kit.6ezSr-plfZ.js"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "1.3.0",
+                    "action": "scope",
+                    "host": false,
+                    "remotes": [
+                      {
+                        "name": "mfe2",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": "^1.0.0",
+                        "entries": {
+                          "@nf-lab/kit": "_nf_lab_kit.1IDRTBdr7s.js"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "1.2.0",
+                    "action": "skip",
+                    "host": false,
+                    "remotes": [
+                      {
+                        "name": "mfe1",
+                        "strictVersion": false,
+                        "cached": false,
+                        "requiredVersion": "^1.0.0",
+                        "entries": {
+                          "@nf-lab/kit": "_nf_lab_kit.DSYCipaGyy.js"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "orchestratorGlobal": {
+      "availability": "available",
+      "observedAt": "2026-10-01T16:45:43.635Z",
+      "data": {
+        "present": true,
+        "valueType": "object",
+        "keys": [
+          "storage"
+        ],
+        "storage": {
+          "__NATIVE_FEDERATION__": {
+            "version": "4.7.0",
+            "type": "globalThis",
+            "namespace": "__NATIVE_FEDERATION__",
+            "keys": [
+              "remotes",
+              "shared-externals",
+              "scoped-externals",
+              "shared-chunks"
+            ],
+            "hasGet": true
+          }
+        }
+      }
+    },
+    "domImportMaps": {
+      "availability": "available",
+      "observedAt": "2026-10-01T16:45:43.635Z",
+      "data": {
+        "count": 1,
+        "maps": [
+          {
+            "index": 0,
+            "type": "importmap-shim",
+            "text": "{\"imports\":{\"@nf-lab/kit\":\"./_nf_lab_kit.6ezSr-plfZ.js\",\"mfe1/./main\":\"./mfe1/main-I2IWCNAM.js\",\"mfe2/./main\":\"./mfe2/main-I2IWCNAM.js\",\"mfe3/./main\":\"./mfe3/main-I2IWCNAM.js\"},\"scopes\":{\"./mfe2/\":{\"@nf-lab/kit\":\"./mfe2/_nf_lab_kit.1IDRTBdr7s.js\"}}}",
+            "parsed": true,
+            "map": {
+              "imports": {
+                "@nf-lab/kit": "./_nf_lab_kit.6ezSr-plfZ.js",
+                "mfe1/./main": "./mfe1/main-I2IWCNAM.js",
+                "mfe2/./main": "./mfe2/main-I2IWCNAM.js",
+                "mfe3/./main": "./mfe3/main-I2IWCNAM.js"
+              },
+              "scopes": {
+                "./mfe2/": {
+                  "@nf-lab/kit": "./mfe2/_nf_lab_kit.1IDRTBdr7s.js"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "importShim": {
+      "availability": "available",
+      "observedAt": "2026-10-01T16:45:43.635Z",
+      "data": {
+        "present": true,
+        "valueType": "function",
+        "version": "2.8.4",
+        "map": {
+          "imports": {
+            "@nf-lab/kit": "http://localhost:4300/_nf_lab_kit.6ezSr-plfZ.js",
+            "mfe1/./main": "http://localhost:4300/mfe1/main-I2IWCNAM.js",
+            "mfe2/./main": "http://localhost:4300/mfe2/main-I2IWCNAM.js",
+            "mfe3/./main": "http://localhost:4300/mfe3/main-I2IWCNAM.js"
+          },
+          "scopes": {
+            "http://localhost:4300/mfe2/": {
+              "@nf-lab/kit": "http://localhost:4300/mfe2/_nf_lab_kit.1IDRTBdr7s.js"
+            }
+          },
+          "integrity": {}
+        }
+      }
+    }
+  },
+  "collectionErrors": []
+}

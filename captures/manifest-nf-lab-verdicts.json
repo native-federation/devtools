@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "lab-lossless-corpus/1",
+  "runId": "20261001T164530Z",
+  "createdAt": "2026-10-01T16:45:47.812Z",
+  "source": {
+    "playground": {
+      "repository": "native-federation/playground",
+      "branch": "lab/grouping-and-pooling",
+      "commit": "5b67e9ca9753828adbddf9dda4b97e1105e3446f",
+      "runner": "lab/run-scenario.mjs"
+    },
+    "orchestratorCommit": "4.7.0",
+    "probe": {
+      "file": "scripts/lab-capture-dump.js",
+      "schemaVersion": "lab-lossless-capture/1",
+      "sha256": "58fa54295b66e6e24d8c1a49e0b8f0cf0e16907a6a4eb3aaed2de05f0eafe51f"
+    }
+  },
+  "collector": {
+    "kind": "playwright-cdp",
+    "interface": "headless-chromium",
+    "webMcpUsed": false,
+    "sanitization": "lossless"
+  },
+  "serving": {
+    "mode": "run-scenario-single-origin",
+    "origin": "http://localhost:4300",
+    "cacheControl": "no-store"
+  },
+  "expectedScenarios": [
+    "merged-entrypoints",
+    "multi-scope",
+    "out-of-range-nonstrict",
+    "torn-many"
+  ],
+  "captures": [
+    {
+      "scenario": "merged-entrypoints",
+      "path": "merged-entrypoints/20261001T164530Z.json",
+      "runstamp": "20261001T164530Z",
+      "sha256": "1be339719470c486aa9797b4dc885412c72c77b63cd9f2232acd9b5a667898bb"
+    },
+    {
+      "scenario": "multi-scope",
+      "path": "multi-scope/20261001T164530Z.json",
+      "runstamp": "20261001T164530Z",
+      "sha256": "dbd18008541c9bb86bf8259e7179299ccbd2780854f7e0b80d19b37b47c166d3"
+    },
+    {
+      "scenario": "out-of-range-nonstrict",
+      "path": "out-of-range-nonstrict/20261001T164530Z.json",
+      "runstamp": "20261001T164530Z",
+      "sha256": "008889e2da1894f68b29c34ea35c219034fc21128d33a5368bb6145f015eb155"
+    },
+    {
+      "scenario": "torn-many",
+      "path": "torn-many/20261001T164530Z.json",
+      "runstamp": "20261001T164530Z",
+      "sha256": "88c524f4e6ad506cbb9ebf0d4d5c976bf04a47a2ca203594a41cf71755c02932"
+    }
+  ]
+}

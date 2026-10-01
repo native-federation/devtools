@@ -3,6 +3,7 @@ import type { DeclarationResolutionClaim, ResolutionClaimsDerivation } from './c
 import type { PackageResolutionMeasures, ResolvedDependencyCopy } from './copies-model';
 import type { CopyGroupingFacets, TagPoolDerivation } from './grouping-model';
 import type { PoolFamily } from './pool-family-model';
+import type { PackageScopeVerdicts } from './verdict-model';
 import { registryEvidenceId } from './ids';
 import type { EffectiveConsumerResolution } from './model';
 import type {
@@ -28,6 +29,7 @@ export interface CanonicalProjectionInputs {
   tagPools: TagPoolDerivation;
   copyGroupingFacets: readonly CopyGroupingFacets[];
   poolFamilies: readonly PoolFamily[];
+  packageScopeVerdicts: readonly PackageScopeVerdicts[];
 }
 
 /**
@@ -56,6 +58,7 @@ export function buildCanonicalProjection(
     orphanPoolTags: [...inputs.tagPools.orphanPoolTags],
     poolFamilies: [...inputs.poolFamilies],
     copyGroupingFacets: [...inputs.copyGroupingFacets],
+    packageScopeVerdicts: [...inputs.packageScopeVerdicts],
     completeness: deriveCompleteness(inputs),
   };
 }

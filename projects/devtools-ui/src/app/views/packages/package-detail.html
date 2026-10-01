@@ -1,44 +1,48 @@
 @if (detail(); as detail) {
-  <h2 class="detail-name">
-    <span class="detail-name-text tip" [title]="'registry key in share scope ' + detail.scope">{{
-      detail.packageName
-    }}</span>
-    @if (detail.conflict; as conflict) {
-      <span class="detail-conflict tip" [title]="conflict.note">{{ conflict.label }}</span>
-    }
-  </h2>
-  <p class="detail-meta">
-    <span class="detail-scope"
-      >share scope:
-      <span
-        class="mono tip"
-        [attr.title]="
-          detail.scopeDisplay === detail.scope
-            ? 'configured via shareScope: ' + detail.scope
-            : detail.scope + ' — the default share scope (no shareScope configured)'
-        "
-        >{{ detail.scopeDisplay }}</span
-      ></span
-    >
-    @if (detail.strictScope) {
-      <span
-        class="detail-strict"
-        title="special strict share scope — no election, every exact version is shared side by side (config: shareScope: 'strict')"
-        >pinned scope</span
+  @if (!embedded()) {
+    <h2 class="detail-name">
+      <span class="detail-name-text tip" [title]="'registry key in share scope ' + detail.scope">{{
+        detail.packageName
+      }}</span>
+      @if (detail.conflict; as conflict) {
+        <span class="detail-conflict tip" [title]="conflict.note">{{ conflict.label }}</span>
+      }
+    </h2>
+    <p class="detail-meta">
+      <span class="detail-scope"
+        >share scope:
+        <span
+          class="mono tip"
+          [attr.title]="
+            detail.scopeDisplay === detail.scope
+              ? 'configured via shareScope: ' + detail.scope
+              : detail.scope + ' — the default share scope (no shareScope configured)'
+          "
+          >{{ detail.scopeDisplay }}</span
+        ></span
       >
-    }
-    @if (detail.parent) {
-      <span class="detail-parent">
-        secondary entry of
-        <a
-          [routerLink]="['/packages']"
-          [queryParams]="{ select: detail.parent.packageId }"
-          [title]="'parent association derived from the package name — rule: ' + detail.parent.rule"
-          >{{ detail.parent.packageName }}</a
+      @if (detail.strictScope) {
+        <span
+          class="detail-strict"
+          title="special strict share scope — no election, every exact version is shared side by side (config: shareScope: 'strict')"
+          >pinned scope</span
         >
-      </span>
-    }
-  </p>
+      }
+      @if (detail.parent) {
+        <span class="detail-parent">
+          secondary entry of
+          <a
+            [routerLink]="['/packages']"
+            [queryParams]="{ select: detail.parent.packageId }"
+            [title]="
+              'parent association derived from the package name — rule: ' + detail.parent.rule
+            "
+            >{{ detail.parent.packageName }}</a
+          >
+        </span>
+      }
+    </p>
+  }
 
   @if (detail.noCopies; as noCopies) {
     <p class="view-observation no-copies tip" [title]="noCopies.note">{{ noCopies.label }}</p>

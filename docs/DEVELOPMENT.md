@@ -10,11 +10,14 @@ until its view lands.
 
 ## What it shows
 
-**Packages** — per-package negotiation detail: every candidate version with
-its outcome (shared, scoped, or skipped), the requesting participant and its
-range, strict requirements, and which participant provides the mapped entry.
-Conflicts are listed separately. Includes SRI coverage and chunk mapping where
-the capture provides it.
+**Packages** — one row per package; per share scope the elected version and
+every registered version with its status (shared, scoped, partly mapped, not
+mapped) and the resolver's verdict per declaration (provides, same version,
+reuses shared, own copy, out of range). Filters for multiple versions, out of
+range, isolated and torn packages; a range check per scope; a per-version deep
+dive with shipped by, entrypoints and files (grouped per build when one
+version merges several builds), SRI coverage; the per-copy bindings stay
+available per scope.
 
 **Remotes** — the same data from each participant's point of view: exposes
 with their mapped targets, the remote's own dependency declarations and where

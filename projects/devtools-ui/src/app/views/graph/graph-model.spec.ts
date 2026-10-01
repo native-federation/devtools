@@ -204,6 +204,7 @@ function syntheticProjection(
     orphanPoolTags: [],
     poolFamilies: [],
     copyGroupingFacets: [],
+    packageScopeVerdicts: [],
     completeness: {
       total: {
         unknownResolutions: 0,

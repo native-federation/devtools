@@ -103,6 +103,29 @@ es-module-shims in shim mode). Regeneration, from the playground `lab/`:
 3. `node scripts/validate-lab-corpus.mjs` (validates both corpora),
 4. `node scripts/derive-fixtures.mjs`.
 
+## nf-lab verdicts corpus (packages-verdicts)
+
+Four scenarios witnessing the Packages tab's version verdicts, listed in
+`captures/manifest-nf-lab-verdicts.json`. Same lab, runner, probe and
+orchestrator (v4.7.0) as the nf-lab corpus, recorded later from a newer
+playground commit, so it carries its own manifest rather than restating
+the nf-lab one's provenance. All four share the fake `@nf-lab/kit`
+(1.2.0, 1.3.0, 1.4.0 and 2.0.0 with different secondary entrypoints).
+
+| Scenario | Witnesses |
+|---|---|
+| `out-of-range-nonstrict` | host shares 2.0.0; a non-strict `^1.0.0` stored as a plain `skip`, a strict one `scope` |
+| `torn-many` | the shared 1.4.0 lacks eight secondaries; the map serves five from 1.2.0 and three from 1.3.0 builds |
+| `merged-entrypoints` | one shared 1.2.0 row, two copies: the host's declares only the package, mfe1's adds secondaries the map serves from its build |
+| `multi-scope` | one package in `__GLOBAL__`, `team-a` and `strict`, each with its own election |
+
+Regeneration, from the playground `lab/`:
+
+1. `node run-scenario.mjs <scenario> --capture ../../devtools/captures/<scenario>/<runstamp>.json` for each of the four,
+2. `node scripts/build-lab-manifest.mjs --corpus nf-lab-verdicts --playground <playground>`,
+3. `node scripts/validate-lab-corpus.mjs`,
+4. `node scripts/derive-fixtures.mjs`.
+
 ## Frankenstein-live captures (V2, rows 12–16)
 
 `frankenstein-live/<runstamp>-<phase>.json` — lossless phase captures

@@ -36,6 +36,7 @@ import {
   CopyBlockVm,
   PackageDetailVm,
   PackageRowVm,
+  PackagesFilter,
   PackagesUiState,
   PackagesVm,
   buildPackagesVm,
@@ -56,9 +57,12 @@ function vmOf(name: keyof typeof FIXTURES, ui: Partial<PackagesUiState> = {}): P
 }
 
 function packageRows(vm: PackagesVm): PackageRowVm[] {
-  return vm.rows
-    .map((row) => row.payload)
-    .filter((payload): payload is PackageRowVm => payload.kind === 'package');
+  return vm.rows.map((row) => row.payload);
+}
+
+/** Packages a status filter keeps within the participant selection. */
+function countOf(vm: PackagesVm, id: PackagesFilter = 'all'): number {
+  return vm.filters.find((option) => option.id === id)!.count;
 }
 
 function consumerOf(block: CopyBlockVm, name: string): ConsumerRowVm {
@@ -329,16 +333,18 @@ describe('buildPackagesVm — conflict = visibly two blocks (T7.5-AC-03, strict-
     ]);
   });
 
-  it('reduces the list row to versions with the non-elected one muted plus the glyph', () => {
+  it('reduces the list row to the copy count and its marks', () => {
     const [row] = packageRows(vm);
-    expect(row.versions).toEqual([
-      { tag: '2.0.0', muted: false, note: null },
-      { tag: '1.0.0', muted: true, note: 'own copy of mfe3 (scope)' },
+    expect(row.copies).toMatchObject({ count: 2, label: '2 copies' });
+    // mfe1's non-strict ~1.0.0 rejects the shared 2.0.0 but is stored `skip`.
+    expect(row.marks).toEqual([
+      {
+        kind: 'out-of-range',
+        note: 'mfe1 resolves to a shared version its range rejects (not strict)',
+      },
+      { kind: 'isolated', note: 'mfe3 keeps its own copy' },
     ]);
-    expect(row.conflict).toEqual({
-      label: '⚠',
-      note: '2 resolved versions — rule: resolved-tag-multiplicity',
-    });
+    expect(countOf(vm, 'multi')).toBe(1);
   });
 });
 
@@ -395,8 +401,9 @@ describe('buildPackagesVm — strict scope shares side by side (T7.5-AC-03)', ()
       detail.blocks.flatMap((block) => block.consumers).every((c) => !c.deviations.length),
     ).toBe(true);
     const [row] = packageRows(vm);
-    expect(row.conflict).toBeNull();
-    expect(vm.conflictCount).toBe(0);
+    expect(row.marks).toEqual([]);
+    expect(row.strict).not.toBeNull();
+    expect(countOf(vm, 'multi')).toBe(0);
   });
 });
 
@@ -411,12 +418,12 @@ describe('buildPackagesVm — honest empty + unresolved bucket (T7.5-AC-04)', ()
       note: 'declared, but no import-map binding resolves this package in this capture',
     });
     const [row] = packageRows(vm);
-    expect(row.versions).toEqual([]);
-    expect(row.noCopy).toEqual({
+    expect(row.copies).toEqual({
+      count: 0,
       label: 'no copy',
       note: 'declared, but no import-map binding resolves this package in this capture',
     });
-    expect(row.conflict).toBeNull();
+    expect(row.marks).toEqual([]);
   });
 
   it('lists every declaration in the unresolved bucket with state and offered tag', () => {
@@ -564,9 +571,9 @@ describe('buildPackagesVm — equal-tag copies are two blocks, no conflict', () 
     );
     expect(vm.detail!.conflict).toBeNull();
     const [row] = packageRows(vm);
-    expect(row.versions).toEqual([{ tag: '1.0.0', muted: false, note: null }]);
-    expect(row.conflict).toBeNull();
-    expect(vm.conflictCount).toBe(0);
+    expect(row.copies).toMatchObject({ count: 1, label: '1 copy' });
+    expect(row.marks).toEqual([]);
+    expect(countOf(vm, 'multi')).toBe(0);
   });
 
   it('tracks blocks and consumer rows by canonical IDs (equal keys never collide)', () => {
@@ -681,13 +688,14 @@ describe('buildPackagesVm — deep subpath chains keep every row', () => {
       selectedParticipant: null,
       selectedId: null,
     });
-    expect(vm.packageCount).toBe(3);
+    expect(countOf(vm)).toBe(3);
+    // Each subpath nests under its nearest package prefix.
     expect(vm.rows.map((row) => ({ id: row.id, depth: row.depth }))).toEqual([
-      { id: packageId('__GLOBAL__', 'foo'), depth: 0 },
-      { id: packageId('__GLOBAL__', 'foo/bar'), depth: 1 },
-      { id: packageId('__GLOBAL__', 'foo/bar/baz'), depth: 1 },
+      { id: 'foo', depth: 0 },
+      { id: 'foo/bar', depth: 1 },
+      { id: 'foo/bar/baz', depth: 2 },
     ]);
-    expect(packageRows(vm).map((row) => row.displayName)).toEqual(['foo', '/bar', '/bar/baz']);
+    expect(packageRows(vm).map((row) => row.displayName)).toEqual(['foo', '/bar', '/baz']);
     const detail = buildPackagesVm(model, {
       filter: 'all',
       selectedParticipant: null,
@@ -751,9 +759,10 @@ describe('buildPackagesVm — ambiguous scope attribution stays ambiguous', () =
 
   it('surfaces the unknown-tag residual on the row and in the diagnostics footer', () => {
     const [row] = packageRows(vm);
-    expect(row.unknownTagged).toEqual({
+    expect(row.copies).toEqual({
       count: 1,
-      note: '1 copy without a uniquely evidenced source tag',
+      label: '1 copy',
+      note: '1 copy mapped: 1 copy without a uniquely evidenced source tag',
     });
     expect(vm.detail!.diagnostics).toEqual([
       {
@@ -888,7 +897,8 @@ describe('buildPackagesVm — missing source copy is not a missing binding', () 
       },
     ]);
     const row = packageRows(vm).find((candidate) => candidate.packageName === 'lib-a')!;
-    expect(row.noCopy).toEqual({
+    expect(row.copies).toEqual({
+      count: 0,
       label: 'no copy',
       note: 'no source copy is attributed to this package — its bindings resolve to copies of other packages',
     });
@@ -991,34 +1001,34 @@ describe('buildPackagesVm — participant filter (T7.5-AC-05)', () => {
 
   it('narrows the list to packages the participant is involved in', () => {
     const all = vmOf('pooling-anchor');
-    expect(all.packageCount).toBe(2);
+    expect(countOf(all)).toBe(2);
     // host sources/consumes only the base package — /extra is mfe1/mfe2 land.
     const host = vmOf('pooling-anchor', { selectedParticipant: '__NF-HOST__' });
-    expect(host.packageCount).toBe(1);
+    expect(countOf(host)).toBe(1);
     expect(packageRows(host).map((row) => row.packageName)).toEqual(['@nf-lab/conflict-lib']);
     // Consumers count as involvement: mfe2 resolves to both packages' copies.
     const mfe2 = vmOf('pooling-anchor', { selectedParticipant: 'mfe2' });
-    expect(mfe2.packageCount).toBe(2);
+    expect(countOf(mfe2)).toBe(2);
   });
 
-  it('combines with the Conflicts filter and stays honest when empty', () => {
+  it('combines with the status filter and stays honest when empty', () => {
     const combined = vmOf('pooling-anchor', {
-      filter: 'conflicts',
+      filter: 'multi',
       selectedParticipant: '__NF-HOST__',
     });
-    expect(combined.conflictCount).toBe(1);
+    expect(countOf(combined, 'multi')).toBe(1);
     expect(packageRows(combined).map((row) => row.packageName)).toEqual(['@nf-lab/conflict-lib']);
 
-    const empty = vmOf('self-fill', { filter: 'conflicts', selectedParticipant: 'mfe1' });
+    const empty = vmOf('self-fill', { filter: 'multi', selectedParticipant: 'mfe1' });
     expect(empty.rows).toEqual([]);
-    expect(empty.emptyNote).toBe('no version conflicts involve mfe1 in this capture');
+    expect(empty.emptyNote).toBe('no packages with multiple versions involve mfe1 in this capture');
   });
 });
 
 describe('buildPackagesVm — flat list, links, filter, scopes (structure preserved)', () => {
   it('lists all 20 live packages as flat leaf rows', () => {
     const vm = vmOf('frankenstein-live');
-    expect(vm.packageCount).toBe(20);
+    expect(countOf(vm)).toBe(20);
     expect(packageRows(vm)).toHaveLength(20);
     expect(vm.rows.every((row) => !row.expandable)).toBe(true);
     expect(vm.scopes.reduce((sum, scope) => sum + scope.packageCount, 0)).toBe(20);
@@ -1026,9 +1036,7 @@ describe('buildPackagesVm — flat list, links, filter, scopes (structure preser
 
   it('renders /extra as a linked sibling directly under its parent', () => {
     const vm = vmOf('self-fill');
-    const extraRow = vm.rows.find(
-      (row) => row.id === packageId('__GLOBAL__', '@nf-lab/conflict-lib/extra'),
-    )!;
+    const extraRow = vm.rows.find((row) => row.id === '@nf-lab/conflict-lib/extra')!;
     expect(extraRow.depth).toBe(1);
     expect(vm.rows.indexOf(extraRow)).toBe(1);
     expect(extraRow.payload).toMatchObject({
@@ -1038,14 +1046,14 @@ describe('buildPackagesVm — flat list, links, filter, scopes (structure preser
     });
   });
 
-  it('narrows the Conflicts filter to resolved-tag multiplicity only', () => {
-    const clean = vmOf('self-fill', { filter: 'conflicts' });
-    expect(clean.conflictCount).toBe(0);
+  it('narrows Multiple versions to resolved-tag multiplicity only', () => {
+    const clean = vmOf('self-fill', { filter: 'multi' });
+    expect(countOf(clean, 'multi')).toBe(0);
     expect(clean.rows).toEqual([]);
-    expect(clean.emptyNote).toBe('no version conflicts in this capture');
+    expect(clean.emptyNote).toBe('no packages with multiple versions in this capture');
 
-    const split = vmOf('strict-split', { filter: 'conflicts' });
-    expect(split.conflictCount).toBe(1);
+    const split = vmOf('strict-split', { filter: 'multi' });
+    expect(countOf(split, 'multi')).toBe(1);
     expect(packageRows(split).map((row) => row.packageName)).toEqual(['@nf-lab/conflict-lib']);
   });
 
@@ -1058,168 +1066,37 @@ describe('buildPackagesVm — flat list, links, filter, scopes (structure preser
   });
 });
 
-describe('buildPackagesVm — entrypoint sub-rows and the secondary-only head fact (T7.10)', () => {
+describe('buildPackagesVm — dense secondaries and the secondary-only head fact (T7.10)', () => {
   const DENSE_LIB = packageId('__GLOBAL__', '@nf-lab/dense-lib');
   const SPLIT_LIB = packageId('__GLOBAL__', '@nf-lab/split-lib');
 
-  it('renders dense secondaries as sub-rows under their leaf, excluded from the count (T7.10-AC-01)', () => {
+  it('lists one row per registry package; dense secondaries grow no list rows', () => {
+    // Secondaries of an entries map are not registry keys: they live in the
+    // version deep dive (packages-verdicts T6), never in the list.
     const vm = vmOf('synthetic-dense-entries');
-    // All (n) counts registry keys of the share register — never sub-rows.
-    expect(vm.packageCount).toBe(2);
-    expect(vm.rows.map((row) => [row.payload.kind, row.depth])).toEqual([
-      ['package', 0],
-      ['entrypoint', 1],
-      ['package', 0],
-      ['entrypoint', 1],
-    ]);
-    // The sub-row payload carries the PARENT group id (T7.10-AC-02: the
-    // existing select convention reads packageId, so a click selects the
-    // parent), the tag of its own registration, and entries-map provenance.
-    const subRows = vm.rows.filter((row) => row.payload.kind === 'entrypoint');
-    expect(subRows.map((row) => row.id)).toEqual([
-      `${DENSE_LIB}|entry|@nf-lab/dense-lib/secondary`,
-      `${SPLIT_LIB}|entry|@nf-lab/split-lib/secondary`,
-    ]);
-    expect(subRows.map((row) => row.payload)).toEqual([
-      {
-        kind: 'entrypoint',
-        packageId: DENSE_LIB,
-        specifier: '@nf-lab/dense-lib/secondary',
-        displaySpecifier: '/secondary',
-        tags: ['1.2.0'],
-        provenance: {
-          label: 'entry',
-          note: 'registered via the entries map of @nf-lab/dense-lib@1.2.0 — no own registry key in this capture',
-        },
-      },
-      {
-        kind: 'entrypoint',
-        packageId: SPLIT_LIB,
-        specifier: '@nf-lab/split-lib/secondary',
-        displaySpecifier: '/secondary',
-        tags: ['3.1.4'],
-        provenance: {
-          label: 'entry',
-          note: 'registered via the entries map of @nf-lab/split-lib@3.1.4 — no own registry key in this capture',
-        },
-      },
+    expect(countOf(vm)).toBe(2);
+    expect(vm.rows.map((row) => [row.id, row.depth])).toEqual([
+      ['@nf-lab/dense-lib', 0],
+      ['@nf-lab/split-lib', 0],
     ]);
   });
 
-  it('follows the parent through the Conflicts and participant filters (T7.10-AC-01)', () => {
-    // Conflicts: only split-lib flags multiplicity — its sub-row rides along,
-    // dense-lib and its sub-row disappear together.
-    const conflicts = vmOf('synthetic-dense-entries', { filter: 'conflicts' });
-    expect(conflicts.rows.map((row) => [row.payload.kind, row.payload.packageId])).toEqual([
-      ['package', SPLIT_LIB],
-      ['entrypoint', SPLIT_LIB],
-    ]);
-    // Participant: mfe-dense is involved in both groups — all rows stay.
-    const filtered = vmOf('synthetic-dense-entries', { selectedParticipant: 'mfe-dense' });
-    expect(filtered.rows).toHaveLength(4);
-  });
-
-  it('never turns a filtered-out own registry key into a sub-row (T7.10-AC-05)', () => {
-    // CROSS_SOURCE: lib-b's registration carries lib-a in its entries map
-    // AND lib-a exists as its own registry key. The mfe2 filter hides lib-a
-    // from the view (only mfe1 is involved there) — but "no own registry
-    // key in this capture" is a CAPTURE claim, so the suppression must not
-    // depend on the filtered hierarchy.
+  it('keeps a filtered-out own registry key out of the list (T7.10-AC-05)', () => {
+    // CROSS_SOURCE: lib-b's entries map carries lib-a, which is also its own
+    // registry key. The mfe2 filter hides lib-a (only mfe1 is involved).
     const model = ingestSnapshot(CROSS_SOURCE_SEED);
     const filtered = buildPackagesVm(model, {
       filter: 'all',
       selectedParticipant: 'mfe2',
       selectedId: null,
     });
-    expect(filtered.rows.map((row) => [row.payload.kind, row.payload.packageId])).toEqual([
-      ['package', packageId('__GLOBAL__', 'lib-b')],
-    ]);
-    // Unfiltered, both keys render as rows — never as sub-rows.
+    expect(filtered.rows.map((row) => row.id)).toEqual(['lib-b']);
     const unfiltered = buildPackagesVm(model, {
       filter: 'all',
       selectedParticipant: null,
       selectedId: null,
     });
-    expect(unfiltered.rows.every((row) => row.payload.kind === 'package')).toBe(true);
-  });
-
-  it('witnesses several secondaries and multi-tag provenance under one leaf (T7.10-AC-01)', () => {
-    // One leaf, two dense secondaries; /alpha is additionally carried by a
-    // SECOND registration's entries map — the sub-row lists both tags and
-    // the provenance names both registrations, join order = registry order.
-    const seed = seedSnapshot({
-      remotes: SEED_REMOTES,
-      sharedExternals: {
-        __GLOBAL__: {
-          'ui-lib': {
-            dirty: false,
-            versions: [
-              {
-                tag: '1.0.0',
-                action: 'share',
-                host: false,
-                remotes: [
-                  declarationOf('mfe1', {
-                    'ui-lib': 'ui-lib.AAAA.js',
-                    'ui-lib/alpha': 'ui-lib-alpha.AAAA.js',
-                    'ui-lib/beta': 'ui-lib-beta.AAAA.js',
-                  }),
-                ],
-              },
-              {
-                tag: '2.0.0',
-                action: 'share',
-                host: false,
-                remotes: [declarationOf('mfe2', { 'ui-lib/alpha': 'ui-lib-alpha.BBBB.js' })],
-              },
-            ],
-          },
-        },
-      },
-      imports: [
-        { specifier: 'ui-lib', target: './mfe1/ui-lib.AAAA.js' },
-        { specifier: 'ui-lib/alpha', target: './mfe1/ui-lib-alpha.AAAA.js' },
-        { specifier: 'ui-lib/beta', target: './mfe1/ui-lib-beta.AAAA.js' },
-      ],
-    });
-    const vm = buildPackagesVm(ingestSnapshot(seed), {
-      filter: 'all',
-      selectedParticipant: null,
-      selectedId: null,
-    });
-    expect(vm.packageCount).toBe(1);
-    expect(vm.rows.map((row) => [row.payload.kind, row.depth])).toEqual([
-      ['package', 0],
-      ['entrypoint', 1],
-      ['entrypoint', 1],
-    ]);
-    const UI_LIB = packageId('__GLOBAL__', 'ui-lib');
-    expect(
-      vm.rows.filter((row) => row.payload.kind === 'entrypoint').map((row) => row.payload),
-    ).toEqual([
-      {
-        kind: 'entrypoint',
-        packageId: UI_LIB,
-        specifier: 'ui-lib/alpha',
-        displaySpecifier: '/alpha',
-        tags: ['1.0.0', '2.0.0'],
-        provenance: {
-          label: 'entry',
-          note: 'registered via the entries map of ui-lib@1.0.0, ui-lib@2.0.0 — no own registry key in this capture',
-        },
-      },
-      {
-        kind: 'entrypoint',
-        packageId: UI_LIB,
-        specifier: 'ui-lib/beta',
-        displaySpecifier: '/beta',
-        tags: ['1.0.0'],
-        provenance: {
-          label: 'entry',
-          note: 'registered via the entries map of ui-lib@1.0.0 — no own registry key in this capture',
-        },
-      },
-    ]);
+    expect(unfiltered.rows.map((row) => row.id).sort()).toEqual(['lib-a', 'lib-b']);
   });
 
   it('flags copies without the package’s own specifier on the head (T7.10-AC-03)', () => {
@@ -1238,13 +1115,9 @@ describe('buildPackagesVm — entrypoint sub-rows and the secondary-only head fa
     expect(dense.blocks[0].deviations).toEqual([]);
   });
 
-  it('grows no sub-rows on flat-generation captures (T7.10-AC-05)', () => {
-    // Flat builds register secondaries as their own registry keys — the
-    // linked presentation stays, and no entrypoint sub-row appears.
-    for (const fixture of ['non-dense', 'self-fill', 'frankenstein-live'] as const) {
-      const vm = vmOf(fixture);
-      expect(vm.rows.every((row) => row.payload.kind === 'package')).toBe(true);
-    }
+  it('keeps the linked presentation of flat-generation secondaries (T7.10-AC-05)', () => {
+    // Flat builds register secondaries as their own registry keys — they stay
+    // rows, linked under their name-derived parent.
     const nonDense = vmOf('non-dense');
     expect(packageRows(nonDense).some((row) => row.linked !== null)).toBe(true);
   });
@@ -1323,5 +1196,66 @@ describe('buildPackageDetail — pool chips (share-pools T5)', () => {
       'likely a typo or a missing sibling',
     );
     expect(chips.find((chip) => chip.name === 'mfe2')!.pool).toBeNull();
+  });
+});
+
+describe('buildPackagesVm — one row per package (packages-verdicts T4)', () => {
+  it('T4-AC-01 multi-scope: one row, strict tag, copies counted over every scope', () => {
+    const [row, ...rest] = packageRows(vmOf('multi-scope'));
+    expect(rest).toEqual([]);
+    expect(row.packageName).toBe('@nf-lab/kit');
+    expect(row.strict).not.toBeNull();
+    // global 1.4.0, team-a 1.3.0, strict 2.0.0 and 1.3.0 (mfe1's and mfe3's 1.2.0 load nothing).
+    expect(row.copies).toEqual({
+      count: 4,
+      label: '4 copies',
+      note: '4 copies mapped: 1.4.0 (global), 1.3.0 (team-a), 2.0.0 (strict), 1.3.0 (strict)',
+    });
+  });
+
+  it('T4-AC-02 each status filter counts the packages the projection flags', () => {
+    const counts = (id: Parameters<typeof vmOf>[0]) => {
+      const vm = vmOf(id);
+      return ['multi', 'out-of-range', 'isolated', 'torn'].map((f) =>
+        countOf(vm, f as PackagesFilter),
+      );
+    };
+    expect(counts('out-of-range-nonstrict')).toEqual([1, 1, 1, 0]);
+    expect(counts('torn-many')).toEqual([1, 0, 0, 1]);
+    // One version from two builds is merged, never torn.
+    expect(counts('merged-entrypoints')).toEqual([0, 0, 0, 0]);
+    const torn = vmOf('torn-many', { filter: 'torn' });
+    expect(packageRows(torn).map((row) => row.marks.map((m) => m.kind))).toEqual([['torn']]);
+  });
+
+  it('T4-AC-03 every <scope>|<pkg> link lands on its package and scope', () => {
+    for (const id of [
+      'multi-scope',
+      'frankenstein-live',
+      'strict-scope',
+      'pooling-anchor',
+    ] as const) {
+      const model = modelOf(id);
+      for (const external of model.registryEvidence.sharedExternals) {
+        const vm = buildPackagesVm(model, {
+          filter: 'all',
+          selectedParticipant: null,
+          selectedId: packageId(external.shareScope, external.packageName),
+        });
+        expect(vm.selectedPackage).toBe(external.packageName);
+        expect(vm.detail?.scope).toBe(external.shareScope);
+      }
+    }
+  });
+
+  it('searches names case-insensitively and sorts by copies or remotes', () => {
+    const search = vmOf('frankenstein-live', { query: 'SIGNALS' });
+    expect(packageRows(search).every((row) => row.packageName.includes('signals'))).toBe(true);
+    expect(search.rows.length).toBeGreaterThan(0);
+    const none = vmOf('frankenstein-live', { query: 'no-such-package' });
+    expect(none.emptyNote).toBe('no packages match “no-such-package”');
+
+    const byCopies = packageRows(vmOf('strict-split', { sort: 'copies' }));
+    expect(byCopies[0].copies.count).toBeGreaterThanOrEqual(byCopies.at(-1)!.copies.count);
   });
 });

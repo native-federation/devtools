@@ -178,6 +178,7 @@ function seededProjection(
     orphanPoolTags: [],
     poolFamilies: [],
     copyGroupingFacets: [],
+    packageScopeVerdicts: [],
     completeness: {
       total: {
         unknownResolutions: 0,

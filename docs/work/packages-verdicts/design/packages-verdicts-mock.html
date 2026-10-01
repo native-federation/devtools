@@ -1,0 +1,634 @@
+<title>Packages Tab Verdicts</title>
+<style>
+  /* Layout: the devtools panel's own chrome; list left, one package's versions table right. Colour only where something deviates. */
+  :root {
+    --bg: #ffffff;
+    --surface: #f1f3f4;
+    --border: #e3e3e3;
+    --text: #202124;
+    --muted: #5f6368;
+    --accent: #1a73e8;
+    --accent-bg: #e8f0fe;
+    --good: #137333;
+    --good-bg: #e6f4ea;
+    --warn: #8a5300;
+    --warn-bg: #fcf3d7;
+    --bad: #c5221f;
+    --bad-bg: #fce8e6;
+    --own: #b95000;
+    --own-bg: #ffe9d4;
+    --new: #a142f4;
+    --p1: #2a78d6; --p2: #eb6834; --p3: #1baf7a; --p4: #eda100;
+    --p5: #e87ba4; --p6: #008300; --p7: #4a3aa7; --p-host: #80868b;
+    --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      --bg: #202124; --surface: #292a2d; --border: #3c4043; --text: #e8eaed; --muted: #9aa0a6;
+      --accent: #8ab4f8; --accent-bg: #283142; --good: #81c995; --good-bg: #1e3326; --warn: #f0c674; --warn-bg: #35301f;
+      --bad: #f28b82; --bad-bg: #3c2322; --own: #ffb870; --own-bg: #45301c; --new: #c58af9;
+      --p1: #3987e5; --p2: #d95926; --p3: #199e70; --p4: #c98500; --p5: #d55181; --p6: #2a9d2a; --p7: #9085e9; --p-host: #9aa0a6;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme='dark'] {
+    --bg: #202124; --surface: #292a2d; --border: #3c4043; --text: #e8eaed; --muted: #9aa0a6;
+    --accent: #8ab4f8; --accent-bg: #283142; --good: #81c995; --good-bg: #1e3326; --warn: #f0c674; --warn-bg: #35301f;
+    --bad: #f28b82; --bad-bg: #3c2322; --own: #ffb870; --own-bg: #45301c; --new: #c58af9;
+    --p1: #3987e5; --p2: #d95926; --p3: #199e70; --p4: #c98500; --p5: #d55181; --p6: #2a9d2a; --p7: #9085e9; --p-host: #9aa0a6;
+    color-scheme: dark;
+  }
+
+  body { background: var(--bg); color: var(--text); font: 12px/1.45 var(--font-ui); }
+  .page { max-width: 1120px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 40px; display: grid; gap: 12px; }
+  .mono { font-family: var(--font-mono); font-size: 11px; }
+  .muted { color: var(--muted); }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .intro { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; color: var(--muted); }
+  .intro h1 { margin: 0; font-size: 13px; color: var(--text); }
+  .intro label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; margin-left: auto; }
+  body.show-new .new { outline: 1.5px dashed var(--new); outline-offset: 2px; border-radius: 3px; }
+
+  .panel { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; min-width: 0; }
+  .tabs { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .tabs span { padding: 6px 12px; color: var(--muted); border-bottom: 2px solid transparent; }
+  .tabs span.on { color: var(--text); border-bottom-color: var(--accent); }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+  .search { display: flex; align-items: center; padding: 1px 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); flex: 0 1 200px; min-width: 0; }
+  .search input { border: 0; outline: 0; background: transparent; width: 100%; min-width: 0; padding: 2px 0; }
+  .filters { display: flex; flex-wrap: wrap; gap: 2px; }
+  .fbtn { padding: 2px 8px; border: 0; border-radius: 4px; background: transparent; cursor: pointer; white-space: nowrap; color: var(--muted); }
+  .fbtn:hover { background: var(--surface); }
+  .fbtn.on { background: var(--accent-bg); color: var(--accent); }
+  .fbtn .n { font-variant-numeric: tabular-nums; }
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--c); flex: none; }
+  .fbtn .dot { margin-right: 5px; }
+  .sort { margin-left: auto; color: var(--muted); }
+  .sort select { padding: 1px 4px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text); }
+
+  .split { display: grid; grid-template-columns: minmax(220px, 290px) minmax(0, 1fr); min-height: 460px; }
+  @media (max-width: 760px) { .split { grid-template-columns: minmax(0, 1fr); } .list { border-right: 0; border-bottom: 1px solid var(--border); max-height: 260px; } .sort { margin-left: 0; } .intro label { margin-left: 0; } }
+
+  .list { border-right: 1px solid var(--border); overflow-y: auto; min-width: 0; }
+  .row { display: flex; align-items: center; gap: 8px; padding: 4px 10px; cursor: pointer; }
+  .row:hover { background: var(--surface); }
+  .row.sel { background: var(--accent-bg); }
+  .row .name { font: 11px var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 0 1 auto; }
+  .row .marks, .row .vers, .row .scope-tag { flex: none; }
+  .row .marks { display: inline-flex; gap: 3px; }
+  .row .vers { margin-left: auto; display: inline-flex; gap: 6px; font: 11px var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .row .vers { color: var(--muted); cursor: help; font-family: var(--font-ui); }
+  .row .vers.many { color: var(--text); }
+  .row .vers .more { padding: 0 4px; border-radius: 3px; background: var(--surface); color: var(--muted); font-size: 10px; cursor: help; }
+  .row.sel .vers .more { background: var(--bg); }
+  .empty-list { padding: 16px 10px; color: var(--muted); margin: 0; }
+
+  .chip { display: inline-flex; align-items: center; gap: 4px; font: 11px var(--font-mono); white-space: nowrap; }
+  .chip::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--dot); }
+
+  .detail { padding: 12px 14px 20px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+  .dhead { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+  .dhead h2 { margin: 0; font: 600 13px var(--font-mono); }
+  .dhead .links { margin-left: auto; display: flex; gap: 12px; }
+  .link { color: var(--accent); text-decoration: none; cursor: pointer; }
+  .link:hover { text-decoration: underline; }
+
+  .banner { margin: 0; padding: 5px 10px; border-radius: 4px; background: var(--warn-bg); color: var(--warn); }
+
+  .scroll { overflow-x: auto; min-width: 0; }
+  table.vt { border-collapse: collapse; width: 100%; }
+  .vt th, .vt td { text-align: left; padding: 3px 10px 3px 0; white-space: nowrap; vertical-align: baseline; }
+  .vt thead th { font-weight: normal; color: var(--muted); font-size: 11px; padding-bottom: 5px; border-bottom: 1px solid var(--border); }
+  .vt tbody + tbody tr:first-child td { border-top: 1px solid var(--border); }
+  .vt tr.v td { padding-top: 7px; }
+  .vt .tag { font: 600 12px var(--font-mono); font-variant-numeric: tabular-nums; }
+  .vt .act { color: var(--muted); font-size: 11px; }
+  .vt .num { font: 11px var(--font-mono); font-variant-numeric: tabular-nums; }
+  .vt td.indent { padding-left: 16px; }
+  .vt .strict { margin-left: 4px; font-size: 9px; font-weight: 700; letter-spacing: 0.05em; color: var(--muted); }
+  .vt .shipped { color: var(--muted); }
+
+  .state { display: inline-block; padding: 0 6px; border-radius: 3px; font-size: 11px; cursor: help; }
+  .state.ok { color: var(--muted); }
+  .state.own { color: var(--own); background: var(--own-bg); font-weight: 600; }
+  .state.off { color: var(--bad); background: var(--bad-bg); font-weight: 600; }
+
+  details { display: grid; gap: 8px; }
+  details > summary { cursor: pointer; color: var(--muted); width: fit-content; }
+  details[open] > summary { margin-bottom: 6px; }
+  .cm { border-collapse: separate; border-spacing: 2px; }
+  .cm th { font-weight: normal; text-align: left; white-space: nowrap; padding: 1px 8px 1px 0; }
+  .cm thead th { text-align: center; font: 11px var(--font-mono); color: var(--muted); padding: 0 4px; }
+  .cm thead th.win { color: var(--text); font-weight: 600; }
+  .cm .rng { color: var(--muted); margin-left: 6px; font: 11px var(--font-mono); }
+  .cm td { min-width: 4.4em; text-align: center; padding: 1px 4px; border-radius: 3px; font: 11px var(--font-mono); color: var(--muted); cursor: help; }
+  .cm td.no { opacity: 0.4; }
+  .cm td.win.yes { background: var(--good-bg); color: var(--good); }
+  .cm td.win.no { background: var(--bad-bg); color: var(--bad); font-weight: 700; opacity: 1; }
+  .cm td.ships { box-shadow: inset 0 0 0 1px var(--muted); }
+  .vt tbody.pick { cursor: pointer; }
+  .vt tbody.pick:hover td { background: var(--surface); }
+  .vt tbody.pick:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .vt td:first-child { padding-left: 8px; }
+  .vt tbody.pick.on td, .vt tbody.dive td { background: var(--surface); }
+  .vt tbody.pick.on .caret { color: var(--text); }
+  .vt tbody.dive td { padding: 6px 16px 16px 26px; white-space: normal; }
+  .dive-body { display: grid; gap: 14px; min-width: 0; font-size: 12px; }
+  .facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; margin: 0; }
+  .facts dt { color: var(--muted); }
+  .facts dd { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+  .runner { display: inline-flex; gap: 4px; align-items: baseline; cursor: help; }
+  .runner.off { color: var(--bad); font-weight: 600; }
+  .lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 40px; max-width: 960px; }
+  .lists section { display: grid; gap: 4px; align-content: start; min-width: 0; }
+  .lists h4 { margin: 0; display: flex; gap: 6px; align-items: baseline; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .lists h4 span { font-weight: normal; letter-spacing: 0; }
+  .lists ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; }
+  .lists ul.chunks { padding-top: 6px; }
+  .torn-note { margin-left: 6px; color: var(--warn); font-size: 11px; font-weight: 600; cursor: help; }
+  .sri { margin-left: auto; text-transform: none; letter-spacing: 0; color: var(--good); cursor: help; }
+  .range { cursor: help; }
+  .vt .notes { display: flex; flex-wrap: wrap; gap: 4px; white-space: normal; }
+  .state.warn-pill { color: var(--warn); background: var(--warn-bg); font-weight: 600; }
+  .lists ul.shipped li { display: grid; grid-template-columns: minmax(0, 1fr) max-content max-content; gap: 10px; align-items: baseline; }
+  .lists ul.shipped .state { padding: 0 4px; }
+  .lists ul.shipped .state.ok { padding: 0; }
+  .vt tbody.pick:not(.loaded) .tag { color: var(--muted); font-weight: normal; }
+  .vt tbody.pick.loaded .tag { color: var(--text); }
+  .dl { display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: var(--good); vertical-align: 1px; cursor: help; }
+  .banner { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: baseline; }
+  .torn-word { font-weight: 700; text-decoration: underline dotted; text-underline-offset: 2px; cursor: help; }
+  .banner .docs { margin-left: auto; color: var(--warn); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+  .torn-group { padding-top: 6px; gap: 4px; }
+  .torn-group summary { color: var(--text); }
+  .torn-group .torn-note { margin-left: 0; text-decoration: underline dotted; text-underline-offset: 2px; }
+  .tg-head { margin: 6px 0 2px; display: flex; gap: 6px; align-items: baseline; font: 11px var(--font-mono); color: var(--muted); }
+  .torn-group ul { padding-left: 12px; }
+  .h4-note { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--warn); cursor: help; }
+  .state.merged { color: var(--muted); background: var(--surface); }
+  .vt tbody.pick.on .state.merged { background: var(--bg); }
+  .merged-word, .from-build { font-size: 11px; color: var(--muted); cursor: help; text-decoration: underline dotted; text-underline-offset: 2px; }
+  .from-build { margin-left: 6px; }
+  .caret { display: inline-block; width: 1em; color: var(--muted); font-size: 10px; }
+  .surface-wrap { display: grid; gap: 6px; padding: 8px 10px; border-radius: 4px; border: 1px solid var(--border); min-width: 0; }
+  .sv-head { margin: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+  .sv-empty { margin: 0; }
+  .scope { display: grid; gap: 8px; min-width: 0; }
+  .scope + .scope { margin-top: 20px; }
+  .scope-head .muted .chip { margin-left: 4px; }
+  .scope-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+  .scope-name { margin: 0; font: 600 11px var(--font-mono); padding: 0 6px; border-radius: 3px; background: var(--surface); cursor: help; }
+  .scope-head .link { margin-left: auto; }
+  .scope-tag { font: 10px var(--font-mono); color: var(--muted); padding: 0 4px; border: 1px solid var(--border); border-radius: 3px; white-space: nowrap; }
+  .surface { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 24px; }
+  .surface section { display: grid; gap: 4px; align-content: start; min-width: 0; }
+  h3 { margin: 0; font-size: 11px; font-weight: 600; color: var(--muted); }
+  h3 .muted { font-weight: normal; }
+  .et { border-collapse: collapse; }
+  .et td { padding: 1px 12px 1px 0; white-space: nowrap; }
+  .et tr.torn td { background: var(--warn-bg); }
+  .state.warn { color: var(--warn); font-weight: 600; }
+  .fl, .fl ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 1px; }
+  .fl { gap: 6px; }
+  .fl ul { padding-left: 12px; }
+  .fv { font: 11px var(--font-mono); color: var(--muted); display: inline-flex; gap: 6px; }
+  .files { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; font: 11px var(--font-mono); color: var(--muted); }
+</style>
+
+<div class="page">
+  <div class="intro">
+    <h1>Packages tab · versions and verdicts</h1>
+    <span>Mock-up, example data. Click a version for its deep dive; hover anything coloured for the reason.</span>
+    <label><input type="checkbox" id="show-new"> Outline what is new</label>
+  </div>
+
+  <div class="panel">
+    <div class="tabs" aria-hidden="true"><span>Remotes</span><span class="on">Packages</span><span>Graph</span><span>Pools</span><span>Import map</span></div>
+    <div class="toolbar">
+      <label class="search new"><input id="q" type="search" placeholder="Filter packages" aria-label="Filter packages"></label>
+      <div class="filters" id="filters" role="group" aria-label="Status filter"></div>
+      <label class="sort new">Sort <select id="sort"><option value="name">name</option><option value="copies">copies</option><option value="remotes">remotes</option></select></label>
+    </div>
+    <div class="split">
+      <div class="list" id="list" role="listbox" aria-label="Shared packages"></div>
+      <div class="detail" id="detail"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const REMOTES = {
+    shell: { dot: 'var(--p-host)', host: true },
+    orders: { dot: 'var(--p1)' },
+    catalog: { dot: 'var(--p3)' },
+    reports: { dot: 'var(--p2)' },
+    legacy: { dot: 'var(--p7)' },
+    checkout: { dot: 'var(--p5)' },
+  };
+
+  // Per package, one entry per share scope: the version the resolver elected there and every copy shipped into it.
+  // copies: [remote, version, requiredVersion, strictVersion]; surface: per version, its source remote, entry files and chunks,
+  // plus `merged`: other copies of the same version that serve entrypoints the first copy lacks.
+  const PACKAGES = [
+    {
+      name: '@angular/core',
+      scopes: [{
+        scope: 'global', winner: '18.2.0', source: 'shell', pool: { tag: 'framework', outcome: 'legacy isolated · version conflict' },
+        copies: [
+          ['shell', '18.2.0', '^18.0.0', true], ['orders', '18.2.0', '^18.2.0', true],
+          ['catalog', '18.1.3', '^18.0.0', true], ['checkout', '18.1.3', '^18.1.0', true],
+          ['reports', '17.3.12', '^17.0.0', false], ['legacy', '16.2.12', '~16.2.0', true],
+        ],
+        surface: {
+          // orders ships 18.2.0 too; its copy merges in and serves the one entrypoint shell's copy lacks.
+          '18.2.0': { from: 'shell', entries: { '@angular/core': 'core.mjs', '@angular/core/rxjs-interop': 'core-rxjs-interop.mjs' }, chunks: ['chunk-4KQ2XZ7B.js', 'chunk-NF3TQ6SD.js'],
+            merged: [{ from: 'orders', entries: { '@angular/core/primitives/signals': 'core-primitives-signals.mjs' }, chunks: ['chunk-R2D8PL0M.js'] }] },
+          '16.2.12': { from: 'legacy', entries: { '@angular/core': 'core.mjs' }, chunks: ['chunk-L7GH2KQA.js'] },
+        },
+      }],
+    },
+    {
+      name: '@angular/router',
+      scopes: [{
+        scope: 'global', winner: '18.2.0', source: 'shell', pool: { tag: 'framework', outcome: 'legacy isolated · version conflict' },
+        copies: [
+          ['shell', '18.2.0', '^18.0.0', true], ['orders', '18.2.0', '^18.2.0', true], ['catalog', '18.1.3', '^18.0.0', true],
+          ['reports', '17.3.12', '^17.0.0', false], ['legacy', '16.2.12', '~16.2.0', true],
+        ],
+        surface: {
+          '18.2.0': { from: 'shell', entries: { '@angular/router': 'router.mjs' }, chunks: ['chunk-4KQ2XZ7B.js'] },
+          '16.2.12': { from: 'legacy', entries: { '@angular/router': 'router.mjs' }, chunks: [] },
+        },
+      }],
+    },
+    {
+      name: '@acme/ui',
+      scopes: [
+        {
+          scope: 'global', winner: '3.4.0', source: 'checkout',
+          copies: [['checkout', '3.4.0', '^3.0.0', true], ['orders', '3.2.0', '^3.0.0', true], ['catalog', '3.4.0', '^3.2.0', true], ['reports', '3.3.1', '^3.0.0', true]],
+          // Entrypoints no copy of the shared version contains, each filled from the build that declares it.
+          torn: [
+            ['@acme/ui/table', '3.2.0'], ['@acme/ui/table/sort', '3.2.0'], ['@acme/ui/table/paginator', '3.2.0'],
+            ['@acme/ui/dialog', '3.2.0'], ['@acme/ui/forms', '3.2.0'],
+            ['@acme/ui/charts', '3.3.1'], ['@acme/ui/charts/legend', '3.3.1'], ['@acme/ui/date-picker', '3.3.1'],
+          ].map(([specifier, from]) => ({ specifier, from })),
+          surface: {
+            '3.4.0': { from: 'checkout', entries: { '@acme/ui': 'acme-ui.js', '@acme/ui/button': 'acme-ui-button.js' }, chunks: ['chunk-ACME34.js'] },
+            '3.3.1': { from: 'reports', entries: { '@acme/ui/charts': 'acme-ui-charts.js', '@acme/ui/charts/legend': 'acme-ui-charts-legend.js', '@acme/ui/date-picker': 'acme-ui-date-picker.js' }, chunks: ['chunk-ACME331.js'] },
+            '3.2.0': { from: 'orders', entries: { '@acme/ui/table': 'acme-ui-table.js', '@acme/ui/table/sort': 'acme-ui-table-sort.js', '@acme/ui/table/paginator': 'acme-ui-table-paginator.js', '@acme/ui/dialog': 'acme-ui-dialog.js', '@acme/ui/forms': 'acme-ui-forms.js' }, chunks: ['chunk-ACME32.js', 'chunk-ACME32B.js'] },
+          },
+        },
+        {
+          scope: 'team-legacy', winner: '2.5.0', source: 'legacy',
+          copies: [['legacy', '2.5.0', '^2.0.0', true], ['reports', '2.4.1', '^2.4.0', true]],
+          surface: { '2.5.0': { from: 'legacy', entries: { '@acme/ui': 'acme-ui.js' }, chunks: [] } },
+        },
+      ],
+    },
+    {
+      name: '@acme/tokens',
+      scopes: [
+        { scope: 'global', winner: '5.1.0', source: 'checkout', copies: [['checkout', '5.1.0', '^5.0.0', true], ['catalog', '5.0.2', '^5.0.0', true]],
+          surface: { '5.1.0': { from: 'checkout', entries: { '@acme/tokens': 'acme-tokens.js' }, chunks: [] } } },
+        { scope: 'team-orders', winner: '4.8.0', source: 'orders', copies: [['orders', '4.8.0', '^4.0.0', true]],
+          surface: { '4.8.0': { from: 'orders', entries: { '@acme/tokens': 'acme-tokens.js' }, chunks: [] } } },
+        { scope: 'team-reports', winner: '4.2.1', source: 'reports', copies: [['reports', '4.2.1', '^4.2.0', true]],
+          surface: { '4.2.1': { from: 'reports', entries: { '@acme/tokens': 'acme-tokens.js' }, chunks: [] } } },
+        { scope: 'team-legacy', winner: '3.9.4', source: 'legacy', copies: [['legacy', '3.9.4', '^3.9.0', true]],
+          surface: { '3.9.4': { from: 'legacy', entries: { '@acme/tokens': 'acme-tokens.js' }, chunks: [] } } },
+        { scope: 'strict', winner: null, source: null, copies: [['shell', '5.1.0', '5.1.0', true]],
+          surface: { '5.1.0': { from: 'shell', entries: { '@acme/tokens': 'acme-tokens.js' }, chunks: [] } } },
+      ],
+    },
+    {
+      name: 'rxjs',
+      scopes: [{
+        scope: 'global', winner: '7.8.1', source: 'shell',
+        copies: [
+          ['shell', '7.8.1', '^7.8.0', true], ['orders', '7.8.1', '^7.8.0', true], ['catalog', '7.8.1', '^7.4.0', true],
+          ['checkout', '7.8.1', '^7.8.0', true], ['reports', '6.6.7', '^6.6.0', false], ['legacy', '7.5.7', '~7.5.0', true],
+        ],
+        surface: {
+          '7.8.1': { from: 'shell', entries: { rxjs: 'rxjs.js', 'rxjs/operators': 'rxjs-operators.js' }, chunks: ['chunk-RX781A.js'] },
+          '7.5.7': { from: 'legacy', entries: { rxjs: 'rxjs.js', 'rxjs/operators': 'rxjs-operators.js' }, chunks: [] },
+        },
+      }],
+    },
+    {
+      name: 'date-fns',
+      scopes: [{
+        scope: 'global', winner: '3.6.0', source: 'reports',
+        copies: [['reports', '3.6.0', '^3.0.0', true], ['orders', '2.30.0', '^2.29.0', false]],
+        surface: { '3.6.0': { from: 'reports', entries: { 'date-fns': 'date-fns.js' }, chunks: [] } },
+      }],
+    },
+    {
+      name: 'zone.js',
+      scopes: [{
+        scope: 'strict', winner: null, source: null,
+        copies: [['shell', '0.14.10', '0.14.10', true], ['orders', '0.14.10', '0.14.10', true], ['catalog', '0.14.4', '0.14.4', true]],
+        surface: {
+          '0.14.10': { from: 'shell', entries: { 'zone.js': 'zone.js' }, chunks: [] },
+          '0.14.4': { from: 'catalog', entries: { 'zone.js': 'zone.js' }, chunks: [] },
+        },
+      }],
+    },
+    {
+      name: 'tslib',
+      scopes: [{
+        scope: 'global', winner: '2.6.3', source: 'shell',
+        copies: [['shell', '2.6.3', '^2.3.0', true], ['orders', '2.6.3', '^2.3.0', true], ['catalog', '2.6.3', '^2.3.0', true], ['legacy', '2.6.3', '^2.3.0', true]],
+        surface: { '2.6.3': { from: 'shell', entries: { tslib: 'tslib.js' }, chunks: [] } },
+      }],
+    },
+    {
+      name: 'lodash-es',
+      scopes: [{
+        scope: 'global', winner: '4.17.21', source: 'catalog',
+        copies: [['catalog', '4.17.21', '^4.17.0', true], ['reports', '4.17.21', '^4.17.0', true]],
+        surface: { '4.17.21': { from: 'catalog', entries: { 'lodash-es': 'lodash-es.js' }, chunks: ['chunk-LD4172.js'] } },
+      }],
+    },
+  ];
+
+  const parse = (v) => v.split('.').map(Number);
+  const cmp = (a, b) => { for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] - b[i]; return 0; };
+  const desc = (a, b) => cmp(parse(b), parse(a));
+  function satisfies(version, range) {
+    const v = parse(version);
+    const op = range[0] === '^' || range[0] === '~' ? range[0] : '';
+    const base = parse(op ? range.slice(1) : range);
+    if (!op) return cmp(v, base) === 0;
+    if (cmp(v, base) < 0) return false;
+    if (op === '~') return v[0] === base[0] && v[1] === base[1];
+    if (base[0] > 0) return v[0] === base[0];
+    return v[0] === 0 && v[1] === base[1];
+  }
+
+  // Verdict per copy, the same rule the resolver applies (docs: version-resolver, step 2). The strict scope elects nothing.
+  function verdictOf(s, [remote, version, range, strict]) {
+    const w = s.winner;
+    if (w === null) {
+      const from = s.surface[version]?.from;
+      return from === remote
+        ? { kind: 'share', label: 'provides', runs: version, text: `strict scope · shares exact ${version}` }
+        : { kind: 'share', label: 'same version', runs: version, text: `strict scope · exact match, uses ${from}'s file` };
+    }
+    if (version === w) {
+      return remote === s.source
+        ? { kind: 'share', label: 'provides', runs: w, text: `provides the shared ${w}` }
+        : { kind: 'share', label: 'same version', runs: w, text: `same version as the shared copy · uses ${s.source}'s file` };
+    }
+    if (satisfies(w, range)) return { kind: 'skip', label: 'reuses shared', runs: w, text: `${range} accepts ${w} · uses the shared copy` };
+    if (strict) return { kind: 'own', label: 'own copy', runs: version, text: `${range} rejects ${w} · strict · loads its own ${version}` };
+    return { kind: 'off', label: 'out of range', runs: w, text: `${range} rejects ${w} · not strict · runs ${w} anyway, the orchestrator only logs a warning` };
+  }
+
+  for (const p of PACKAGES) {
+    for (const s of p.scopes) {
+      s.verdicts = s.copies.map((c) => ({ copy: c, v: verdictOf(s, c) }));
+      s.versions = [...new Set(s.copies.map((c) => c[1]))].sort(desc);
+      s.running = [...new Set(s.verdicts.map((x) => x.v.runs))].sort(desc);
+      // A torn entrypoint's file comes from another version's build, so that version is downloaded too.
+      s.loaded = [...new Set([...s.running, ...(s.torn ?? []).map((x) => x.from)])].sort(desc);
+    }
+    const all = p.scopes.flatMap((s) => s.verdicts);
+    p.facts = {
+      off: all.filter((x) => x.v.kind === 'off'),
+      own: all.filter((x) => x.v.kind === 'own'),
+      torn: p.scopes.some((s) => s.torn?.length),
+      multi: p.scopes.some((s) => s.running.length > 1) || p.scopes.length > 1,
+      running: [...new Set(p.scopes.flatMap((s) => s.running))].sort(desc),
+      lead: p.scopes.find((s) => s.winner)?.winner ?? null,
+      remotes: new Set(all.map((x) => x.copy[0])).size,
+    };
+  }
+
+  const FILTERS = [
+    { id: 'all', label: 'All', test: () => true },
+    { id: 'multi', label: 'Multiple versions', test: (p) => p.facts.multi, note: 'more than one version runs on the page' },
+    { id: 'off', label: 'Out of range', test: (p) => p.facts.off.length > 0, c: 'var(--bad)', note: 'a non-strict remote runs the shared version although its range rejects it' },
+    { id: 'own', label: 'Isolated', test: (p) => p.facts.own.length > 0, c: 'var(--own)', note: 'a strict remote rejects the shared version and loads its own copy' },
+    { id: 'torn', label: 'Torn', test: (p) => p.facts.torn, c: 'var(--warn)', note: 'entrypoints of one package are served from different versions' },
+  ];
+  const SCOPE_NOTE = {
+    global: 'the default share scope, no shareScope configured',
+    strict: "shareScope: 'strict' · no election, every exact version is shared side by side",
+  };
+
+  const TORN_DOCS = 'https://native-federation.com/docs/v4/orchestrator/version-resolver/#entrypoint-coverage-and-tearing';
+  const TORN_TIP = 'Torn: some entrypoints of this package run a different version than the package itself. No copy of the shared version contains them, so the orchestrator fills each one from the build that declares it. Harmless for most libraries, but packages whose entrypoints share module state can break.';
+  // Torn entrypoints grouped by the version (and build) that fills them, largest group first.
+  const tornGroups = (s) => {
+    const groups = new Map();
+    for (const t of s.torn ?? []) groups.set(t.from, [...(groups.get(t.from) ?? []), t.specifier]);
+    return [...groups].map(([from, specs]) => ({ from, remote: s.surface[from].from, specs })).sort((a, b) => b.specs.length - a.specs.length);
+  };
+  const MERGE_TIP = (ver, builds) => `Copies of ${ver} merge: the version serves every entrypoint any copy declares, each from the first copy that has it (${builds.join(', ')}). Same version everywhere, so not torn.`;
+  const buildsOf = (own) => (own ? [own, ...(own.merged ?? [])] : []);
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+  const state = { filter: 'all', q: '', sort: 'name', selected: '@angular/core', version: {} };
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const chip = (r) => `<span class="chip" style="--dot:${REMOTES[r].dot}">${r}</span>`;
+
+  function renderFilters() {
+    $('filters').innerHTML = FILTERS.map((f) => {
+      const n = PACKAGES.filter(f.test).length;
+      const isNew = f.id !== 'all' && f.id !== 'multi';
+      return `<button type="button" class="fbtn${state.filter === f.id ? ' on' : ''}${isNew ? ' new' : ''}" data-f="${f.id}" aria-pressed="${state.filter === f.id}"${f.note ? ` title="${f.note}"` : ''}>${f.c ? `<span class="dot" style="--c:${f.c}"></span>` : ''}${f.label} <span class="n">${n}</span></button>`;
+    }).join('');
+  }
+
+  function visible() {
+    const f = FILTERS.find((x) => x.id === state.filter);
+    const q = state.q.trim().toLowerCase();
+    const by = {
+      name: (a, b) => a.name.localeCompare(b.name),
+      copies: (a, b) => b.scopes.reduce((n, s) => n + s.loaded.length, 0) - a.scopes.reduce((n, s) => n + s.loaded.length, 0) || a.name.localeCompare(b.name),
+      remotes: (a, b) => b.facts.remotes - a.facts.remotes || a.name.localeCompare(b.name),
+    }[state.sort];
+    return PACKAGES.filter((p) => f.test(p) && p.name.toLowerCase().includes(q)).sort(by);
+  }
+
+  function marksOf(p) {
+    const m = [];
+    if (p.facts.off.length) m.push(['var(--bad)', 'runs out of range']);
+    if (p.facts.own.length) m.push(['var(--own)', 'isolated copy']);
+    if (p.facts.torn) m.push(['var(--warn)', 'torn']);
+    return m.map(([c, t]) => `<span class="dot new" style="--c:${c}" title="${t}"></span>`).join('');
+  }
+
+  // Copies the page downloads for this package: every version that runs, counted per share scope.
+  function versionCell(p) {
+    const loaded = p.scopes.flatMap((s) => s.loaded.map((v) => `${v} (${s.scope})`));
+    const n = loaded.length;
+    return `<span class="vers new${n > 1 ? ' many' : ''}" title="${n} ${n === 1 ? 'copy' : 'copies'} downloaded: ${esc(loaded.join(', '))}">${n} ${n === 1 ? 'copy' : 'copies'}</span>`;
+  }
+
+  function renderList() {
+    const rows = visible();
+    if (rows.length && !rows.some((p) => p.name === state.selected)) state.selected = rows[0].name;
+    $('list').innerHTML = rows.length
+      ? rows.map((p) => {
+          return `<div class="row${p.name === state.selected ? ' sel' : ''}" role="option" tabindex="0" aria-selected="${p.name === state.selected}" data-p="${esc(p.name)}">
+            <span class="name" title="${esc(p.name)}">${esc(p.name)}</span><span class="marks">${marksOf(p)}</span>${p.scopes.some((s) => s.scope === 'strict') ? `<span class="scope-tag" title="${esc(SCOPE_NOTE.strict)}">strict</span>` : ''}
+            ${versionCell(p)}
+          </div>`;
+        }).join('')
+      : '<p class="empty-list">No packages match.</p>';
+    renderDetail(rows.find((p) => p.name === state.selected));
+  }
+
+  // One row per version; who ships it and their verdicts live in the deep dive, deviations stay visible as notes.
+  function versionTable(s, key, picked) {
+    const rows = s.versions.map((ver) => {
+      const shippers = s.verdicts.filter((x) => x.copy[1] === ver);
+      const runners = s.verdicts.filter((x) => x.v.runs === ver).length;
+      const status = s.winner === null || ver === s.winner ? 'shared' : shippers.some((x) => x.v.kind === 'own') ? 'scoped' : s.loaded.includes(ver) ? 'partly loaded' : 'not loaded';
+      const notes = ['off', 'own'].flatMap((kind) => {
+        const hits = shippers.filter((x) => x.v.kind === kind);
+        return hits.length ? [`<span class="state ${kind}" title="${esc(hits.map((x) => `${x.copy[0]}: ${x.v.text}`).join('\n'))}">${hits.map((x) => x.copy[0]).join(', ')} ${kind === 'off' ? 'out of range' : 'own copy'}</span>`] : [];
+      });
+      const fills = (s.torn ?? []).filter((x) => x.from === ver).map((x) => x.specifier);
+      const builds = buildsOf(s.surface[ver]);
+      if (builds.length > 1) notes.push(`<span class="state merged" title="${esc(MERGE_TIP(ver, builds.map((b) => b.from)))}">merged · ${builds.length} builds</span>`);
+      if (fills.length) notes.push(`<span class="state warn-pill" title="${esc(`fills these entrypoints for the shared ${s.winner}:\n${fills.join('\n')}`)}">fills ${plural(fills.length, 'torn entrypoint', 'torn entrypoints')}</span>`);
+      return `<tbody class="pick${ver === picked ? ' on' : ''}${s.loaded.includes(ver) ? ' loaded' : ''}" data-key="${esc(key)}" data-ver="${ver}" tabindex="0" aria-expanded="${ver === picked}" title="deep dive into ${ver}"><tr class="v">
+          <td><span class="caret" aria-hidden="true">${ver === picked ? '▾' : '▸'}</span><span class="tag">${ver}</span>${s.loaded.includes(ver) ? '<span class="dl" title="downloaded by the page"></span>' : ''}</td>
+          <td><span class="act">${status}</span></td>
+          <td class="num">${shippers.length}</td>
+          <td class="num">${runners || '–'}</td>
+          <td><div class="notes">${notes.join("")}</div></td>
+        </tr></tbody>${ver === picked ? `<tbody class="dive"><tr><td colspan="5">${surface(s, ver)}</td></tr></tbody>` : ''}`;
+    }).join('');
+    return `<div class="scroll new"><table class="vt">
+      <thead><tr><th>Version</th><th>Status</th><th title="remotes whose build contains this version">Shipped by</th><th title="remotes that run this version">Runs in</th><th></th></tr></thead>
+      ${rows}
+    </table></div>`;
+  }
+
+
+  function rangeCheck(s) {
+    if (s.winner === null || s.versions.length < 2) return '';
+    const blockers = s.copies.filter(([, , range]) => !satisfies(s.winner, range));
+    const universal = s.versions.filter((v) => s.copies.every(([, , range]) => satisfies(v, range)));
+    const summary = blockers.length === 0
+      ? `Range check · every range accepts ${s.winner}`
+      : `Range check · ${blockers.map(([r]) => r).join(', ')} ${blockers.length === 1 ? 'rejects' : 'reject'} ${s.winner}${universal.length ? '' : ' · no version fits every range'}`;
+    const head = s.versions.map((v) => `<th class="${v === s.winner ? 'win' : ''}">${v}</th>`).join('');
+    const rows = s.copies.map(([r, ships, range]) => `<tr><th>${chip(r)}<span class="rng">${range}</span></th>${s.versions.map((v) => {
+      const ok = satisfies(v, range);
+      const tip = `${range} ${ok ? 'accepts' : 'rejects'} ${v}${v === ships ? ` · ${r} ships ${v}` : ''}`;
+      return `<td class="${ok ? 'yes' : 'no'}${v === s.winner ? ' win' : ''}${v === ships ? ' ships' : ''}" title="${esc(tip)}">${ok ? '✓' : '✕'}</td>`;
+    }).join('')}</tr>`).join('');
+    return `<details class="new"><summary>${esc(summary)}</summary>
+      <div class="scroll"><table class="cm"><thead><tr><th></th>${head}</tr></thead><tbody>${rows}</tbody></table></div>
+    </details>`;
+  }
+
+  // Deep dive of one version. The shared version also lists torn specifiers, which another version's build fills for it.
+  function surface(s, ver) {
+    const own = s.surface[ver];
+    const shared = s.winner === null || ver === s.winner;
+    const isolated = !shared && s.verdicts.some((x) => x.copy[1] === ver && x.v.kind === 'own');
+    const runners = s.verdicts.filter((x) => x.v.runs === ver);
+    const shippers = s.copies.filter(([, v]) => v === ver).map(([r]) => r);
+    const mapped = shared ? 'for every remote in this scope' : isolated ? `only for ${runners.map((x) => x.copy[0]).join(', ')}` : 'not mapped';
+    const facts = `<dl class="facts">
+        <dt>Built by</dt><dd>${own ? buildsOf(own).map((b) => chip(b.from)).join('') + (own.merged?.length ? `<span class="muted merged-word" title="${esc(MERGE_TIP(ver, buildsOf(own).map((b) => b.from)))}">merged</span>` : '') : shippers.map(chip).join(' ')}</dd>
+        <dt>Mapped</dt><dd>${mapped}</dd>
+        <dt>Runs in</dt><dd>${runners.length ? runners.map(({ copy: [r], v }) => `<span class="runner${v.kind === 'off' ? ' off' : ''}" title="${esc(v.text)}">${chip(r)}${v.kind === 'off' ? ' out of range' : ''}</span>`).join('') : `<span class="muted">no remote · ${shippers.length === 1 ? 'its shipper uses' : 'its shippers use'} the shared ${s.winner}</span>`}</dd>
+      </dl>`;
+    const shippedBy = `<section><h4>Shipped by <span>${shippers.length}</span></h4>
+        <ul class="shipped">${s.verdicts.filter((x) => x.copy[1] === ver).map(({ copy: [r, , range, strict], v }) => `<li>${chip(r)}<span class="mono range" title="${esc(s.winner === null ? 'strict scope · exact version' : `${range} · strictVersion: ${strict}`)}">${range}</span><span class="state ${v.kind === 'own' ? 'own' : v.kind === 'off' ? 'off' : 'ok'}" title="${esc(v.text)}">${v.label}</span></li>`).join('')}</ul>
+      </section>`;
+    if (!own) return `<div class="dive-body new">${facts}<div class="lists">${shippedBy}</div></div>`;
+
+    const tornSpecs = new Set((s.torn ?? []).map((x) => x.specifier));
+    const builds = buildsOf(own);
+    const builtBy = new Map(builds.flatMap((b) => Object.keys(b.entries).map((spec) => [spec, b.from])));
+    const ownEntries = [...builtBy.keys()];
+    const fileCount = builds.reduce((n, b) => n + Object.keys(b.entries).length + b.chunks.length, 0);
+    const isFiller = ownEntries.some((spec) => tornSpecs.has(spec));
+    const tornBlock = ver === s.winner && s.torn?.length
+      ? `<details class="torn-group"><summary><span class="torn-note" title="${esc(TORN_TIP)}">${plural(s.torn.length, 'torn entrypoint', 'torn entrypoints')}</span> <span class="muted">from ${tornGroups(s).map((g) => `${g.from} (${g.remote})`).join(', ')}</span></summary>
+          ${tornGroups(s).map((g) => `<p class="tg-head">${g.from} · ${chip(g.remote)} <span class="muted">${g.specs.length}</span></p><ul>${g.specs.map((spec) => `<li class="mono">${esc(spec)}</li>`).join('')}</ul>`).join('')}
+        </details>`
+      : '';
+    // One build: a plain list. Merged builds: entrypoints grouped under the build that serves them, like the files.
+    const entryItem = (spec) => `<li><span class="mono">${esc(spec)}</span>${tornSpecs.has(spec) ? ` <span class="torn-note" title="${esc(`fills this entrypoint for the shared ${s.winner}, which no copy of ${s.winner} contains`)}">torn</span>` : ''}</li>`;
+    const entryList = builds.length > 1
+      ? builds.map((b) => `<p class="tg-head">${chip(b.from)}</p><ul>${Object.keys(b.entries).filter((spec) => builtBy.get(spec) === b.from).map(entryItem).join('')}</ul>`).join('')
+      : `<ul>${ownEntries.map(entryItem).join('')}</ul>`;
+    return `<div class="dive-body new">${facts}
+      <div class="lists">${shippedBy}
+        <section><h4>Entrypoints <span>${ownEntries.length}</span>${isFiller ? `<span class="h4-note" title="${esc(TORN_TIP)}">fills torn entrypoints</span>` : ''}</h4>
+          ${entryList}${tornBlock}
+        </section>
+        <section><h4>Files <span>${fileCount}</span><span class="sri" title="every mapped file carries an SRI hash">SRI ✓</span></h4>
+          ${builds.map((b) => `${builds.length > 1 ? `<p class="tg-head">${chip(b.from)}</p>` : ''}
+          <ul>${Object.values(b.entries).map((f) => `<li><a class="link mono" title="open in a new tab">${esc(f)}</a></li>`).join('')}</ul>
+          ${b.chunks.length ? `<ul class="chunks">${b.chunks.map((f) => `<li><a class="link mono" title="open in a new tab">${esc(f)}</a></li>`).join('')}</ul>` : ''}`).join('')}
+        </section>
+      </div>
+    </div>`;
+  }
+
+  function scopeBlock(p, s) {
+    const key = `${p.name}|${s.scope}`;
+    const picked = state.version[key] ?? null;
+    const torn = s.torn?.length
+      ? `<p class="banner new"><span class="torn-word" title="${esc(TORN_TIP)}">Torn</span> ${plural(s.torn.length, 'entrypoint runs', 'entrypoints run')} a different version than ${s.winner}: ${tornGroups(s).map((g) => `${g.specs.length} from ${g.from} (${g.remote})`).join(', ')} <a class="docs" href="${TORN_DOCS}" target="_blank" rel="noopener">What is torn? ↗</a></p>`
+      : '';
+    const elected = s.winner === null ? 'every exact version shared' : `shares ${s.winner} from ${chip(s.source)}`;
+    return `<section class="scope new">
+      <div class="scope-head">
+        <h2 class="scope-name" title="${esc(SCOPE_NOTE[s.scope] ?? `shareScope: '${s.scope}'`)}">${s.scope}</h2>
+        <span class="muted">${elected}</span>
+        ${s.pool ? `<a class="link" title="${esc(s.pool.outcome)}">pool: ${s.pool.tag} →</a>` : ''}
+      </div>
+      ${torn}
+      ${versionTable(s, key, picked)}
+      ${rangeCheck(s)}
+    </section>`;
+  }
+
+  function renderDetail(p) {
+    if (!p) { $('detail').innerHTML = '<p class="muted">Select a package on the left.</p>'; return; }
+    $('detail').innerHTML = `
+      <div class="dhead">
+        <h2>${esc(p.name)}</h2>
+        <span class="muted">${p.scopes.length} share ${p.scopes.length === 1 ? 'scope' : 'scopes'}</span>
+        <span class="links"><a class="link new">Graph →</a></span>
+      </div>
+      ${p.scopes.map((s) => scopeBlock(p, s)).join('')}`;
+  }
+
+  const pickVersion = (e) => {
+    if (e.target.closest('tbody.dive')) return;
+    const b = e.target.closest('tbody.pick');
+    if (!b) return;
+    state.version[b.dataset.key] = state.version[b.dataset.key] === b.dataset.ver ? null : b.dataset.ver;
+    renderDetail(PACKAGES.find((p) => p.name === state.selected));
+  };
+  $('detail').addEventListener('click', pickVersion);
+  $('detail').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { if (e.target.closest('tbody.pick')) { e.preventDefault(); pickVersion(e); } } });
+
+  function render() { renderFilters(); renderList(); }
+
+  $('filters').addEventListener('click', (e) => { const b = e.target.closest('[data-f]'); if (b) { state.filter = b.dataset.f; render(); } });
+  $('q').addEventListener('input', (e) => { state.q = e.target.value; renderList(); });
+  $('sort').addEventListener('change', (e) => { state.sort = e.target.value; renderList(); });
+  const pick = (e) => { const r = e.target.closest('[data-p]'); if (r) { state.selected = r.dataset.p; renderList(); } };
+  $('list').addEventListener('click', pick);
+  $('list').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(e); } });
+  $('show-new').addEventListener('change', (e) => document.body.classList.toggle('show-new', e.target.checked));
+  render();
+</script>

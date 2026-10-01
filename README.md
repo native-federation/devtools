@@ -31,9 +31,10 @@ guesses.
 
 ## What you get
 
-- 📦 **Packages** — the negotiation, per package: every candidate version, who
-  declared which range, which file actually serves it. Conflicts are called
-  out, not averaged away.
+- 📦 **Packages** — the negotiation, per package and share scope: every
+  version, the resolver's verdict for each remote, and a deep dive into who
+  ships it, its entrypoints and its files. Out-of-range remotes, isolated
+  copies and torn entrypoints are called out, not averaged away.
 - 🛰️ **Remotes** — each participant from its own point of view: what it
   exposes, what it declares, and where every single dependency really
   resolves.
@@ -65,11 +66,13 @@ the sharing story is visible at a glance.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/packages-dark.png">
-  <img src="docs/assets/readme/packages-light.png" alt="The Packages tab: @angular/core with its mapped files, SRI coverage, the four participants that declared it with their ranges, and the chunk files it loads">
+  <img src="docs/assets/readme/packages-light.png" alt="The Packages tab: @angular/core 22.0.8 shared from the host, its deep dive open with the four remotes it resolves for, their ranges and verdicts, its six entrypoints and its files with SRI">
 </picture>
 
-Four participants declared `@angular/core` — one version won, three were not
-selected, and every mapped file is accounted for, SRI included.
+Four remotes ship `@angular/core` 22.0.8: the host's build is shared, the
+other three resolve to it, and every entrypoint and file is accounted for, SRI
+included. A remote whose range rejects the shared version is flagged even when
+it isn't strict — the orchestrator stores a plain skip for it.
 
 ## Every remote, from its own point of view
 

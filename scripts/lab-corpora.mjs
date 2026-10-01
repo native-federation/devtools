@@ -43,6 +43,22 @@ export const LAB_CORPORA = [
       "pool-tag-islanded",
       "pool-tag-orphan"
     ]
+  },
+  {
+    // Recorded later than nf-lab from a newer playground commit, so it carries its own manifest.
+    id: "nf-lab-verdicts",
+    manifest: "manifest-nf-lab-verdicts.json",
+    repository: "native-federation/playground",
+    runner: "lab/run-scenario.mjs",
+    probe: "scripts/lab-capture-dump.js",
+    collector: { kind: "playwright-cdp", interface: "headless-chromium", webMcpUsed: false },
+    live: false,
+    scenarios: [
+      "merged-entrypoints",
+      "multi-scope",
+      "out-of-range-nonstrict",
+      "torn-many"
+    ]
   }
 ];
 

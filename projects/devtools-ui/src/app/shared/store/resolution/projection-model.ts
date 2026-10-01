@@ -15,6 +15,7 @@ import type {
 import type { CopyGroupingFacets, OrphanPoolTag, TagPool } from './grouping-model';
 import type { EffectiveConsumerResolutionId, RegistryEvidenceId } from './model';
 import type { PoolFamily } from './pool-family-model';
+import type { PackageScopeVerdicts } from './verdict-model';
 
 export type ConsumerCopyRelationId = RegistryEvidenceId<'consumer-copy-relation'>;
 
@@ -112,5 +113,6 @@ export interface CanonicalResolutionProjection {
   poolFamilies: PoolFamily[];
   /** One entry per copy, in `copies` order. */
   copyGroupingFacets: CopyGroupingFacets[];
+  packageScopeVerdicts: PackageScopeVerdicts[];
   completeness: ResolutionCompleteness;
 }

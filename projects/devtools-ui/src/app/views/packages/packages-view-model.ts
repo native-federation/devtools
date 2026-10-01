@@ -5,29 +5,33 @@
  * caller-owned UI state; the output is render-ready only: templates consume
  * these rows, never store types (T7-AC-05).
  *
- * This file is the FACADE: grouping, scopes summary, the two combinable
- * filters (status × participant), and the public surface. The halves live
- * beside it — `packages-row-vm.ts` (flat leaf list, resolved-tag versions,
- * conflict glyph) and `packages-detail-vm.ts` (copy blocks, unresolved
- * bucket, diagnostics footer; chunks via `packages-chunk-vm.ts`); shared
- * internals in `packages-vm-shared.ts`. Views import from here only.
+ * This file is the FACADE: grouping per package, scopes summary, the
+ * combinable filters (status × participant × search), sort, and the public
+ * surface. The halves live beside it — `packages-row-vm.ts` (one row per
+ * package across scopes, status marks, copy count) and
+ * `packages-detail-vm.ts` (copy blocks, unresolved bucket, diagnostics
+ * footer; chunks via `packages-chunk-vm.ts`); shared internals in
+ * `packages-vm-shared.ts`. Views import from here only.
  *
- * Presentation doctrine (T7.5 redesign over the T7 model):
- * - The left list is FLAT and minimal: package name + resolved tags;
- *   participant chips live in the filter, the copy blocks in the detail.
- * - The participant filter is single-select (`selectedParticipant`) and
- *   combines with the Conflicts filter (Conflicts ∧ participant).
- * - Deviation-first: every claim stays visible and grounded, but the happy
- *   path renders almost nothing.
+ * Presentation doctrine (packages-verdicts, over the T7 model): the list
+ * names deviations the projection publishes (`packageScopeVerdicts`) and
+ * nothing else; scopes, versions and entrypoints live in the detail.
  *
  * The builder groups and flattens precomputed knowledge — it derives
  * nothing new.
  */
 import type { TreeTableRow } from '../../shared/kit/tree-table';
 import type { FederationModel } from '../../shared/store/federation-model';
-import type { SharedExternalId } from '../../shared/store/resolution';
+import type { PackageScopeVerdicts, SharedExternalId } from '../../shared/store/resolution';
 import { PackageDetailVm, buildDetail } from './packages-detail-vm';
-import { PackagesRowPayload, buildRows } from './packages-row-vm';
+import { PackageViewVm, buildPackageView } from './packages-version-vm';
+import {
+  PackageEntry,
+  PackagesRowPayload,
+  buildRows,
+  mappedVersionsOf,
+  marksOf,
+} from './packages-row-vm';
 import {
   CanonicalIndexes,
   GLOBAL_SCOPE,
@@ -37,16 +41,17 @@ import {
   involvedParticipantsOf,
   isHostRemote,
   multiVersionOf,
+  noCopyNoteOf,
   packageId,
   participantDisplay,
 } from './packages-vm-shared';
 
 export { packageId } from './packages-vm-shared';
 export type {
-  EntrypointRowVm,
+  PackageMarkKind,
+  PackageMarkVm,
   PackageRowVm,
   PackagesRowPayload,
-  RowVersionVm,
 } from './packages-row-vm';
 export type {
   AnnotationVm,
@@ -59,15 +64,25 @@ export type {
   UnresolvedRowVm,
 } from './packages-detail-vm';
 export type { ChunkClaimVm } from './packages-chunk-vm';
+export type * from './packages-version-vm';
+export { TORN_DOCS_URL } from './packages-version-vm';
 
-export type PackagesFilter = 'all' | 'conflicts';
+export type PackagesFilter = 'all' | 'multi' | 'out-of-range' | 'isolated' | 'torn';
+export type PackagesSort = 'name' | 'copies' | 'remotes';
 
-/** Caller-owned UI state — filters and selection live in the view. */
+/** Caller-owned UI state — filters, search, sort and selection live in the view. */
 export interface PackagesUiState {
   filter: PackagesFilter;
   /** Raw participant name; null shows every package (single-select chips). */
   selectedParticipant: string | null;
-  /** Package id, seeded from the `select` query param (`<scope>|<pkg>`). */
+  /** Case-insensitive substring of the package name; empty or absent shows all. */
+  query?: string;
+  /** Defaults to `name`. */
+  sort?: PackagesSort;
+  /**
+   * A package name (row clicks) or a `<scope>|<pkg>` package id (cross-links
+   * from other tabs, the `select` query param); the latter also focuses that scope.
+   */
   selectedId: string | null;
 }
 
@@ -85,74 +100,185 @@ export interface ParticipantChipVm {
   host: boolean;
 }
 
+export interface FilterOptionVm {
+  id: PackagesFilter;
+  label: string;
+  /** Packages it keeps within the participant selection. */
+  count: number;
+  /** What it keeps (tooltip); null on All. */
+  note: string | null;
+}
+
 export interface PackagesVm {
   scopes: ScopeSummaryVm[];
-  /** Packages within the current participant selection. */
-  packageCount: number;
-  conflictCount: number;
+  filters: FilterOptionVm[];
   /** Every participant involved anywhere in the capture — host first. */
   participants: ParticipantChipVm[];
   rows: TreeTableRow<PackagesRowPayload>[];
+  /** The selected package's row key; null without a selection. */
+  selectedPackage: string | null;
+  /** The selected package across its scopes; null without a selection. */
+  packageView: PackageViewVm | null;
+  /** The per-copy view of the focused scope (the link's scope, else the first). */
   detail: PackageDetailVm | null;
-  /** Honest empty note; null while the tree has rows. */
+  /** Honest empty note; null while the list has rows. */
   emptyNote: string | null;
+}
+
+const FILTER_NOUNS: Record<PackagesFilter, string> = {
+  all: 'packages',
+  multi: 'packages with multiple versions',
+  'out-of-range': 'packages running out of range',
+  isolated: 'isolated packages',
+  torn: 'torn packages',
+};
+
+const FILTERS: { id: PackagesFilter; label: string; note: string | null }[] = [
+  { id: 'all', label: 'All', note: null },
+  {
+    id: 'multi',
+    label: 'Multiple versions',
+    note: 'more than one version resolves in a share scope (strict excluded)',
+  },
+  {
+    id: 'out-of-range',
+    label: 'Out of range',
+    note: 'a non-strict remote resolves to a shared version its range rejects',
+  },
+  {
+    id: 'isolated',
+    label: 'Isolated',
+    note: 'a strict remote rejects the shared version and keeps its own copy',
+  },
+  { id: 'torn', label: 'Torn', note: 'entrypoints run a different version than their package' },
+];
+
+function keeps(filter: PackagesFilter, entry: PackageEntry): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'multi') return entry.multiVersion;
+  return marksOf(entry).some((mark) => mark.kind === filter);
+}
+
+/** `<scope>|<pkg>` ids carry a scope; package names never contain `|`. */
+export function parseSelection(
+  selectedId: string | null,
+): { packageName: string; scope: string | null } | null {
+  if (selectedId === null) return null;
+  const bar = selectedId.lastIndexOf('|');
+  return bar === -1
+    ? { packageName: selectedId, scope: null }
+    : { packageName: selectedId.slice(bar + 1), scope: selectedId.slice(0, bar) };
 }
 
 export function buildPackagesVm(model: FederationModel, ui: PackagesUiState): PackagesVm {
   const indexes = buildCanonicalIndexes(model);
   const groups = groupPackages(model, indexes);
   const scopes = summarizeScopes(groups);
+  const entries = entriesOf(groups, model.resolutionProjection.packageScopeVerdicts, indexes);
 
-  const involvement = new Map(
-    groups.map((group) => [group.id, involvedParticipantsOf(group, indexes)]),
-  );
-  const participants = participantChips(groups, involvement);
+  const participants = participantChips(entries);
   const selected = ui.selectedParticipant;
-  const visibleGroups =
-    selected === null ? groups : groups.filter((group) => involvement.get(group.id)!.has(selected));
-  const conflictCount = visibleGroups.filter((group) => group.multiVersion).length;
+  const involvedEntries =
+    selected === null ? entries : entries.filter((entry) => entry.involved.has(selected));
+  const filters = FILTERS.map((option) => ({
+    ...option,
+    count: involvedEntries.filter((entry) => keeps(option.id, entry)).length,
+  }));
 
-  // Capture-level id set: the sub-rows' own-key suppression must see keys
-  // the participant filter hides from the rendered hierarchy.
-  const allGroupIds = new Set(groups.map((group) => group.id));
-  const rows = buildRows(visibleGroups, allGroupIds, indexes, ui.filter === 'conflicts');
-  const detail = buildDetail(groups, indexes, ui.selectedId);
+  const query = (ui.query ?? '').trim().toLowerCase();
+  const visible = involvedEntries
+    .filter((entry) => keeps(ui.filter, entry))
+    .filter((entry) => query === '' || entry.packageName.toLowerCase().includes(query))
+    .sort(sorter(ui.sort ?? 'name'));
+  const rows = buildRows(visible);
+
+  const selection = parseSelection(ui.selectedId);
+  const selectedEntry =
+    selection === null ? undefined : entries.find((e) => e.packageName === selection.packageName);
+  const focusedGroup =
+    selectedEntry?.groups.find((group) => group.scope === selection?.scope) ??
+    selectedEntry?.groups[0];
+  const detail = buildDetail(groups, indexes, focusedGroup?.id ?? null);
 
   let emptyNote: string | null = null;
   if (groups.length === 0) {
     emptyNote = 'no shared packages in this capture';
   } else if (rows.length === 0) {
     const who = selected === null ? null : participantDisplay(selected);
-    if (ui.filter === 'conflicts') {
-      emptyNote =
-        who === null
-          ? 'no version conflicts in this capture'
-          : `no version conflicts involve ${who} in this capture`;
-    } else {
-      emptyNote = `no packages involve ${who} in this capture`;
-    }
+    const what = FILTER_NOUNS[ui.filter];
+    emptyNote =
+      query !== ''
+        ? `no ${what} match “${(ui.query ?? '').trim()}”`
+        : who === null
+          ? `no ${what} in this capture`
+          : `no ${what} involve ${who} in this capture`;
   }
 
   return {
     scopes,
-    packageCount: visibleGroups.length,
-    conflictCount,
+    filters,
     participants,
     rows,
+    selectedPackage: selectedEntry?.packageName ?? null,
+    packageView:
+      selectedEntry === undefined
+        ? null
+        : buildPackageView(selectedEntry, groups, indexes, selection?.scope ?? null),
     detail,
     emptyNote,
   };
 }
 
-/** Distinct involved participants over all groups — host first, then first seen. */
-function participantChips(
+function sorter(sort: PackagesSort): (a: PackageEntry, b: PackageEntry) => number {
+  const byName = (a: PackageEntry, b: PackageEntry) =>
+    a.packageName < b.packageName ? -1 : a.packageName > b.packageName ? 1 : 0;
+  if (sort === 'copies') {
+    return (a, b) => mappedVersionsOf(b).length - mappedVersionsOf(a).length || byName(a, b);
+  }
+  if (sort === 'remotes') {
+    return (a, b) => b.involved.size - a.involved.size || byName(a, b);
+  }
+  return byName;
+}
+
+/** Scope groups joined per package, store order, with the projection's verdicts. */
+function entriesOf(
   groups: PackageGroup[],
-  involvement: ReadonlyMap<string, ReadonlySet<string>>,
-): ParticipantChipVm[] {
+  verdicts: readonly PackageScopeVerdicts[],
+  indexes: CanonicalIndexes,
+): PackageEntry[] {
+  const verdictsById = new Map(verdicts.map((v) => [packageId(v.shareScope, v.packageName), v]));
+  const byName = new Map<string, PackageEntry>();
+  for (const group of groups) {
+    let entry = byName.get(group.packageName);
+    if (entry === undefined) {
+      entry = {
+        packageName: group.packageName,
+        groups: [],
+        verdicts: [],
+        involved: new Set(),
+        multiVersion: false,
+        unknownTagCopies: 0,
+        noCopyNote: noCopyNoteOf(group, indexes),
+      };
+      byName.set(group.packageName, entry);
+    }
+    entry.groups.push(group);
+    const groupVerdicts = verdictsById.get(group.id);
+    if (groupVerdicts !== undefined) entry.verdicts.push(groupVerdicts);
+    for (const name of involvedParticipantsOf(group, indexes)) entry.involved.add(name);
+    entry.multiVersion ||= group.multiVersion;
+    entry.unknownTagCopies += group.unknownTagCopyCount;
+  }
+  return [...byName.values()];
+}
+
+/** Distinct involved participants over all packages — host first, then first seen. */
+function participantChips(entries: PackageEntry[]): ParticipantChipVm[] {
   const seen = new Set<string>();
   const chips: ParticipantChipVm[] = [];
-  for (const group of groups) {
-    for (const name of involvement.get(group.id) ?? []) {
+  for (const entry of entries) {
+    for (const name of entry.involved) {
       if (!seen.has(name)) {
         seen.add(name);
         chips.push({ name, host: isHostRemote(name) });

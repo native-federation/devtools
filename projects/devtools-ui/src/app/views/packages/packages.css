@@ -16,6 +16,7 @@
 /* All/Conflicts + participant chips form one left-hand filter zone; the
  * scopes summary is passive info and keeps to the right edge. */
 .filter-zone {
+  flex: 1 1 auto;
   display: inline-flex;
   align-items: baseline;
   gap: 12px;
@@ -93,92 +94,106 @@
   cursor: help;
 }
 
-/* --- flat list rows -------------------------------------------------- */
+/* --- package rows ----------------------------------------------------- */
 
-.pkg-name,
-.pkg-version {
+.pkg-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--nf-font-mono);
   font-size: 11px;
 }
 
-/* Long subpath names must not wrap the row — the master pane scrolls. */
-.pkg-name {
-  white-space: nowrap;
+/* Marks, the strict tag and the copy count never shrink, so a long name
+ * truncates before any of them. */
+.pkg-marks,
+.pkg-strict,
+.pkg-copies {
+  flex: none;
 }
 
 .linked-glyph {
+  flex: none;
   color: var(--nf-color-text-muted);
 }
 
-.pkg-scope {
+.pkg-marks {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.mark-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  cursor: help;
+}
+
+.filter-button .mark-dot {
+  margin-right: 4px;
+  vertical-align: 1px;
+}
+
+.mark-out-of-range {
+  background: var(--nf-color-conflict);
+}
+
+.mark-isolated {
+  background: var(--nf-color-isolated-text);
+}
+
+.mark-torn {
+  background: var(--nf-color-warning-text);
+}
+
+.pkg-strict {
   padding: 0 4px;
   border: 1px solid var(--nf-color-border);
   border-radius: 3px;
-  background: var(--nf-color-surface);
   font-family: var(--nf-font-mono);
   font-size: 10px;
   color: var(--nf-color-text-muted);
-  text-decoration: underline dotted;
-  text-underline-offset: 2px;
-  cursor: help;
 }
 
-/* Mapped-copy versions: winner plain, other mapped tags dimmed. */
-.pkg-versions {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-  white-space: nowrap;
-}
-
-.pkg-version {
-  color: var(--nf-color-text-muted);
-}
-
-.pkg-version + .pkg-version::before {
-  content: '· ';
-}
-
-.pkg-version-muted {
-  opacity: 0.6;
-}
-
-.pkg-conflict {
-  color: var(--nf-color-warning-text);
-  background: var(--nf-color-warning-bg);
-  border: 1px solid var(--nf-color-warning-border);
-  border-radius: 3px;
-  padding: 0 4px;
-  font-size: 10px;
-  white-space: nowrap;
-  text-decoration: underline dotted;
-  text-underline-offset: 2px;
-  cursor: help;
-}
-
-/* Honest empty state of the versions cell — nothing resolves. */
-.pkg-no-copy {
-  font-size: 10px;
-  font-style: italic;
-  color: var(--nf-color-text-muted);
-  white-space: nowrap;
-}
-
-/* --- entrypoint sub-rows (dense secondaries, T7.10) ------------------- */
-
-/* Registry EVIDENCE (an own registration's entries map) — stronger than
- * the name-derived linked glyph, but never an own registry key: the whole
- * sub-row stays muted and carries an annotation word instead of a
- * versions cell. */
-.entry-specifier,
-.entry-tags {
-  font-family: var(--nf-font-mono);
+.pkg-copies {
+  margin-left: auto;
+  padding-left: 8px;
   font-size: 11px;
   color: var(--nf-color-text-muted);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
 }
 
-.entry-annotation {
-  font-size: 10px;
+.pkg-copies-many {
+  color: var(--nf-color-text);
+}
+
+/* --- toolbar search and sort ---------------------------------------------- */
+
+.packages-search {
+  width: 180px;
+  padding: 2px 6px;
+  border: 1px solid var(--nf-color-border);
+  border-radius: 4px;
+  background: var(--nf-color-bg);
+  color: var(--nf-color-text);
+  font: inherit;
+}
+
+.packages-sort {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
   color: var(--nf-color-text-muted);
+}
+
+.packages-sort select {
+  font: inherit;
+  color: var(--nf-color-text);
+  background: var(--nf-color-bg);
+  border: 1px solid var(--nf-color-border);
+  border-radius: 4px;
 }

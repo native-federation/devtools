@@ -125,13 +125,14 @@ describe('PackagesView', () => {
     expect(toggles[2].querySelector('.chip .dot')?.classList.contains('dot-2')).toBe(true);
     expect(hostToggle.querySelector('.dot')).toBeNull();
 
-    // T7.6-AC-01: buttons + chips form one left filter zone with a visible
-    // divider between them; the scopes summary sits outside the zone and is
-    // pushed to the right edge via its auto margin.
+    // T7.6-AC-01: buttons + chips form one filter zone with a visible divider
+    // between them; the scopes summary ends the zone's last line, pushed to
+    // the right edge via its auto margin (packages-verdicts T7: inside the
+    // zone, so a wrapped toolbar stays two lines).
     const zone = el.querySelector<HTMLElement>('.filter-zone')!;
     expect(zone.querySelector('.filter-group')).not.toBeNull();
     expect(zone.querySelector('.participant-filter')).not.toBeNull();
-    expect(zone.querySelector('.scopes-summary')).toBeNull();
+    expect(zone.lastElementChild?.classList.contains('scopes-summary')).toBe(true);
     expect(getComputedStyle(el.querySelector('.participant-filter')!).borderLeftWidth).toBe('1px');
     expect(getComputedStyle(el.querySelector('.scopes-summary')!).marginLeft).toBe('auto');
 
@@ -250,11 +251,19 @@ describe('PackagesView', () => {
 
   // T7.5-AC-03 (DOM half): two blocks under the multiplicity header; the
   // row compresses to the ⚠ glyph with the rule in its tooltip.
-  it('renders strict-split as two blocks under the ⚠ 2 resolved versions header', async () => {
+  it('renders strict-split as two versions with their notes and two copy blocks', async () => {
     const { fixture } = await createView({ fixture: 'strict-split', select: CONFLICT_LIB });
     const el = fixture.nativeElement as HTMLElement;
 
-    expect(el.querySelector('.detail-conflict')?.textContent).toBe('⚠ 2 resolved versions');
+    const versions = Array.from(el.querySelectorAll<HTMLElement>('tbody.version'));
+    expect(versions.map((v) => v.querySelector('.version-tag')?.textContent)).toEqual([
+      '2.0.0',
+      '1.0.0',
+    ]);
+    expect(
+      Array.from(versions[1].querySelectorAll('.version-note')).map((n) => n.textContent),
+    ).toEqual(['mfe1 out of range', 'mfe3 own copy']);
+    expect(versions[0].querySelectorAll('.version-note')).toHaveLength(0);
     const blocks = Array.from(el.querySelectorAll<HTMLElement>('.copy-block'));
     expect(blocks).toHaveLength(2);
     expect(blocks[0].querySelector('.copy-tag')?.textContent).toBe('2.0.0');
@@ -272,27 +281,26 @@ describe('PackagesView', () => {
     ).toEqual(['files', 'declared by', 'chunks']);
     expect(blocks[1].querySelectorAll('.consumer-row')).toHaveLength(1);
     expect(blocks[1].querySelector('.chunk-list')).toBeNull();
-    // T7.6-AC-05: the conflict header keeps its warning color; STRICT stays
-    // muted alongside the declared range.
+    // T7.6-AC-05: STRICT stays muted alongside the declared range.
     const strictColor = getComputedStyle(el.querySelector('.consumer-strict')!).color;
     expect(strictColor).toBe(getComputedStyle(el.querySelector('.consumer-declared')!).color);
-    expect(strictColor).not.toBe(getComputedStyle(el.querySelector('.detail-conflict')!).color);
 
-    // Row: ⚠ glyph with the rule tooltip, non-elected version muted.
-    const conflict = el.querySelector<HTMLElement>('.pkg-conflict')!;
-    expect(conflict.textContent).toBe('⚠');
-    expect(conflict.title).toBe('2 resolved versions — rule: resolved-tag-multiplicity');
-    const versions = Array.from(el.querySelectorAll<HTMLElement>('.pkg-versions .pkg-version'));
-    expect(versions.map((version) => version.textContent)).toEqual(['2.0.0', '1.0.0']);
-    expect(versions[0].classList.contains('pkg-version-muted')).toBe(false);
-    expect(versions[1].classList.contains('pkg-version-muted')).toBe(true);
-    expect(versions[1].title).toBe('own copy of mfe3 (scope)');
+    // Row: one mark per deviation with its reason, and the copy count.
+    const marks = Array.from(el.querySelectorAll<HTMLElement>('.pkg-marks .mark-dot'));
+    expect(marks.map((mark) => mark.className)).toEqual([
+      'mark-dot mark-out-of-range',
+      'mark-dot mark-isolated',
+    ]);
+    expect(marks[1].title).toBe('mfe3 keeps its own copy');
+    const copies = el.querySelector<HTMLElement>('.pkg-copies')!;
+    expect(copies.textContent).toBe('2 copies');
+    expect(copies.title).toBe('2 copies mapped: 2.0.0 (global), 1.0.0 (global)');
 
-    const conflictsButton = Array.from(
-      el.querySelectorAll<HTMLButtonElement>('.filter-button'),
-    ).find((button) => button.textContent?.includes('Conflicts'))!;
-    expect(conflictsButton.textContent?.trim()).toBe('Conflicts (1)');
-    conflictsButton.click();
+    const multiButton = Array.from(el.querySelectorAll<HTMLButtonElement>('.filter-button')).find(
+      (button) => button.textContent?.includes('Multiple versions'),
+    )!;
+    expect(multiButton.textContent?.trim()).toBe('Multiple versions (1)');
+    multiButton.click();
     fixture.detectChanges();
     expect(el.querySelectorAll('.tree-row')).toHaveLength(1);
   });
@@ -366,49 +374,23 @@ describe('PackagesView', () => {
     );
   });
 
-  // T7.10-AC-01/-AC-02 (DOM half): dense secondaries render as muted,
-  // indented entrypoint sub-rows under their parent leaf — excluded from
-  // the All count — and a sub-row click selects the parent package.
-  it('renders entrypoint sub-rows under dense leaves and selects the parent on click', async () => {
+  // packages-verdicts T4: dense secondaries are no registry keys and grow no
+  // list rows; they live in the version deep dive.
+  it('lists dense packages as one row each, without entrypoint sub-rows', async () => {
     const { fixture } = await createView({ fixture: 'synthetic-dense-entries' });
     const el = fixture.nativeElement as HTMLElement;
 
-    // 2 registry keys + 2 sub-rows in the tree, but All counts keys only.
-    expect(el.querySelectorAll('.tree-row')).toHaveLength(4);
+    expect(el.querySelectorAll('.tree-row')).toHaveLength(2);
     const allButton = Array.from(el.querySelectorAll<HTMLButtonElement>('.filter-button')).find(
       (button) => button.textContent?.includes('All'),
     )!;
     expect(allButton.textContent?.trim()).toBe('All (2)');
-    // T7.10-AC-04 (carrier 1): the All button names the row semantics.
-    expect(allButton.title).toBe('one row per registry key of the share register');
 
     const rows = Array.from(el.querySelectorAll<HTMLElement>('.tree-row'));
-    const subRow = rows[1];
-    expect(subRow.getAttribute('aria-level')).toBe('2');
-    // Never an own registry key: no linked glyph, no versions cell — a
-    // muted specifier, the tag of its own registration, and the grounded
-    // entries-map annotation.
-    expect(subRow.querySelector('.linked-glyph')).toBeNull();
-    expect(subRow.querySelector('.pkg-versions')).toBeNull();
-    expect(subRow.querySelector('.entry-specifier')?.textContent).toBe('/secondary');
-    expect(subRow.querySelector('.entry-tags')?.textContent).toBe('1.2.0');
-    const annotation = subRow.querySelector<HTMLElement>('.entry-annotation')!;
-    expect(annotation.textContent).toBe('entry');
-    expect(annotation.title).toBe(
-      'registered via the entries map of @nf-lab/dense-lib@1.2.0 — no own registry key in this capture',
-    );
-    // Muted at token level (jsdom keeps var() unresolved): the sub-row
-    // specifier shares the muted token of the versions cell.
-    expect(getComputedStyle(subRow.querySelector('.entry-specifier')!).color).toBe(
-      getComputedStyle(rows[0].querySelector('.pkg-version')!).color,
-    );
-
-    // Clicking the sub-row selects the PARENT package (existing convention).
-    subRow.click();
+    rows[1].click();
     fixture.detectChanges();
-    expect(el.querySelector('.detail-name')?.textContent?.trim()).toBe('@nf-lab/dense-lib');
-    expect(rows[0].getAttribute('aria-selected')).toBe('true');
-    expect(subRow.getAttribute('aria-selected')).toBe('false');
+    expect(el.querySelector('.detail-name-text')?.textContent?.trim()).toBe('@nf-lab/split-lib');
+    expect(rows[1].getAttribute('aria-selected')).toBe('true');
   });
 
   // T7.10-AC-03/-AC-04 (DOM half): the secondary-only head fact renders with
@@ -438,7 +420,9 @@ describe('PackagesView', () => {
     // T7.10-AC-04 (carriers 2 + 3): tooltips only — visible text unchanged.
     const name = el.querySelector<HTMLElement>('.detail-name-text')!;
     expect(name.textContent).toBe('@nf-lab/split-lib');
-    expect(name.title).toBe('registry key in share scope __GLOBAL__');
+    expect(el.querySelector<HTMLElement>('.scope-tag')?.title).toBe(
+      'the default share scope — no shareScope configured',
+    );
     const declaredByLabels = Array.from(el.querySelectorAll<HTMLElement>('.group-label')).filter(
       (label) => label.textContent === 'declared by',
     );
@@ -456,25 +440,23 @@ describe('PackagesView', () => {
     const { fixture } = await createView({ fixture: 'non-dense' });
     const el = fixture.nativeElement as HTMLElement;
 
-    expect(el.querySelectorAll('.entry-specifier')).toHaveLength(0);
-    expect(el.querySelectorAll('.entry-annotation')).toHaveLength(0);
     expect(el.querySelectorAll('.linked-glyph').length).toBeGreaterThan(0);
   });
 
-  it('narrows the clean self-fill capture to the empty note under Conflicts', async () => {
+  it('narrows the clean self-fill capture to the empty note under Multiple versions', async () => {
     const { fixture } = await createView({ fixture: 'self-fill' });
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelectorAll('.tree-row')).toHaveLength(2);
 
-    const conflictsButton = Array.from(
-      el.querySelectorAll<HTMLButtonElement>('.filter-button'),
-    ).find((button) => button.textContent?.includes('Conflicts'))!;
-    expect(conflictsButton.textContent?.trim()).toBe('Conflicts (0)');
-    conflictsButton.click();
+    const multiButton = Array.from(el.querySelectorAll<HTMLButtonElement>('.filter-button')).find(
+      (button) => button.textContent?.includes('Multiple versions'),
+    )!;
+    expect(multiButton.textContent?.trim()).toBe('Multiple versions (0)');
+    multiButton.click();
     fixture.detectChanges();
 
     expect(el.querySelectorAll('.tree-row')).toHaveLength(0);
-    expect(el.textContent).toContain('no version conflicts in this capture');
+    expect(el.textContent).toContain('no packages with multiple versions in this capture');
   });
 
   // Linked sibling carries its association as a tooltip on the name.
@@ -484,8 +466,11 @@ describe('PackagesView', () => {
 
     const names = Array.from(el.querySelectorAll<HTMLElement>('.pkg-name'));
     expect(names.map((name) => name.textContent)).toEqual(['@nf-lab/conflict-lib', '/extra']);
-    expect(names[1].title).toBe('secondary entry of @nf-lab/conflict-lib — rule: name-derived');
-    expect(names[0].hasAttribute('title')).toBe(false);
+    expect(names[1].title).toBe(
+      '@nf-lab/conflict-lib/extra — secondary entry of @nf-lab/conflict-lib',
+    );
+    // Every name carries its full form, so an ellipsis never hides it.
+    expect(names[0].title).toBe('@nf-lab/conflict-lib');
   });
 
   // Cross-link convention: the select query param seeds the selection;
@@ -514,35 +499,25 @@ describe('PackagesView', () => {
       select: 'strict|@nf-lab/conflict-lib',
     });
     const strictEl = strictFixture.nativeElement as HTMLElement;
-    expect(strictEl.querySelector<HTMLElement>('.pkg-scope')?.title).toBe(
-      'share scope — configured via shareScope: strict',
+    expect(strictEl.querySelector<HTMLElement>('.pkg-strict')?.title).toBe(
+      "shareScope: 'strict' · no election, every exact version is shared side by side",
     );
-    expect(strictEl.querySelector<HTMLElement>('.detail-strict')?.title).toContain(
-      "shareScope: 'strict'",
+    const scopeTag = strictEl.querySelector<HTMLElement>('.scope-tag')!;
+    expect(scopeTag.textContent).toBe('strict');
+    expect(scopeTag.title).toContain("shareScope: 'strict'");
+    // The strict scope elects nothing — the head says so instead of "shares X".
+    expect(strictEl.querySelector('.scope-elected')?.textContent?.trim()).toBe(
+      'every exact version shared',
     );
-    expect(strictEl.querySelector<HTMLElement>('.detail-scope .mono')?.title).toBe(
-      'configured via shareScope: strict',
-    );
-    // T7.6-AC-02: label and value joined by a colon.
-    expect(strictEl.querySelector('.detail-scope')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-      'share scope: strict',
-    );
-    // T7.6-AC-05: pinned scope is a configuration fact — muted like the meta
-    // line, tooltip verbatim.
-    expect(getComputedStyle(strictEl.querySelector('.detail-strict')!).color).toBe(
-      getComputedStyle(strictEl.querySelector('.detail-scope')!).color,
-    );
+    expect(strictEl.querySelector('.range-check')).toBeNull();
   });
 
   it('marks the global scope as the unconfigured default in the detail tooltip', async () => {
     const { fixture } = await createView({ fixture: 'clean-skip', select: CONFLICT_LIB });
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector<HTMLElement>('.detail-scope .mono')?.title).toBe(
-      '__GLOBAL__ — the default share scope (no shareScope configured)',
-    );
-    expect(el.querySelector('.detail-scope')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
-      'share scope: global',
-    );
+    const scopeTag = el.querySelector<HTMLElement>('.scope-tag')!;
+    expect(scopeTag.textContent).toBe('global');
+    expect(scopeTag.title).toBe('the default share scope — no shareScope configured');
   });
 
   // T7.6-AC-03: the copy-head connective reads 'from' for every disposition;
@@ -586,11 +561,11 @@ describe('PackagesView', () => {
       select: '__GLOBAL__|@nf-lab/conflict-lib/extra',
     });
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector('.detail-name')?.textContent).toContain('/extra');
+    expect(el.querySelector('.detail-name-text')?.textContent).toContain('/extra');
 
     queryParams.next(convertToParamMap({ select: CONFLICT_LIB }));
     fixture.detectChanges();
-    expect(el.querySelector('.detail-name')?.textContent?.trim()).toBe('@nf-lab/conflict-lib');
+    expect(el.querySelector('.detail-name-text')?.textContent?.trim()).toBe('@nf-lab/conflict-lib');
   });
 
   // Wording rules (T7): resolution-honest vocabulary only — "mapped",
@@ -638,8 +613,8 @@ describe('PackagesView', () => {
     });
     const el = fixture.nativeElement as HTMLElement;
 
-    expect(el.querySelector('.pkg-no-copy')?.textContent).toBe('no copy');
-    expect(el.querySelector('.pkg-conflict')).toBeNull();
+    expect(el.querySelector('.pkg-copies')?.textContent).toBe('no copy');
+    expect(el.querySelector('.pkg-marks')).toBeNull();
     expect(el.querySelectorAll('.copy-block')).toHaveLength(0);
     expect(el.querySelector('.no-copies')?.textContent).toBe('no resolved copies in this capture');
     expect(el.querySelector('.unresolved-heading')?.textContent).toBe('unresolved');
@@ -649,6 +624,64 @@ describe('PackagesView', () => {
     const offered = Array.from(el.querySelectorAll<HTMLElement>('.offered-chip'));
     expect(offered.map((chip) => chip.textContent)).toEqual(['offered 1.2.3', 'offered 2.0.0']);
     expect(offered[0].title.length).toBeGreaterThan(0);
+  });
+
+  // T4-AC-04: a long name truncates; marks, strict tag and count never shrink.
+  it('truncates long names before the marks and the copy count', async () => {
+    const { fixture } = await createView({ fixture: 'multi-scope' });
+    const el = fixture.nativeElement as HTMLElement;
+    const name = getComputedStyle(el.querySelector('.pkg-name')!);
+    expect(name.textOverflow).toBe('ellipsis');
+    expect(name.overflow).toBe('hidden');
+    for (const selector of ['.pkg-strict', '.pkg-copies']) {
+      expect(getComputedStyle(el.querySelector(selector)!).flexShrink).toBe('0');
+    }
+  });
+
+  // T6-AC-03: a version row opens its deep dive inline (click or Enter), one
+  // per scope block, and closes again; focus stays on the row.
+  it('opens one version deep dive at a time per scope, by click and keyboard', async () => {
+    const { fixture } = await createView({
+      fixture: 'out-of-range-nonstrict',
+      select: '__GLOBAL__|@nf-lab/kit',
+    });
+    const el = fixture.nativeElement as HTMLElement;
+    const rows = () => Array.from(el.querySelectorAll<HTMLElement>('tbody.version'));
+    expect(el.querySelector('tbody.dive')).toBeNull();
+    expect(rows().every((row) => row.tabIndex === 0)).toBe(true);
+
+    rows()[0].click();
+    fixture.detectChanges();
+    expect(rows()[0].getAttribute('aria-expanded')).toBe('true');
+    expect(el.querySelectorAll('tbody.dive')).toHaveLength(1);
+    expect(el.querySelector('tbody.dive .facts')?.textContent).toContain(
+      'for every remote in this scope',
+    );
+
+    // Enter on another row moves the single open dive there.
+    rows()[2].focus();
+    rows()[2].dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    fixture.detectChanges();
+    expect(rows()[0].getAttribute('aria-expanded')).toBe('false');
+    expect(rows()[2].getAttribute('aria-expanded')).toBe('true');
+    expect(document.activeElement).toBe(rows()[2]);
+    expect(el.querySelector('tbody.dive .shipped')?.textContent).toContain('out of range');
+
+    rows()[2].click();
+    fixture.detectChanges();
+    expect(el.querySelector('tbody.dive')).toBeNull();
+  });
+
+  it('links the torn banner to the docs in a new tab', async () => {
+    const { fixture } = await createView({
+      fixture: 'torn-many',
+      select: '__GLOBAL__|@nf-lab/kit',
+    });
+    const el = fixture.nativeElement as HTMLElement;
+    const link = el.querySelector<HTMLAnchorElement>('.torn-banner a')!;
+    expect(link.href).toContain('version-resolver/#entrypoint-coverage-and-tearing');
+    expect(link.target).toBe('_blank');
+    expect(el.querySelector<HTMLElement>('.torn-word')?.title).toContain('Torn:');
   });
 
   it('renders an honest observation when no snapshot is captured', async () => {

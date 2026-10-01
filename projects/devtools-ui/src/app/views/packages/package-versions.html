@@ -1,0 +1,362 @@
+@if (view(); as view) {
+  <h2 class="detail-name">
+    <span class="detail-name-text">{{ view.packageName }}</span>
+    <span class="detail-scope-count"
+      >{{ view.scopeCount }} share {{ view.scopeCount === 1 ? 'scope' : 'scopes' }}</span
+    >
+  </h2>
+  @if (detail()?.parent; as parent) {
+    <p class="detail-meta">
+      <span class="detail-parent">
+        secondary entry of
+        <a
+          [routerLink]="['/packages']"
+          [queryParams]="{ select: parent.packageId }"
+          [title]="'parent association derived from the package name — rule: ' + parent.rule"
+          >{{ parent.packageName }}</a
+        >
+      </span>
+    </p>
+  }
+
+  @for (scope of view.scopes; track scope.id) {
+    <section
+      class="scope-block"
+      [class.scope-focused]="scope.focused"
+      [attr.aria-label]="'share scope ' + scope.label"
+    >
+      <div class="scope-head">
+        <span class="scope-tag tip" [title]="scope.note">{{ scope.label }}</span>
+        @if (scope.elected; as elected) {
+          <span class="scope-elected">
+            shares <span class="mono">{{ elected.tag }}</span>
+            @if (elected.remote; as remote) {
+              from
+              <a
+                class="chip-link"
+                [routerLink]="['/remotes']"
+                [queryParams]="{ select: remote.select }"
+                ><nf-participant-chip [name]="remote.name" [host]="remote.host"
+              /></a>
+            }
+          </span>
+        } @else {
+          <span class="scope-elected">{{ scope.electionNote }}</span>
+        }
+        @if (scope.pool; as pool) {
+          <span class="scope-links">
+            <a
+              class="pool-link"
+              [routerLink]="['/pools']"
+              [queryParams]="{ select: pool.poolSelect }"
+              [title]="pool.note"
+              >{{ pool.label }} →</a
+            >
+            <a
+              class="pool-link"
+              [routerLink]="['/graph']"
+              [queryParams]="{ group: 'pool', select: pool.poolSelect }"
+              title="open the Graph grouped by pool, with this pool emphasised"
+              >Graph →</a
+            >
+          </span>
+        }
+      </div>
+
+      @if (scope.torn; as torn) {
+        <p class="torn-banner">
+          <span class="torn-word tip" [title]="torn.note">Torn</span>
+          {{ torn.text }}
+          <a class="torn-docs" [href]="torn.docsUrl" target="_blank" rel="noopener"
+            >What is torn? ↗</a
+          >
+        </p>
+      }
+
+      <div class="table-scroll">
+        <table class="versions">
+          <thead>
+            <tr>
+              <th>Version</th>
+              <th>Status</th>
+              <th title="remotes whose build contains this version">Shipped by</th>
+              <th title="remotes whose bindings resolve to this version">Resolves for</th>
+              <th><span class="visually-hidden">Notes</span></th>
+            </tr>
+          </thead>
+          @for (version of scope.versions; track version.tag) {
+            <tbody
+              class="version"
+              [class.open]="isOpen(scope.id, version.tag)"
+              [class.mapped]="version.mapped"
+              tabindex="0"
+              role="button"
+              [attr.aria-expanded]="isOpen(scope.id, version.tag)"
+              [attr.aria-label]="'deep dive into ' + version.tag"
+              (click)="toggle(scope.id, version.tag)"
+              (keydown)="onKey($event, scope.id, version.tag)"
+            >
+              <tr>
+                <td>
+                  <span class="caret" aria-hidden="true">{{
+                    isOpen(scope.id, version.tag) ? '▾' : '▸'
+                  }}</span>
+                  <span class="version-tag">{{ version.tag }}</span>
+                  @if (version.mapped) {
+                    <span
+                      class="mapped-dot"
+                      title="mapped — the import map resolves to this version"
+                    ></span>
+                  }
+                </td>
+                <td class="muted">{{ version.status }}</td>
+                <td class="num">{{ version.shippedBy }}</td>
+                <td class="num">{{ version.runsIn || '–' }}</td>
+                <td>
+                  <span class="version-notes">
+                    @for (note of version.notes; track note.kind) {
+                      <span [class]="'version-note note-' + note.kind" [title]="note.note">{{
+                        note.label
+                      }}</span>
+                    }
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+            @if (isOpen(scope.id, version.tag)) {
+              <tbody class="dive">
+                <tr>
+                  <td colspan="5">
+                    <div class="dive-body">
+                      <dl class="facts">
+                        <dt>Built by</dt>
+                        <dd>
+                          @for (remote of version.dive.builtBy; track remote.select) {
+                            <a
+                              class="chip-link"
+                              [routerLink]="['/remotes']"
+                              [queryParams]="{ select: remote.select }"
+                              ><nf-participant-chip [name]="remote.name" [host]="remote.host"
+                            /></a>
+                          }
+                          @if (version.dive.merged; as merged) {
+                            <span class="merged-word tip" [title]="merged.note">{{
+                              merged.label
+                            }}</span>
+                          }
+                        </dd>
+                        <dt>Mapped</dt>
+                        <dd>{{ version.dive.mapped }}</dd>
+                        <dt>Resolves for</dt>
+                        <dd>
+                          @for (runner of version.dive.runsIn; track runner.remote.select) {
+                            <span
+                              class="runner"
+                              [class.runner-off]="runner.outOfRange"
+                              [title]="runner.note"
+                              ><nf-participant-chip
+                                [name]="runner.remote.name"
+                                [host]="runner.remote.host"
+                              />
+                              @if (runner.outOfRange) {
+                                out of range
+                              }
+                            </span>
+                          }
+                          @if (version.dive.runsInEmpty; as empty) {
+                            <span class="muted">{{ empty }}</span>
+                          }
+                        </dd>
+                      </dl>
+
+                      <div class="lists">
+                        <section>
+                          <h4>
+                            Shipped by <span>{{ version.dive.shippedBy.length }}</span>
+                          </h4>
+                          <ul class="shipped">
+                            @for (shipper of version.dive.shippedBy; track shipper.remote.select) {
+                              <li>
+                                <nf-participant-chip
+                                  [name]="shipper.remote.name"
+                                  [host]="shipper.remote.host"
+                                />
+                                <span class="mono tip" [title]="shipper.rangeNote">{{
+                                  shipper.range
+                                }}</span>
+                                <span
+                                  [class]="'verdict verdict-' + shipper.verdict.kind"
+                                  [title]="shipper.verdict.note"
+                                  >{{ shipper.verdict.label }}</span
+                                >
+                              </li>
+                            }
+                          </ul>
+                        </section>
+
+                        @if (version.dive.entrypoints; as entrypoints) {
+                          <section>
+                            <h4>
+                              Entrypoints <span>{{ entrypoints.count }}</span>
+                              @if (entrypoints.fillsTorn; as fills) {
+                                <span class="h4-note tip" [title]="fills.note">{{
+                                  fills.label
+                                }}</span>
+                              }
+                            </h4>
+                            @for (group of entrypoints.groups; track $index) {
+                              @if (group.build; as build) {
+                                <p class="build-head">
+                                  <nf-participant-chip [name]="build.name" [host]="build.host" />
+                                </p>
+                              }
+                              <ul>
+                                @for (item of group.items; track item.specifier) {
+                                  <li>
+                                    <span class="mono">{{ item.specifier }}</span>
+                                    @if (item.torn; as torn) {
+                                      <span class="torn-note tip" [title]="torn.note">{{
+                                        torn.label
+                                      }}</span>
+                                    }
+                                  </li>
+                                }
+                              </ul>
+                            }
+                            @if (entrypoints.tornGroup; as tornGroup) {
+                              <details class="torn-group">
+                                <summary>
+                                  <span class="torn-note tip" [title]="tornGroup.note">{{
+                                    tornGroup.summary
+                                  }}</span>
+                                </summary>
+                                @for (group of tornGroup.groups; track group.tag) {
+                                  <p class="build-head">
+                                    <span class="mono">{{ group.tag }}</span>
+                                    @if (group.remote; as remote) {
+                                      ·
+                                      <nf-participant-chip
+                                        [name]="remote.name"
+                                        [host]="remote.host"
+                                      />
+                                    }
+                                    <span class="muted">{{ group.specifiers.length }}</span>
+                                  </p>
+                                  <ul>
+                                    @for (specifier of group.specifiers; track specifier) {
+                                      <li class="mono">{{ specifier }}</li>
+                                    }
+                                  </ul>
+                                }
+                              </details>
+                            }
+                          </section>
+                        }
+
+                        @if (version.dive.files; as files) {
+                          <section>
+                            <h4>
+                              Files <span>{{ files.count }}</span>
+                              <span
+                                class="sri tip"
+                                [class.sri-complete]="files.sri.complete"
+                                [title]="files.sri.note"
+                                >{{ files.sri.label }}</span
+                              >
+                            </h4>
+                            @for (group of files.groups; track $index) {
+                              @if (group.build; as build) {
+                                <p class="build-head">
+                                  <nf-participant-chip [name]="build.name" [host]="build.host" />
+                                </p>
+                              }
+                              <ul>
+                                @for (file of group.items; track file.name) {
+                                  <li>
+                                    @if (file.url; as url) {
+                                      <a
+                                        class="file-link mono"
+                                        [href]="url"
+                                        target="_blank"
+                                        rel="noopener"
+                                        [title]="url"
+                                        >{{ file.name }}</a
+                                      >
+                                    } @else {
+                                      <span class="mono">{{ file.name }}</span>
+                                    }
+                                  </li>
+                                }
+                              </ul>
+                            }
+                          </section>
+                        }
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            }
+          }
+        </table>
+      </div>
+
+      @if (scope.rangeCheck; as check) {
+        <details class="range-check">
+          <summary>Range check · {{ check.summary }}</summary>
+          <div class="table-scroll">
+            <table class="range-matrix">
+              <thead>
+                <tr>
+                  <th></th>
+                  @for (version of check.versions; track version.tag) {
+                    <th [class.elected]="version.elected">{{ version.tag }}</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of check.rows; track $index) {
+                  <tr>
+                    <th>
+                      <nf-participant-chip [name]="row.remote.name" [host]="row.remote.host" />
+                      <span class="mono muted">{{ row.range }}</span>
+                    </th>
+                    @for (cell of row.cells; track $index) {
+                      <td
+                        [class.accepts]="cell.accepts === true"
+                        [class.rejects]="cell.accepts === false"
+                        [class.elected]="cell.elected"
+                        [class.ships]="cell.ships"
+                        [title]="cell.note"
+                      >
+                        {{ cell.accepts === null ? '?' : cell.accepts ? '✓' : '✕' }}
+                      </td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </details>
+      }
+
+      @if (scope.bindings; as bindings) {
+        <!-- Opens by itself while declarations resolve nowhere, so none is hidden. -->
+        <details class="bindings" [open]="bindings.unresolved.length > 0">
+          <summary>
+            Bindings per copy
+            @if (bindings.unresolved.length > 0) {
+              <span class="muted">· {{ bindings.unresolved.length }} unresolved</span>
+            }
+            @if (bindings.diagnostics.length > 0) {
+              <span class="muted">· {{ bindings.diagnostics.length }} diagnostics</span>
+            }
+          </summary>
+          <nf-package-detail [detail]="bindings" [embedded]="true" />
+        </details>
+      }
+    </section>
+  }
+} @else {
+  <p class="view-observation">Select a package on the left.</p>
+}

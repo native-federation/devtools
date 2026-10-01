@@ -1,0 +1,156 @@
+{
+  "schemaVersion": "lab-lossless-capture/1",
+  "capturedAt": "2026-10-01T16:45:32.807Z",
+  "scenario": {
+    "scenarioId": "merged-entrypoints",
+    "orchestratorCommit": "4.7.0",
+    "ready": true,
+    "readyError": null
+  },
+  "page": {
+    "url": "http://localhost:4300/",
+    "origin": "http://localhost:4300",
+    "path": "/",
+    "title": "nf-lab merged-entrypoints",
+    "readyState": "complete"
+  },
+  "collector": {
+    "probe": "lab-capture-dump/1",
+    "sanitization": "lossless"
+  },
+  "channels": {
+    "nativeFederationGlobals": {
+      "availability": "available",
+      "observedAt": "2026-10-01T16:45:32.807Z",
+      "data": {
+        "present": true,
+        "valueType": "object",
+        "namespaceKeys": [
+          "remotes",
+          "shared-externals"
+        ],
+        "namespace": {
+          "remotes": {
+            "mfe1": {
+              "scopeUrl": "./mfe1/",
+              "exposes": [
+                {
+                  "moduleName": "./main",
+                  "file": "main-374BJDUE.js"
+                }
+              ]
+            },
+            "__NF-HOST__": {
+              "scopeUrl": "./",
+              "exposes": []
+            }
+          },
+          "shared-externals": {
+            "__GLOBAL__": {
+              "@nf-lab/kit": {
+                "dirty": false,
+                "versions": [
+                  {
+                    "tag": "1.2.0",
+                    "action": "share",
+                    "host": true,
+                    "remotes": [
+                      {
+                        "name": "__NF-HOST__",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": "^1.0.0",
+                        "entries": {
+                          "@nf-lab/kit": "_nf_lab_kit.DSYCipaGyy.js"
+                        }
+                      },
+                      {
+                        "name": "mfe1",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": "^1.0.0",
+                        "entries": {
+                          "@nf-lab/kit": "_nf_lab_kit.DSYCipaGyy.js",
+                          "@nf-lab/kit/table": "_nf_lab_kit_table.B_lIn12dNZ.js",
+                          "@nf-lab/kit/dialog": "_nf_lab_kit_dialog.P5E_5ASKB7.js"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "orchestratorGlobal": {
+      "availability": "available",
+      "observedAt": "2026-10-01T16:45:32.807Z",
+      "data": {
+        "present": true,
+        "valueType": "object",
+        "keys": [
+          "storage"
+        ],
+        "storage": {
+          "__NATIVE_FEDERATION__": {
+            "version": "4.7.0",
+            "type": "globalThis",
+            "namespace": "__NATIVE_FEDERATION__",
+            "keys": [
+              "remotes",
+              "shared-externals",
+              "scoped-externals",
+              "shared-chunks"
+            ],
+            "hasGet": true
+          }
+        }
+      }
+    },
+    "domImportMaps": {
+      "availability": "available",
+      "observedAt": "2026-10-01T16:45:32.807Z",
+      "data": {
+        "count": 1,
+        "maps": [
+          {
+            "index": 0,
+            "type": "importmap-shim",
+            "text": "{\"imports\":{\"@nf-lab/kit\":\"./_nf_lab_kit.DSYCipaGyy.js\",\"@nf-lab/kit/table\":\"./mfe1/_nf_lab_kit_table.B_lIn12dNZ.js\",\"@nf-lab/kit/dialog\":\"./mfe1/_nf_lab_kit_dialog.P5E_5ASKB7.js\",\"mfe1/./main\":\"./mfe1/main-374BJDUE.js\"}}",
+            "parsed": true,
+            "map": {
+              "imports": {
+                "@nf-lab/kit": "./_nf_lab_kit.DSYCipaGyy.js",
+                "@nf-lab/kit/table": "./mfe1/_nf_lab_kit_table.B_lIn12dNZ.js",
+                "@nf-lab/kit/dialog": "./mfe1/_nf_lab_kit_dialog.P5E_5ASKB7.js",
+                "mfe1/./main": "./mfe1/main-374BJDUE.js"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "importShim": {
+      "availability": "available",
+      "observedAt": "2026-10-01T16:45:32.807Z",
+      "data": {
+        "present": true,
+        "valueType": "function",
+        "version": "2.8.4",
+        "map": {
+          "imports": {
+            "@nf-lab/kit": "http://localhost:4300/_nf_lab_kit.DSYCipaGyy.js",
+            "@nf-lab/kit/table": "http://localhost:4300/mfe1/_nf_lab_kit_table.B_lIn12dNZ.js",
+            "@nf-lab/kit/dialog": "http://localhost:4300/mfe1/_nf_lab_kit_dialog.P5E_5ASKB7.js",
+            "mfe1/./main": "http://localhost:4300/mfe1/main-374BJDUE.js"
+          },
+          "scopes": {},
+          "integrity": {}
+        }
+      }
+    }
+  },
+  "collectionErrors": []
+}

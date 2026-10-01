@@ -3,27 +3,42 @@
   @if (vm(); as vm) {
     <div class="packages-toolbar">
       <div class="filter-zone">
-        <div class="filter-group" role="group" aria-label="filter packages">
-          <button
-            type="button"
-            class="nf-button filter-button"
-            [class.active]="filter() === 'all'"
-            [attr.aria-pressed]="filter() === 'all'"
-            title="one row per registry key of the share register"
-            (click)="setFilter('all')"
-          >
-            All ({{ vm.packageCount }})
-          </button>
-          <button
-            type="button"
-            class="nf-button filter-button"
-            [class.active]="filter() === 'conflicts'"
-            [attr.aria-pressed]="filter() === 'conflicts'"
-            (click)="setFilter('conflicts')"
-          >
-            Conflicts ({{ vm.conflictCount }})
-          </button>
+        <input
+          id="packages-search"
+          class="packages-search"
+          type="search"
+          placeholder="Filter packages"
+          aria-label="filter packages by name"
+          [value]="query()"
+          (input)="setQuery($any($event.target).value)"
+        />
+        <div class="filter-group" role="group" aria-label="filter packages by status">
+          @for (option of vm.filters; track option.id) {
+            <button
+              type="button"
+              class="nf-button filter-button"
+              [class.active]="filter() === option.id"
+              [attr.aria-pressed]="filter() === option.id"
+              [attr.title]="option.note"
+              (click)="setFilter(option.id)"
+            >
+              @if (
+                option.id === 'out-of-range' || option.id === 'isolated' || option.id === 'torn'
+              ) {
+                <span [class]="'mark-dot mark-' + option.id" aria-hidden="true"></span>
+              }
+              {{ option.label }} ({{ option.count }})
+            </button>
+          }
         </div>
+        <label class="packages-sort">
+          sort
+          <select id="packages-sort" [value]="sort()" (change)="setSort($any($event.target).value)">
+            <option value="name">name</option>
+            <option value="copies">copies</option>
+            <option value="remotes">remotes</option>
+          </select>
+        </label>
         @if (vm.participants.length > 0) {
           <div class="participant-filter" role="group" aria-label="filter by participant">
             @for (participant of vm.participants; track participant.name) {
@@ -40,20 +55,20 @@
             }
           </div>
         }
+        <ul class="scopes-summary" aria-label="share scopes">
+          @for (scope of vm.scopes; track scope.scope) {
+            <li class="scope-item">
+              <span
+                class="scope-name"
+                [class.tip]="scope.label !== scope.scope"
+                [attr.title]="scope.label === scope.scope ? null : scope.scope"
+                >{{ scope.label }}</span
+              >
+              <span class="scope-count">{{ scope.packageCount }}</span>
+            </li>
+          }
+        </ul>
       </div>
-      <ul class="scopes-summary" aria-label="share scopes">
-        @for (scope of vm.scopes; track scope.scope) {
-          <li class="scope-item">
-            <span
-              class="scope-name"
-              [class.tip]="scope.label !== scope.scope"
-              [attr.title]="scope.label === scope.scope ? null : scope.scope"
-              >{{ scope.label }}</span
-            >
-            <span class="scope-count">{{ scope.packageCount }}</span>
-          </li>
-        }
-      </ul>
     </div>
 
     @if (vm.emptyNote) {
@@ -64,67 +79,43 @@
           nfMaster
           label="shared packages"
           [rows]="vm.rows"
-          [selectedId]="selectedId()"
+          [selectedId]="vm.selectedPackage"
           (selectRow)="onSelect($event)"
         >
           <ng-template let-payload>
-            @if (payload.kind === 'entrypoint') {
-              <span class="entry-specifier">{{ payload.displaySpecifier }}</span>
-              <span class="entry-tags">{{ payload.tags.join(' · ') }}</span>
-              <span class="entry-annotation tip" [title]="payload.provenance.note">{{
-                payload.provenance.label
-              }}</span>
-            } @else {
-              @if (payload.linked) {
-                <span class="linked-glyph" aria-hidden="true">↳</span>
-              }
-              <span
-                class="pkg-name"
-                [attr.title]="
-                  payload.linked
-                    ? 'secondary entry of ' +
-                      payload.linked.parentPackage +
-                      ' — rule: ' +
-                      payload.linked.rule
-                    : null
-                "
-                >{{ payload.displayName }}</span
-              >
-              @if (payload.scopeLabel) {
-                <span
-                  class="pkg-scope"
-                  [title]="'share scope — configured via shareScope: ' + payload.scopeLabel"
-                  >{{ payload.scopeLabel }}</span
-                >
-              }
-              @if (payload.conflict) {
-                <span class="pkg-conflict tip" [title]="payload.conflict.note">{{
-                  payload.conflict.label
-                }}</span>
-              }
-              <span class="pkg-versions">
-                @for (version of payload.versions; track version.tag) {
-                  <span
-                    class="pkg-version"
-                    [class.pkg-version-muted]="version.muted"
-                    [class.tip]="version.note !== null"
-                    [attr.title]="version.note"
-                    >{{ version.tag }}</span
-                  >
-                }
-                @if (payload.unknownTagged; as unknown) {
-                  <span class="pkg-version pkg-version-muted tip" [title]="unknown.note">?</span>
-                }
-                @if (payload.noCopy; as noCopy) {
-                  <span class="pkg-no-copy tip" [title]="noCopy.note">{{ noCopy.label }}</span>
+            @if (payload.linked) {
+              <span class="linked-glyph" aria-hidden="true">↳</span>
+            }
+            <span
+              class="pkg-name"
+              [attr.title]="
+                payload.linked
+                  ? payload.packageName + ' — secondary entry of ' + payload.linked.parentPackage
+                  : payload.packageName
+              "
+              >{{ payload.displayName }}</span
+            >
+            @if (payload.marks.length > 0) {
+              <span class="pkg-marks">
+                @for (mark of payload.marks; track mark.kind) {
+                  <span [class]="'mark-dot mark-' + mark.kind" [title]="mark.note"></span>
                 }
               </span>
             }
+            @if (payload.strict; as strict) {
+              <span class="pkg-strict tip" [title]="strict.note">strict</span>
+            }
+            <span
+              class="pkg-copies tip"
+              [class.pkg-copies-many]="payload.copies.count > 1"
+              [title]="payload.copies.note"
+              >{{ payload.copies.label }}</span
+            >
           </ng-template>
         </nf-tree-table>
 
         <div nfDetail class="pkg-detail">
-          <nf-package-detail [detail]="vm.detail" />
+          <nf-package-versions [view]="vm.packageView" [detail]="vm.detail" />
         </div>
       </nf-master-detail>
     }

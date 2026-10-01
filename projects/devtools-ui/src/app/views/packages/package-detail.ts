@@ -21,4 +21,6 @@ import { PackageDetailVm } from './packages-view-model';
 })
 export class PackageDetail {
   readonly detail = input.required<PackageDetailVm | null>();
+  /** Inside a scope block: the package header and meta line come from the block. */
+  readonly embedded = input(false);
 }

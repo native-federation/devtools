@@ -6,10 +6,11 @@ import { MasterDetail } from '../../shared/kit/master-detail';
 import { ParticipantChip } from '../../shared/kit/participant-chip';
 import { TreeTable, TreeTableRow } from '../../shared/kit/tree-table';
 import { FederationStore } from '../../shared/store/federation-store';
-import { PackageDetail } from './package-detail';
+import { PackageVersions } from './package-versions';
 import {
   PackagesFilter,
   PackagesRowPayload,
+  PackagesSort,
   PackagesVm,
   buildPackagesVm,
 } from './packages-view-model';
@@ -18,15 +19,15 @@ import {
  * Packages tab — the V2 default view: which copies a package actually
  * resolves to, and what every declaration's claim says about it. Dumb
  * component over the pure `buildPackagesVm` builder reading the canonical
- * Store façade; the left list is a flat leaf list (the copy blocks live in
- * the detail pane, rendered by `nf-package-detail`), the two combinable
- * filters (All/Conflicts × single-select participant) and the selection are
- * view-owned UI state, never store state. The `select` query param seeds
+ * Store façade; the left list is one row per package (the detail pane,
+ * rendered by `nf-package-detail`, holds scopes, versions and copies); the
+ * status filter, participant chip, search, sort and selection are view-owned
+ * UI state, never store state. The `select` query param seeds
  * the initial selection (cross-link convention, see `app.routes.ts`).
  */
 @Component({
   selector: 'nf-packages-view',
-  imports: [TreeTable, MasterDetail, ParticipantChip, PackageDetail],
+  imports: [TreeTable, MasterDetail, ParticipantChip, PackageVersions],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './packages.html',
   styleUrl: './packages.css',
@@ -37,6 +38,8 @@ export class PackagesView {
 
   protected readonly filter = signal<PackagesFilter>('all');
   protected readonly selectedParticipant = signal<string | null>(null);
+  protected readonly query = signal('');
+  protected readonly sort = signal<PackagesSort>('name');
   protected readonly selectedId = signal<string | null>(
     this.route.snapshot.queryParamMap.get('select'),
   );
@@ -61,6 +64,8 @@ export class PackagesView {
     return buildPackagesVm(model, {
       filter: this.filter(),
       selectedParticipant: this.selectedParticipant(),
+      query: this.query(),
+      sort: this.sort(),
       selectedId: this.selectedId(),
     });
   });
@@ -69,14 +74,20 @@ export class PackagesView {
     this.filter.set(filter);
   }
 
+  protected setQuery(query: string): void {
+    this.query.set(query);
+  }
+
+  protected setSort(sort: PackagesSort): void {
+    this.sort.set(sort);
+  }
+
   /** Single-select participant chip: click = on, again = off, other = switch. */
   protected toggleParticipant(name: string): void {
     this.selectedParticipant.update((current) => (current === name ? null : name));
   }
 
   protected onSelect(row: TreeTableRow): void {
-    // Both payload kinds carry the group id — an entrypoint sub-row click
-    // therefore selects its parent package (T7.10 select convention).
-    this.selectedId.set((row.payload as PackagesRowPayload).packageId);
+    this.selectedId.set((row.payload as PackagesRowPayload).packageName);
   }
 }

@@ -9,7 +9,10 @@ import { dynamicInitShimFixture } from './dynamic-init-shim.fixture';
 import { dynamicOverrideFixture } from './dynamic-override.fixture';
 import { exportedPlaygroundCheckoutFixture } from './exported-playground-checkout.fixture';
 import { frankensteinLiveFixture } from './frankenstein-live.fixture';
+import { mergedEntrypointsFixture } from './merged-entrypoints.fixture';
+import { multiScopeFixture } from './multi-scope.fixture';
 import { nonDenseFixture } from './non-dense.fixture';
+import { outOfRangeNonstrictFixture } from './out-of-range-nonstrict.fixture';
 import { poolingAnchorFixture } from './pooling-anchor.fixture';
 import { poolPortfolioFixture } from './pool-portfolio.fixture';
 import { poolShowcaseFixture } from './pool-showcase.fixture';
@@ -30,6 +33,7 @@ import { syntheticMissingChannelFixture } from './synthetic-missing-channel.fixt
 import { syntheticMultiVersionFixture } from './synthetic-multi-version.fixture';
 import { syntheticNoImportMapsFixture } from './synthetic-no-import-maps.fixture';
 import { syntheticNotRecognizedFixture } from './synthetic-not-recognized.fixture';
+import { tornManyFixture } from './torn-many.fixture';
 
 /**
  * All checked-in fixtures. Ids equal the fixture file basenames
@@ -53,7 +57,10 @@ export const FIXTURES = {
   'dynamic-init-shim': dynamicInitShimFixture,
   'dynamic-override': dynamicOverrideFixture,
   'exported-playground-checkout': exportedPlaygroundCheckoutFixture,
+  'merged-entrypoints': mergedEntrypointsFixture,
+  'multi-scope': multiScopeFixture,
   'non-dense': nonDenseFixture,
+  'out-of-range-nonstrict': outOfRangeNonstrictFixture,
   'pooling-anchor': poolingAnchorFixture,
   'pool-portfolio': poolPortfolioFixture,
   'pool-showcase': poolShowcaseFixture,
@@ -66,6 +73,7 @@ export const FIXTURES = {
   'self-fill': selfFillFixture,
   'strict-scope': strictScopeFixture,
   'strict-split': strictSplitFixture,
+  'torn-many': tornManyFixture,
   'synthetic-collision': syntheticCollisionFixture,
   'synthetic-dense-entries': syntheticDenseEntriesFixture,
   'synthetic-hostile': syntheticHostileFixture,
