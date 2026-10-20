@@ -13,7 +13,7 @@ export const poolPortfolioFixture: SnapshotV1 = {
     "pageUrl": "http://localhost:4300/",
     "capturedAt": "2026-09-30T11:30:40.897Z",
     "mode": "passive",
-    "collectorVersion": "nf-devtools-collector/4"
+    "collectorVersion": "nf-devtools-collector/5"
   },
   "channels": {
     "nativeFederationGlobals": {

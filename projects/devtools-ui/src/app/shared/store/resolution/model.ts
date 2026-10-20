@@ -49,6 +49,10 @@ export interface SharedExternalRecord {
   dirty: boolean;
   /** Stored pool name (orchestrator v4.7+), or null when the raw key is absent; never inferred. */
   poolName: string | null;
+  /** Stored winner of the pool's last election (orchestrator v4.8+), or null; never inferred. */
+  poolWinner: string | null;
+  /** Stored build serving this package in its scope (orchestrator v4.8+), or null; never inferred. */
+  servingBuild: string | null;
   versionRegistrationIds: VersionRegistrationId[];
   provenance: EvidenceProvenance;
 }

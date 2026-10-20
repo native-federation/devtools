@@ -13,7 +13,7 @@ export const outOfRangeNonstrictFixture: SnapshotV1 = {
     "pageUrl": "http://localhost:4300/",
     "capturedAt": "2026-10-01T16:45:43.635Z",
     "mode": "passive",
-    "collectorVersion": "nf-devtools-collector/4"
+    "collectorVersion": "nf-devtools-collector/5"
   },
   "channels": {
     "nativeFederationGlobals": {

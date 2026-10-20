@@ -14,6 +14,7 @@
  * data copied.
  */
 import type {
+  CacheStateV1,
   ChannelStateV1,
   DocumentImportMapV1,
   EffectiveImportMapV1,
@@ -66,6 +67,10 @@ const REPOSITORY_KEYS = [
 
 type RepositoryKey = (typeof REPOSITORY_KEYS)[number];
 
+// Orchestrator 4.8+ bookkeeping, not a repository: it neither makes a holder
+// recognizable nor makes it unreadable.
+const CACHE_STATE_KEY = 'cache-state';
+
 /**
  * `rawProbe` is the evaluated `PASSIVE_PROBE_SOURCE` result; `rawShimMap`
  * is the evaluated `SHIM_MAP_PROBE_SOURCE` result, or `null`/`undefined`
@@ -82,7 +87,7 @@ export function mapProbeResult(
   const limits = DEFAULT_LIMITS;
   const errors: CollectionError[] = [];
 
-  if (!isObjectLike(rawProbe) || dataValue(rawProbe, 'schemaVersion') !== 'passive-probe/4') {
+  if (!isObjectLike(rawProbe) || dataValue(rawProbe, 'schemaVersion') !== 'passive-probe/5') {
     appendError(errors, limits, 'mapper', 'probe-result-invalid');
     const reason = 'probe result unavailable';
     return {
@@ -373,7 +378,7 @@ function readStorageProbe(
   if (rawStorage === null || rawStorage === undefined) {
     return null;
   }
-  if (!isObjectLike(rawStorage) || dataValue(rawStorage, 'schemaVersion') !== 'storage-probe/1') {
+  if (!isObjectLike(rawStorage) || dataValue(rawStorage, 'schemaVersion') !== 'storage-probe/2') {
     appendError(errors, limits, 'mapper', 'storage-probe-result-invalid');
     return null;
   }
@@ -414,7 +419,7 @@ function mapWebStorage(
   }
   const items = dataValue(store, 'items');
   const repositories: Record<string, unknown> = {};
-  for (const key of REPOSITORY_KEYS) {
+  for (const key of [...REPOSITORY_KEYS, CACHE_STATE_KEY]) {
     const item = dataValue(items, key);
     if (dataValue(item, 'present') === false) {
       repositories[key] = { present: false };
@@ -539,6 +544,7 @@ function mapRepositories(
   }
 
   const sharedExternals = toExternalScopes(projected['shared-externals'], errors, limits);
+  const cacheState = toCacheState(dataValue(repositories, CACHE_STATE_KEY), errors, limits);
   return {
     nfChannel: { state: 'available' },
     runtime: {
@@ -547,7 +553,37 @@ function mapRepositories(
       sharedExternals,
       sharedChunks: toSharedChunks(projected['shared-chunks']),
       generation: deriveGeneration(sharedExternals),
+      ...(cacheState ? { cacheState } : {}),
     },
+  };
+}
+
+function toCacheState(
+  repository: unknown,
+  errors: CollectionError[],
+  limits: CollectorLimits,
+): CacheStateV1 | null {
+  if (dataValue(repository, 'present') !== true || dataValue(repository, 'descriptor') !== 'data') {
+    return null;
+  }
+  const projected = projectSchema(
+    dataValue(repository, 'value'),
+    REPOSITORY_SCHEMAS[CACHE_STATE_KEY],
+    createContext(limits, errors, 'mapper', `repository.${CACHE_STATE_KEY}`),
+  );
+  const version = dataValue(projected, 'version');
+  const undecided = dataValue(projected, 'undecidedScopes');
+  if (typeof version !== 'string') {
+    return null;
+  }
+  return {
+    version,
+    undecidedScopes: Array.isArray(undecided)
+      ? undecided.flatMap((scope) => {
+          const sanitized = typeof scope === 'string' ? sanitizeMaybeUrl(scope) : null;
+          return sanitized === null ? [] : [sanitized];
+        })
+      : [],
   };
 }
 
@@ -622,10 +658,19 @@ function toExternalScopes(
         continue;
       }
       const poolName = dataValue(externalRaw, 'poolName');
+      const poolWinner = dataValue(externalRaw, 'poolWinner');
+      const servingBuild = dataValue(externalRaw, 'servingBuild');
       scopeOutput[pkg] = {
         dirty: dataValue(externalRaw, 'dirty') === true,
         ...(typeof poolName === 'string' ? { poolName } : {}),
-        versions: toExternalVersions(dataValue(externalRaw, 'versions'), errors, limits, `shared-externals.${pkg}`),
+        ...(typeof poolWinner === 'string' ? { poolWinner } : {}),
+        ...(typeof servingBuild === 'string' ? { servingBuild } : {}),
+        versions: toExternalVersions(
+          dataValue(externalRaw, 'versions'),
+          errors,
+          limits,
+          `shared-externals.${pkg}`,
+        ),
       };
     }
     output[scope] = scopeOutput;
@@ -898,10 +943,7 @@ function mapEffective(
     };
   }
 
-  if (
-    !isObjectLike(rawShimMap) ||
-    dataValue(rawShimMap, 'schemaVersion') !== 'shim-map-probe/1'
-  ) {
+  if (!isObjectLike(rawShimMap) || dataValue(rawShimMap, 'schemaVersion') !== 'shim-map-probe/1') {
     if (rawShimMap !== null && rawShimMap !== undefined) {
       appendError(errors, limits, 'mapper', 'shim-result-invalid');
     }

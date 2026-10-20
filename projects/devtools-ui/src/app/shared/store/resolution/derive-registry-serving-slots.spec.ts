@@ -87,6 +87,8 @@ function seededEvidence(registrations: SeedRegistration[]): CanonicalRegistryEvi
     packageName: 'pkg',
     dirty: false,
     poolName: null,
+    poolWinner: null,
+    servingBuild: null,
     versionRegistrationIds: versionIds,
     provenance: EMPTY_PROVENANCE,
   });

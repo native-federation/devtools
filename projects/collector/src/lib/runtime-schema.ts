@@ -77,6 +77,8 @@ const external: SchemaNode = {
   fields: {
     dirty: boolean,
     poolName: string,
+    poolWinner: string,
+    servingBuild: string,
     versions: { type: 'array', item: version },
   },
 };
@@ -121,6 +123,10 @@ export const REPOSITORY_SCHEMAS = Object.freeze({
   'shared-chunks': {
     type: 'map',
     value: { type: 'map', value: { type: 'array', item: string } },
+  } as SchemaNode,
+  'cache-state': {
+    type: 'record',
+    fields: { undecidedScopes: { type: 'array', item: string }, version: string },
   } as SchemaNode,
 });
 

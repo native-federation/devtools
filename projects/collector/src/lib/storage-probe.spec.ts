@@ -20,6 +20,8 @@ import {
 const REMOTES = JSON.stringify({
   host: { scopeUrl: 'https://host.example/', exposes: [], integrity: {} },
 });
+// Orchestrator 4.8+ stamps its version here and lists scopes a runtime load left undecided.
+const CACHE_STATE = JSON.stringify({ version: '4.8.0', undecidedScopes: ['__GLOBAL__'] });
 
 function descriptor(namespace: string, type: string): Record<string, unknown> {
   return { storage: { [namespace]: { version: '4.7.0', type, namespace, keys: [] } } };
@@ -31,12 +33,13 @@ function run(sandbox: Record<string, unknown>): Record<string, any> {
 
 describe('storage probe (descriptor path)', () => {
   it.each(['localStorage', 'sessionStorage'])(
-    'reads the four items of %s and nothing else',
+    'reads the five items of %s and nothing else',
     (type) => {
       const counters = makeCounters();
       const storage = makeStorage(counters, 'unchanged', {
         '__MY_NF__.remotes': REMOTES,
         '__MY_NF__.shared-externals': '{}',
+        '__MY_NF__.cache-state': CACHE_STATE,
         'unrelated.secret': 'session-token',
       });
       const sandbox = makeBarePage({
@@ -47,7 +50,7 @@ describe('storage probe (descriptor path)', () => {
 
       const raw = run(sandbox);
 
-      expect(raw['schemaVersion']).toBe('storage-probe/1');
+      expect(raw['schemaVersion']).toBe('storage-probe/2');
       expect(raw['source']).toEqual({ type, namespace: '__MY_NF__', discovery: 'descriptor' });
       expect(Object.keys(raw['storages'])).toEqual([type]);
       expect(raw['storages'][type]).toEqual({
@@ -57,6 +60,7 @@ describe('storage probe (descriptor path)', () => {
           'scoped-externals': { present: false },
           'shared-externals': { present: true, descriptor: 'data', text: '{}' },
           'shared-chunks': { present: false },
+          'cache-state': { present: true, descriptor: 'data', text: CACHE_STATE },
         },
       });
       expect(JSON.stringify(raw)).not.toContain('session-token');

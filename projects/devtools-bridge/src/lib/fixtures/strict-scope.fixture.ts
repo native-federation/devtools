@@ -13,7 +13,7 @@ export const strictScopeFixture: SnapshotV1 = {
     "pageUrl": "http://localhost:4300/",
     "capturedAt": "2026-08-11T09:51:07.130Z",
     "mode": "passive",
-    "collectorVersion": "nf-devtools-collector/4"
+    "collectorVersion": "nf-devtools-collector/5"
   },
   "channels": {
     "nativeFederationGlobals": {

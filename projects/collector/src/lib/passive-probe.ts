@@ -175,6 +175,8 @@ export const PASSIVE_PROBE_SOURCE = `(() => {
     fields: {
       dirty: schemas.boolean,
       poolName: schemas.string,
+      poolWinner: schemas.string,
+      servingBuild: schemas.string,
       versions: { type: "array", item: schemas.version }
     }
   };
@@ -200,6 +202,10 @@ export const PASSIVE_PROBE_SOURCE = `(() => {
   };
   schemas.remotes = { type: "map", value: schemas.remote };
   schemas.chunks = { type: "map", value: { type: "map", value: { type: "array", item: schemas.string } } };
+  schemas.cacheState = {
+    type: "record",
+    fields: { undecidedScopes: { type: "array", item: schemas.string }, version: schemas.string }
+  };
 
   const project = (value, schema, path, depth) => {
     if (depth > 12 || !schema) {
@@ -302,7 +308,8 @@ export const PASSIVE_PROBE_SOURCE = `(() => {
       remotes: schemas.remotes,
       "scoped-externals": schemas.scopedScopes,
       "shared-externals": schemas.externalScopes,
-      "shared-chunks": schemas.chunks
+      "shared-chunks": schemas.chunks,
+      "cache-state": schemas.cacheState
     };
     // Page-chosen namespaces stay out of error paths, like map keys do.
     const namespacePath = source.namespace === "__NATIVE_FEDERATION__" ? source.namespace : "namespace";
@@ -369,7 +376,7 @@ export const PASSIVE_PROBE_SOURCE = `(() => {
   }
 
   return {
-    schemaVersion: "passive-probe/4",
+    schemaVersion: "passive-probe/5",
     page,
     globals: {
       orchestrator: orchestratorSummary,

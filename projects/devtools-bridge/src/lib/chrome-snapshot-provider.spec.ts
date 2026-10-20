@@ -5,7 +5,7 @@ import { ChromeSnapshotProvider } from './chrome-snapshot-provider';
 // Raw probe results as they come back over the DevTools eval boundary —
 // minimal but schema-valid shapes (see the collector's passive probe).
 const rawProbe = (importShim: Record<string, unknown>) => ({
-  schemaVersion: 'passive-probe/4',
+  schemaVersion: 'passive-probe/5',
   page: { origin: 'https://lab.example', path: '/app', readyState: 'complete' },
   globals: {
     nativeFederation: { present: false },
@@ -15,7 +15,7 @@ const rawProbe = (importShim: Record<string, unknown>) => ({
   errors: [],
 });
 
-// A passive-probe/4 result carrying the runtime source the storage gate reads.
+// A passive-probe/5 result carrying the runtime source the storage gate reads.
 const rawSourcedProbe = (
   source: Record<string, unknown>,
   nativeFederation: Record<string, unknown> = { present: false },
@@ -25,7 +25,7 @@ const rawSourcedProbe = (
 };
 
 const RAW_STORAGE = {
-  schemaVersion: 'storage-probe/1',
+  schemaVersion: 'storage-probe/2',
   source: { type: 'localStorage', namespace: '__NATIVE_FEDERATION__', discovery: 'descriptor' },
   storages: {
     localStorage: {

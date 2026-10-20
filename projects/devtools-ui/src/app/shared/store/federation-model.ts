@@ -11,6 +11,7 @@
 import type {
   ChannelsV1,
   GenerationV1,
+  CacheStateV1,
   RuntimeSourceV1,
   ServedFileV1,
   SnapshotGenerationV1,
@@ -46,6 +47,8 @@ export interface StoreProvenance {
   generation: SnapshotGenerationV1;
   /** null for snapshots that carry no runtime source. */
   runtimeSource: RuntimeSourceV1 | null;
+  /** The orchestrator's `cache-state` (v4.8+); null when not captured. */
+  cacheState: CacheStateV1 | null;
 }
 
 /** Joined effective resolution of one participant row. */
