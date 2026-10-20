@@ -68,10 +68,11 @@ fallback-mode scenario keys.
 
 Nine scenarios witnessing explicit pool tags and the dense remoteEntry
 formats, listed in `captures/manifest-nf-lab.json` (own manifest: a
-different playground commit and collector than the V2 corpus). Captured
-on orchestrator **v4.7.0**, so the records carry `poolName`/`poolCause`
-and the `orchestratorGlobal` channel, and the probe stamps the exposed
-version (`4.7.0`) as `orchestratorCommit`. Same envelope and serving
+different playground commit and collector than the V2 corpus). Recaptured
+on orchestrator **v4.8.0** (core 4.8.1; first recorded on 4.7.0), so the
+records carry `poolName`/`poolWinner`/`servingBuild`/`poolCause`, the
+`cache-state` key and the `orchestratorGlobal` channel, and the probe stamps
+the exposed version (`4.8.0`) as `orchestratorCommit`. Same envelope and serving
 origin as the V2 corpus; scenario ids are unique across both corpora
 because they share the `captures/` root. The corpus table lives in
 `scripts/lab-corpora.mjs`.
@@ -84,11 +85,11 @@ produced it; the validator hashes whichever probe file a manifest names.
 | Scenario | Witnesses |
 |---|---|
 | `pool-tag-coherent` | tagged family already served whole by one build — pooling writes nothing |
-| `pool-tag-islanded` | gate 1: one remote scoped across the whole family; a member left with no share row |
-| `pool-tag-anchored` | gate 2: `servedBy` onto one remote build, an untagged remote included |
+| `pool-tag-islanded` | mfe1's build wins; mfe2 (strict on ui-dom) runs the whole family itself, `poolCause: incompatible` |
+| `pool-tag-anchored` | subpool: the host ships no ui-dom, so mfe1, mfe2 and the untagged mfe3 run on mfe1's build (`servedBy: mfe1`, the owner naming itself) |
 | `pool-tag-orphan` | a tag that joins nothing — no pool forms |
-| `pool-showcase` | four independent pools on one page: redirected, version conflict, one build under two tags, orphan tag |
-| `pool-portfolio` | one family across the host and eleven remotes: the host's build, a redirect group, one isolated remote strict on two packages |
+| `pool-showcase` | four independent pools on one page: a subpool on admin's build, a version conflict isolating dashboard, one build under two tags, orphan tag |
+| `pool-portfolio` | one family across the host and eleven remotes: the host's build, a subpool on contacts' build, one isolated remote strict on two packages |
 | `dense-chunking-only` | `bundle` + a `browser-shared` chunk list, flat entries |
 | `dense-externals-only` | one registration with a two-entry `entries` map, no bundle |
 | `dense-both` | both |
@@ -107,22 +108,44 @@ es-module-shims in shim mode). Regeneration, from the playground `lab/`:
 
 Four scenarios witnessing the Packages tab's version verdicts, listed in
 `captures/manifest-nf-lab-verdicts.json`. Same lab, runner, probe and
-orchestrator (v4.7.0) as the nf-lab corpus, recorded later from a newer
-playground commit, so it carries its own manifest rather than restating
-the nf-lab one's provenance. All four share the fake `@nf-lab/kit`
+orchestrator as the nf-lab corpus (recaptured together on v4.8.0); first
+recorded from a newer playground commit, so it keeps its own manifest. All four share the fake `@nf-lab/kit`
 (1.2.0, 1.3.0, 1.4.0 and 2.0.0 with different secondary entrypoints).
 
 | Scenario | Witnesses |
 |---|---|
 | `out-of-range-nonstrict` | host shares 2.0.0; a non-strict `^1.0.0` stored as a plain `skip`, a strict one `scope` |
-| `torn-many` | the shared 1.4.0 lacks eight secondaries; the map serves five from 1.2.0 and three from 1.3.0 builds |
-| `merged-entrypoints` | one shared 1.2.0 row, two copies: the host's declares only the package, mfe1's adds secondaries the map serves from its build |
+| `torn-many` | the shared 1.4.0 lacks the secondaries mfe1 and mfe2 import; on 4.8 both run kit from their own build (`scope`, no cause) and the global map serves no kit secondary — the witness that nothing is torn |
+| `merged-entrypoints` | host and mfe1 both ship 1.2.0; mfe1's copy adds secondaries, so on 4.8 it runs its own copy (`scope`) — nothing is merged |
 | `multi-scope` | one package in `__GLOBAL__`, `team-a` and `strict`, each with its own election |
 
 Regeneration, from the playground `lab/`:
 
 1. `node run-scenario.mjs <scenario> --capture ../../devtools/captures/<scenario>/<runstamp>.json` for each of the four,
 2. `node scripts/build-lab-manifest.mjs --corpus nf-lab-verdicts --playground <playground>`,
+3. `node scripts/validate-lab-corpus.mjs`,
+4. `node scripts/derive-fixtures.mjs`.
+
+## nf-lab placements corpus (pools-v48)
+
+Four scenarios witnessing why orchestrator 4.8 places a pooled remote off
+the global map, listed in `captures/manifest-nf-lab-placements.json`.
+Recorded with the 4.8 recapture of the two corpora above (same runId,
+playground commit and probe).
+
+| Scenario | Witnesses |
+|---|---|
+| `pool-uncovered-gap` | the host wins with no secondaries; mfe1 imports `@nf-lab/ui-core/testing`, so it runs its own build (`poolCause: uncovered`, gap only logged); mfe2 runs globally |
+| `pool-incompatible-nonstrict` | the host wins at 2.0.0; mfe1's non-strict `^1.0.0` rejects it (`poolCause: incompatible`); mfe2's wider range runs globally |
+| `pool-unshipped` | mfe1 extends the host's build with ui-dom 2.0.0 (`servingBuild: mfe1`); mfe2 accepts every global tag, but no single build ships the combination (`poolCause: uncovered`) |
+| `own-tag-out-of-range` | the host's `^2.0.0` excludes its own 1.2.0, which is still shared (the orchestrator always accepts a copy's own tag) |
+
+Regeneration (all three nf-lab corpora), from the playground `lab/`:
+
+1. `node capture-all.mjs ../../devtools/captures <runstamp>` (delete the
+   superseded runstamps and empty `*.console.log` files first/after),
+2. `node scripts/build-lab-manifest.mjs --corpus <id> --playground <playground>` for
+   `nf-lab`, `nf-lab-verdicts` and `nf-lab-placements`,
 3. `node scripts/validate-lab-corpus.mjs`,
 4. `node scripts/derive-fixtures.mjs`.
 

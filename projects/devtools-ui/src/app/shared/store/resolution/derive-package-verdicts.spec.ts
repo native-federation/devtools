@@ -99,27 +99,28 @@ describe('derivePackageVerdicts — verdicts from stored rows', () => {
 });
 
 describe('derivePackageVerdicts — version statuses', () => {
-  it('torn-many: versions that only fill torn entrypoints are partly loaded', () => {
+  // Orchestrator 4.8 borrows no entrypoint: a remote the shared build does not cover runs its own copy.
+  it('torn-many: remotes whose secondaries the shared version lacks keep their own copies', () => {
     const kit = entry('torn-many', '__GLOBAL__', KIT);
     expect(kit.versions.map((v) => `${v.tag}:${v.status}`)).toEqual([
       '1.4.0:shared',
-      '1.3.0:partly-mapped',
-      '1.2.0:partly-mapped',
+      '1.3.0:scoped',
+      '1.2.0:scoped',
     ]);
     expect(byRemote(kit)).toMatchObject({
-      mfe1: { verdict: 'reuses-shared', runsTag: '1.4.0' },
-      mfe2: { verdict: 'reuses-shared', runsTag: '1.4.0' },
+      mfe1: { verdict: 'own-copy', runsTag: '1.2.0' },
+      mfe2: { verdict: 'own-copy', runsTag: '1.3.0' },
     });
   });
 
-  it('merged-entrypoints: one shared version, two copies, the host provides it', () => {
+  it('merged-entrypoints: same version, but mfe1 adds secondaries, so it keeps its own copy', () => {
     const kit = entry('merged-entrypoints', '__GLOBAL__', KIT);
     expect(kit.versions).toHaveLength(1);
     expect(kit.versions[0]).toMatchObject({ tag: '1.2.0', status: 'shared' });
     expect(kit.versions[0].copyIds).toHaveLength(2);
     expect(byRemote(kit)).toMatchObject({
       [NF_HOST]: { verdict: 'provides' },
-      mfe1: { verdict: 'same-version' },
+      mfe1: { verdict: 'own-copy' },
     });
   });
 
@@ -148,32 +149,20 @@ describe('derivePackageVerdicts — version statuses', () => {
 });
 
 describe('derivePackageVerdicts — build surface', () => {
-  it('T3-AC-01 merged-entrypoints: two builds, each listing only its own specifiers', () => {
+  // 4.8 recapture: mfe1 runs its own 1.2.0 copy, yet `merged` still counts its scoped build —
+  // a pre-4.8 reading that pools-v48 Task 3 removes with the merged notion itself.
+  it('T3-AC-01 merged-entrypoints: two builds of 1.2.0, mfe1 keeping its secondaries', () => {
     const [version] = entry('merged-entrypoints', '__GLOBAL__', KIT).versions;
     expect(version.merged).toBe(true);
     expect(version.builds.map((b) => [b.sourceRemote, [...b.specifiers].sort()])).toEqual([
+      ['mfe1', [KIT, `${KIT}/dialog`, `${KIT}/table`]],
       [NF_HOST, [KIT]],
-      ['mfe1', [`${KIT}/dialog`, `${KIT}/table`]],
     ]);
   });
 
-  it('T3-AC-02 torn-many: every self-filled specifier once, with its filling version', () => {
+  it('T3-AC-02 torn-many: on 4.8 nothing is torn', () => {
     const kit = entry('torn-many', '__GLOBAL__', KIT);
-    expect(
-      kit.torn.map(
-        (t) => `${t.specifier.slice(KIT.length + 1)}@${t.fillingTag}:${t.fillingRemote}`,
-      ),
-    ).toEqual([
-      'charts@1.3.0:mfe2',
-      'charts/legend@1.3.0:mfe2',
-      'date-picker@1.3.0:mfe2',
-      'dialog@1.2.0:mfe1',
-      'forms@1.2.0:mfe1',
-      'table@1.2.0:mfe1',
-      'table/paginator@1.2.0:mfe1',
-      'table/sort@1.2.0:mfe1',
-    ]);
-    // A tear is never a merge: each filling version is one build of its own tag.
+    expect(kit.torn).toEqual([]);
     expect(kit.versions.every((v) => !v.merged)).toBe(true);
   });
 

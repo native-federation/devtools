@@ -1,0 +1,293 @@
+{
+  "schemaVersion": "lab-lossless-capture/1",
+  "capturedAt": "2026-10-20T08:39:07.460Z",
+  "scenario": {
+    "scenarioId": "pool-unshipped",
+    "orchestratorCommit": "4.8.0",
+    "ready": true,
+    "readyError": null
+  },
+  "page": {
+    "url": "http://localhost:4300/",
+    "origin": "http://localhost:4300",
+    "path": "/",
+    "title": "nf-lab pool-unshipped",
+    "readyState": "complete"
+  },
+  "collector": {
+    "probe": "lab-capture-dump/1",
+    "sanitization": "lossless"
+  },
+  "channels": {
+    "nativeFederationGlobals": {
+      "availability": "available",
+      "observedAt": "2026-10-20T08:39:07.460Z",
+      "data": {
+        "present": true,
+        "valueType": "object",
+        "namespaceKeys": [
+          "cache-state",
+          "remotes",
+          "shared-externals"
+        ],
+        "namespace": {
+          "cache-state": {
+            "version": "4.8.0",
+            "undecidedScopes": []
+          },
+          "remotes": {
+            "mfe1": {
+              "scopeUrl": "./mfe1/",
+              "exposes": [
+                {
+                  "moduleName": "./main",
+                  "file": "main-DXLIHA7T.js"
+                }
+              ]
+            },
+            "mfe2": {
+              "scopeUrl": "./mfe2/",
+              "exposes": [
+                {
+                  "moduleName": "./main",
+                  "file": "main-PIKEGMRX.js"
+                }
+              ]
+            },
+            "__NF-HOST__": {
+              "scopeUrl": "./",
+              "exposes": []
+            }
+          },
+          "shared-externals": {
+            "__GLOBAL__": {
+              "@nf-lab/ui-core": {
+                "dirty": false,
+                "poolName": "ui",
+                "versions": [
+                  {
+                    "tag": "2.0.0",
+                    "host": true,
+                    "action": "share",
+                    "remotes": [
+                      {
+                        "name": "__NF-HOST__",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": ">=1.0.0 <3.0.0",
+                        "pool": "ui",
+                        "entries": {
+                          "@nf-lab/ui-core": "_nf_lab_ui_core.jpfHqL1p12.js"
+                        }
+                      },
+                      {
+                        "name": "mfe1",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": ">=1.0.0 <3.0.0",
+                        "pool": "ui",
+                        "entries": {
+                          "@nf-lab/ui-core": "_nf_lab_ui_core.jpfHqL1p12.js"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "1.1.0",
+                    "host": false,
+                    "action": "scope",
+                    "remotes": [
+                      {
+                        "name": "mfe2",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": ">=1.0.0 <3.0.0",
+                        "pool": "ui",
+                        "entries": {
+                          "@nf-lab/ui-core": "_nf_lab_ui_core.omKXFDLfPd.js"
+                        },
+                        "poolCause": "uncovered"
+                      }
+                    ]
+                  }
+                ],
+                "poolWinner": "__NF-HOST__",
+                "servingBuild": "__NF-HOST__"
+              },
+              "@nf-lab/ui-dom": {
+                "dirty": false,
+                "poolName": "ui",
+                "versions": [
+                  {
+                    "tag": "2.0.0",
+                    "host": false,
+                    "action": "share",
+                    "remotes": [
+                      {
+                        "name": "mfe1",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": ">=1.0.0 <3.0.0",
+                        "pool": "ui",
+                        "entries": {
+                          "@nf-lab/ui-dom": "_nf_lab_ui_dom.rBIPcZn2qo.js"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "1.1.0",
+                    "host": false,
+                    "action": "scope",
+                    "remotes": [
+                      {
+                        "name": "mfe2",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": ">=1.0.0 <3.0.0",
+                        "pool": "ui",
+                        "entries": {
+                          "@nf-lab/ui-dom": "_nf_lab_ui_dom.dFB1zhKPhR.js"
+                        },
+                        "poolCause": "uncovered"
+                      }
+                    ]
+                  }
+                ],
+                "poolWinner": "__NF-HOST__",
+                "servingBuild": "mfe1"
+              },
+              "@nf-lab/chart-core": {
+                "dirty": false,
+                "poolName": "ui",
+                "versions": [
+                  {
+                    "tag": "1.1.0",
+                    "host": true,
+                    "action": "share",
+                    "remotes": [
+                      {
+                        "name": "__NF-HOST__",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": "^1.0.0",
+                        "pool": "ui",
+                        "entries": {
+                          "@nf-lab/chart-core": "_nf_lab_chart_core.QRSGk-3c7N.js"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "1.0.0",
+                    "host": false,
+                    "action": "scope",
+                    "remotes": [
+                      {
+                        "name": "mfe2",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": "^1.0.0",
+                        "pool": "ui",
+                        "entries": {
+                          "@nf-lab/chart-core": "_nf_lab_chart_core.euTvcmIiPr.js"
+                        },
+                        "poolCause": "uncovered"
+                      }
+                    ]
+                  }
+                ],
+                "poolWinner": "__NF-HOST__",
+                "servingBuild": "__NF-HOST__"
+              }
+            }
+          }
+        }
+      }
+    },
+    "orchestratorGlobal": {
+      "availability": "available",
+      "observedAt": "2026-10-20T08:39:07.460Z",
+      "data": {
+        "present": true,
+        "valueType": "object",
+        "keys": [
+          "storage"
+        ],
+        "storage": {
+          "__NATIVE_FEDERATION__": {
+            "version": "4.8.0",
+            "type": "globalThis",
+            "namespace": "__NATIVE_FEDERATION__",
+            "keys": [
+              "remotes",
+              "shared-externals",
+              "scoped-externals",
+              "shared-chunks",
+              "cache-state"
+            ],
+            "hasGet": true
+          }
+        }
+      }
+    },
+    "domImportMaps": {
+      "availability": "available",
+      "observedAt": "2026-10-20T08:39:07.460Z",
+      "data": {
+        "count": 1,
+        "maps": [
+          {
+            "index": 0,
+            "type": "importmap-shim",
+            "text": "{\"imports\":{\"@nf-lab/ui-core\":\"./_nf_lab_ui_core.jpfHqL1p12.js\",\"@nf-lab/ui-dom\":\"./mfe1/_nf_lab_ui_dom.rBIPcZn2qo.js\",\"@nf-lab/chart-core\":\"./_nf_lab_chart_core.QRSGk-3c7N.js\",\"mfe1/./main\":\"./mfe1/main-DXLIHA7T.js\",\"mfe2/./main\":\"./mfe2/main-PIKEGMRX.js\"},\"scopes\":{\"./mfe2/\":{\"@nf-lab/ui-core\":\"./mfe2/_nf_lab_ui_core.omKXFDLfPd.js\",\"@nf-lab/ui-dom\":\"./mfe2/_nf_lab_ui_dom.dFB1zhKPhR.js\",\"@nf-lab/chart-core\":\"./mfe2/_nf_lab_chart_core.euTvcmIiPr.js\"}}}",
+            "parsed": true,
+            "map": {
+              "imports": {
+                "@nf-lab/ui-core": "./_nf_lab_ui_core.jpfHqL1p12.js",
+                "@nf-lab/ui-dom": "./mfe1/_nf_lab_ui_dom.rBIPcZn2qo.js",
+                "@nf-lab/chart-core": "./_nf_lab_chart_core.QRSGk-3c7N.js",
+                "mfe1/./main": "./mfe1/main-DXLIHA7T.js",
+                "mfe2/./main": "./mfe2/main-PIKEGMRX.js"
+              },
+              "scopes": {
+                "./mfe2/": {
+                  "@nf-lab/ui-core": "./mfe2/_nf_lab_ui_core.omKXFDLfPd.js",
+                  "@nf-lab/ui-dom": "./mfe2/_nf_lab_ui_dom.dFB1zhKPhR.js",
+                  "@nf-lab/chart-core": "./mfe2/_nf_lab_chart_core.euTvcmIiPr.js"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "importShim": {
+      "availability": "available",
+      "observedAt": "2026-10-20T08:39:07.460Z",
+      "data": {
+        "present": true,
+        "valueType": "function",
+        "version": "2.8.4",
+        "map": {
+          "imports": {
+            "@nf-lab/ui-core": "http://localhost:4300/_nf_lab_ui_core.jpfHqL1p12.js",
+            "@nf-lab/ui-dom": "http://localhost:4300/mfe1/_nf_lab_ui_dom.rBIPcZn2qo.js",
+            "@nf-lab/chart-core": "http://localhost:4300/_nf_lab_chart_core.QRSGk-3c7N.js",
+            "mfe1/./main": "http://localhost:4300/mfe1/main-DXLIHA7T.js",
+            "mfe2/./main": "http://localhost:4300/mfe2/main-PIKEGMRX.js"
+          },
+          "scopes": {
+            "http://localhost:4300/mfe2/": {
+              "@nf-lab/ui-core": "http://localhost:4300/mfe2/_nf_lab_ui_core.omKXFDLfPd.js",
+              "@nf-lab/ui-dom": "http://localhost:4300/mfe2/_nf_lab_ui_dom.dFB1zhKPhR.js",
+              "@nf-lab/chart-core": "http://localhost:4300/mfe2/_nf_lab_chart_core.euTvcmIiPr.js"
+            }
+          },
+          "integrity": {}
+        }
+      }
+    }
+  },
+  "collectionErrors": []
+}

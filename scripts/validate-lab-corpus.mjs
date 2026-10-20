@@ -67,18 +67,28 @@ const uiRows = (ns) => participantRows(ns).filter((row) => UI.includes(row.pkg))
 const noAnchors = (ns, loc) => {
   if (participantRows(ns).some((row) => "servedBy" in row.remote)) issue(loc, "expected no servedBy anchor");
 };
-// Orchestrator v4.7 pooling results (native-federation/orchestrator#87).
+// Orchestrator v4.8 pooling results: a subpool owner names itself in `servedBy`, isolation stores `poolCause`.
 const poolNames = (ns, pkgs) =>
   pkgs.map((pkg) => ns["shared-externals"]?.["__GLOBAL__"]?.[pkg]?.poolName ?? "-").join(",");
 const expectPoolName = (ns, loc, pkgs, name) => {
   const seen = poolNames(ns, pkgs);
   if (seen !== pkgs.map(() => name).join(",")) issue(loc, `expected poolName '${name}' on ${pkgs.join(", ")}, saw ${seen}`);
 };
-const expectIsolated = (ns, loc, pkgs, remote) => {
+const expectIsolated = (ns, loc, pkgs, remote, cause = "incompatible") => {
   const rows = participantRows(ns).filter((row) => pkgs.includes(row.pkg) && row.remote.name === remote);
-  if (rows.length !== pkgs.length || !rows.every((row) => row.action === "scope" && row.remote.poolCause === "incompatible"))
-    issue(loc, `expected every ${remote} copy of ${pkgs.join(", ")} scoped with poolCause 'incompatible'`);
+  if (rows.length !== pkgs.length || !rows.every((row) => row.action === "scope" && row.remote.poolCause === cause))
+    issue(loc, `expected every ${remote} copy of ${pkgs.join(", ")} scoped with poolCause '${cause}'`);
 };
+const expectGlobal = (ns, loc, pkgs, remote) => {
+  const rows = participantRows(ns).filter((row) => pkgs.includes(row.pkg) && row.remote.name === remote);
+  if (rows.length !== pkgs.length || !rows.every((row) => row.action !== "scope" && !("servedBy" in row.remote)))
+    issue(loc, `expected every ${remote} copy of ${pkgs.join(", ")} on the global map`);
+};
+const expectPoolWinner = (ns, loc, pkgs, winner) => {
+  const seen = pkgs.map((pkg) => ns["shared-externals"]?.["__GLOBAL__"]?.[pkg]?.poolWinner ?? "-").join(",");
+  if (seen !== pkgs.map(() => winner).join(",")) issue(loc, `expected poolWinner '${winner}' on ${pkgs.join(", ")}, saw ${seen}`);
+};
+const importShimImports = (env) => env.channels?.importShim?.data?.map?.imports ?? {};
 const expectServedBy = (ns, loc, pkg, remotes, anchor) => {
   const seen = participantRows(ns)
     .filter((row) => row.pkg === pkg && "servedBy" in row.remote)
@@ -323,16 +333,13 @@ const EVIDENCE = {
     if (rows.some((row) => row.action === "scope")) issue(loc, "expected no scope rows");
     noAnchors(ns, loc);
   },
-  // Gate 1: mfe1 islanded across the whole family; ui-core is left with no share row.
+  // mfe1's build wins; mfe2's strict ui-dom ^2.0.0 rejects it, so mfe2 runs the whole family itself.
   "pool-tag-islanded": (ns, env, loc) => {
-    const mfe1 = uiRows(ns).filter((row) => row.remote.name === "mfe1");
-    if (mfe1.length !== 2 || !mfe1.every((row) => row.action === "scope"))
-      issue(loc, "expected every mfe1 ui member in a scope row");
-    if (sharedVersions(ns, "__GLOBAL__", "@nf-lab/ui-core").some((version) => version.action === "share"))
-      issue(loc, "expected ui-core without a share row (scoped-only)");
     noAnchors(ns, loc);
     expectPoolName(ns, loc, UI, "ui");
-    expectIsolated(ns, loc, UI, "mfe1");
+    expectPoolWinner(ns, loc, UI, "mfe1");
+    expectGlobal(ns, loc, UI, "mfe1");
+    expectIsolated(ns, loc, UI, "mfe2");
   },
   // Gate 2: the family is anchored onto mfe1's build for every remote, untagged mfe3 included.
   "pool-tag-anchored": (ns, env, loc) => {
@@ -349,26 +356,27 @@ const EVIDENCE = {
       issue(loc, "expected exactly one pool tag: ui-core on mfe1");
     noAnchors(ns, loc);
   },
-  // Four independent pools: ui redirected onto catalog, charts isolating catalog, form-kit one build
-  // under two tags (named after the alphabetically first of the tied tags), icons an orphan tag.
+  // Four independent pools: ui in admin's subpool (the host ships no ui-dom), charts isolating
+  // dashboard, form-kit one build under two tags (named after the alphabetically first of the tied
+  // tags), icons an orphan tag.
   "pool-showcase": (ns, env, loc) => {
     expectPoolName(ns, loc, UI, "ui");
     expectPoolName(ns, loc, ["@nf-lab/chart-core", "@nf-lab/chart-dom"], "charts");
     expectPoolName(ns, loc, ["@nf-lab/form-core", "@nf-lab/form-dom"], "form-kit");
     expectPoolName(ns, loc, ["@nf-lab/icons"], "-");
-    // The anchor names itself too, as in pool-tag-anchored.
-    expectServedBy(ns, loc, "@nf-lab/ui-core", ["admin", "catalog", "checkout"], "catalog");
-    expectIsolated(ns, loc, ["@nf-lab/chart-core", "@nf-lab/chart-dom"], "catalog");
+    expectServedBy(ns, loc, "@nf-lab/ui-core", ["admin", "catalog", "checkout"], "admin");
+    expectServedBy(ns, loc, "@nf-lab/ui-dom", ["admin", "catalog", "checkout"], "admin");
+    expectPoolWinner(ns, loc, ["@nf-lab/chart-core", "@nf-lab/chart-dom"], "catalog");
+    expectIsolated(ns, loc, ["@nf-lab/chart-core", "@nf-lab/chart-dom"], "dashboard");
   },
-  // One family across twelve remotes: four redirected onto orders, legacy isolated.
+  // One family across twelve remotes: the host's build, a subpool on contacts' build (the host ships
+  // no forms or animations), legacy isolated.
   "pool-portfolio": (ns, env, loc) => {
     const family = ["core", "common", "router", "forms", "animations"].map((name) => `@nf-lab/acme-${name}`);
     expectPoolName(ns, loc, family, "acme");
-    // servedBy only where the build differs from the version's basis: on the host-shared members;
-    // forms and animations are shared from orders' build already.
-    const onOrders = ["contacts", "invoices", "onboarding", "orders", "reports"];
-    for (const pkg of family.slice(0, 3)) expectServedBy(ns, loc, pkg, onOrders, "orders");
-    expectServedBy(ns, loc, "@nf-lab/acme-forms", [], "orders");
+    expectPoolWinner(ns, loc, family, "__NF-HOST__");
+    const onContacts = ["contacts", "invoices", "onboarding", "orders", "reports"];
+    for (const pkg of family) expectServedBy(ns, loc, pkg, onContacts, "contacts");
     expectIsolated(ns, loc, family, "legacy");
     const onHost = ["products", "search", "settings", "profile", "cart"];
     if (participantRows(ns).some((row) => onHost.includes(row.remote.name) && "servedBy" in row.remote))
@@ -381,23 +389,21 @@ const EVIDENCE = {
     const expected = ["__NF-HOST__:2.0.0:share:true", "mfe1:1.2.0:skip:false", "mfe2:1.3.0:scope:true", "mfe3:2.0.0:share:true"];
     if (JSON.stringify(rows) !== JSON.stringify(expected)) issue(loc, `expected kit rows ${expected.join(",")}, saw ${rows.join(",")}`);
   },
-  // The shared 1.4.0 lacks eight secondaries; the map serves them from mfe1's and mfe2's builds.
+  // The shared 1.4.0 lacks the secondaries mfe1 and mfe2 import, so both run kit from their own build;
+  // the global map serves no kit secondary (no entrypoint is borrowed).
   "torn-many": (ns, env, loc) => {
-    const map = env.channels?.importShim?.data?.map?.imports ?? {};
-    const served = Object.entries(map)
-      .filter(([spec]) => spec.startsWith(`${KIT}/`))
-      .map(([spec, url]) => `${spec.slice(KIT.length + 1)}@${new URL(url).pathname.split("/")[1]}`)
-      .sort();
-    const expected = ["charts/legend@mfe2", "charts@mfe2", "date-picker@mfe2", "dialog@mfe1", "forms@mfe1", "table/paginator@mfe1", "table/sort@mfe1", "table@mfe1"];
-    if (JSON.stringify(served) !== JSON.stringify(expected)) issue(loc, `expected torn kit specifiers ${expected.join(",")}, saw ${served.join(",")}`);
-    if (sharedVersions(ns, "__GLOBAL__", KIT).find((v) => v.action === "share")?.tag !== "1.4.0") issue(loc, "expected kit 1.4.0 shared");
+    const rows = kitRows(ns).map((row) => `${row.remote.name}:${row.tag}:${row.action}`).sort();
+    const expected = ["__NF-HOST__:1.4.0:share", "mfe1:1.2.0:scope", "mfe2:1.3.0:scope"];
+    if (JSON.stringify(rows) !== JSON.stringify(expected)) issue(loc, `expected kit rows ${expected.join(",")}, saw ${rows.join(",")}`);
+    if (Object.keys(importShimImports(env)).some((spec) => spec.startsWith(`${KIT}/`)))
+      issue(loc, "expected no kit secondary on the global map");
+    if (ns["shared-externals"]?.["__GLOBAL__"]?.[KIT]?.servingBuild !== "__NF-HOST__") issue(loc, "expected servingBuild __NF-HOST__");
   },
-  // One shared row of kit 1.2.0 with two copies; the host's declares only the package itself.
+  // Same version 1.2.0 on both; mfe1's copy adds secondaries the host's lacks, so mfe1 runs its own copy.
   "merged-entrypoints": (ns, env, loc) => {
-    const versions = sharedVersions(ns, "__GLOBAL__", KIT);
-    const entries = (versions[0]?.remotes ?? []).map((r) => `${r.name}:${Object.keys(r.entries ?? {}).length}`).sort();
-    if (versions.length !== 1 || versions[0].tag !== "1.2.0" || versions[0].action !== "share" || entries.join(",") !== "__NF-HOST__:1,mfe1:3")
-      issue(loc, `expected one shared kit 1.2.0 row with host:1 and mfe1:3 entries, saw ${entries.join(",")}`);
+    const rows = kitRows(ns).map((row) => `${row.remote.name}:${row.tag}:${row.action}:${Object.keys(row.remote.entries ?? {}).length}`).sort();
+    const expected = ["__NF-HOST__:1.2.0:share:1", "mfe1:1.2.0:scope:3"];
+    if (JSON.stringify(rows) !== JSON.stringify(expected)) issue(loc, `expected kit rows ${expected.join(",")}, saw ${rows.join(",")}`);
   },
   // kit in global, team-a and strict, each with its own election.
   "multi-scope": (ns, env, loc) => {
@@ -406,6 +412,37 @@ const EVIDENCE = {
       .sort();
     const expected = ["__GLOBAL__:1.4.0", "strict:1.3.0", "strict:2.0.0", "team-a:1.3.0"];
     if (JSON.stringify(shares) !== JSON.stringify(expected)) issue(loc, `expected kit shares ${expected.join(",")}, saw ${shares.join(",")}`);
+  },
+  // The host wins with no secondaries; mfe1's copy carries ui-core/testing, so it runs its own build.
+  "pool-uncovered-gap": (ns, env, loc) => {
+    expectPoolWinner(ns, loc, UI, "__NF-HOST__");
+    expectIsolated(ns, loc, UI, "mfe1", "uncovered");
+    expectGlobal(ns, loc, UI, "mfe2");
+    const core = participantRows(ns).find((row) => row.pkg === UI[0] && row.remote.name === "mfe1");
+    if (!core || !("@nf-lab/ui-core/testing" in (core.remote.entries ?? {}))) issue(loc, "expected mfe1's ui-core copy to carry ui-core/testing");
+    if (Object.keys(importShimImports(env)).includes("@nf-lab/ui-core/testing")) issue(loc, "expected ui-core/testing off the global map");
+  },
+  // The host wins at 2.0.0; mfe1's non-strict ^1.0.0 rejects it, mfe2's wider range accepts it.
+  "pool-incompatible-nonstrict": (ns, env, loc) => {
+    expectPoolWinner(ns, loc, UI, "__NF-HOST__");
+    expectIsolated(ns, loc, UI, "mfe1");
+    expectGlobal(ns, loc, UI, "mfe2");
+    if (!participantRows(ns).filter((row) => row.remote.name === "mfe1").every((row) => row.remote.strictVersion === false))
+      issue(loc, "expected mfe1 non-strict");
+  },
+  // mfe1 extends the host's build with ui-dom 2.0.0; mfe2 accepts every global tag but no build ships the set.
+  "pool-unshipped": (ns, env, loc) => {
+    const pool = [...UI, "@nf-lab/chart-core"];
+    expectPoolWinner(ns, loc, pool, "__NF-HOST__");
+    expectIsolated(ns, loc, pool, "mfe2", "uncovered");
+    expectGlobal(ns, loc, UI, "mfe1");
+    if (ns["shared-externals"]?.["__GLOBAL__"]?.["@nf-lab/ui-dom"]?.servingBuild !== "mfe1") issue(loc, "expected ui-dom served from mfe1's build");
+  },
+  // The host's ^2.0.0 excludes its own 1.2.0, which is still shared; mfe1 shares the same tag.
+  "own-tag-out-of-range": (ns, env, loc) => {
+    const rows = kitRows(ns).map((row) => `${row.remote.name}:${row.tag}:${row.action}:${row.remote.requiredVersion}`).sort();
+    const expected = ["__NF-HOST__:1.2.0:share:^2.0.0", "mfe1:1.2.0:share:^1.0.0"];
+    if (JSON.stringify(rows) !== JSON.stringify(expected)) issue(loc, `expected kit rows ${expected.join(",")}, saw ${rows.join(",")}`);
   },
 };
 
@@ -610,10 +647,13 @@ function validateCorpus(corpus) {
       EVIDENCE[entry.scenario]?.(ns, env, loc);
     }
     // Captures from a v4.7+ lab carry the exposed version, and the probe stamps it.
-    if (manifest.source?.orchestratorCommit === "4.7.0") {
+    const stamped = manifest.source?.orchestratorCommit;
+    if (/^4\.[7-9]\./.test(stamped ?? "")) {
       const exposed = env.channels?.orchestratorGlobal?.data?.storage?.["__NATIVE_FEDERATION__"]?.version;
-      if (exposed !== "4.7.0") issue(loc, `expected orchestratorGlobal version 4.7.0, saw ${exposed}`);
+      if (exposed !== stamped) issue(loc, `expected orchestratorGlobal version ${stamped}, saw ${exposed}`);
     }
+    // 4.8 stamps the cache with its version.
+    if (stamped === "4.8.0" && ns?.["cache-state"]?.version !== "4.8.0") issue(loc, "expected cache-state version 4.8.0");
   }
 
   // --- live captures (frankenstein-live) -----------------------------------

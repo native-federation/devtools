@@ -6,7 +6,7 @@
 import { FIXTURES, NF_HOST } from 'devtools-bridge';
 
 import { ingestSnapshot } from '../../shared/store/ingest';
-import { PackageViewVm, ScopeBlockVm, TORN_DOCS_URL, buildPackagesVm } from './packages-view-model';
+import { PackageViewVm, ScopeBlockVm, buildPackagesVm } from './packages-view-model';
 
 const KIT = '@nf-lab/kit';
 
@@ -59,20 +59,6 @@ describe('package view — versions table (T5)', () => {
     expect(scopeOf(viewOf('merged-entrypoints', `__GLOBAL__|${KIT}`)).rangeCheck).toBeNull();
   });
 
-  it('T5-AC-03 the torn banner groups by filling version and links the docs', () => {
-    const block = scopeOf(viewOf('torn-many', `__GLOBAL__|${KIT}`));
-    expect(block.torn).toMatchObject({
-      count: 8,
-      text: '8 entrypoints resolve to a different version than 1.4.0: 5 from 1.2.0 (mfe1), 3 from 1.3.0 (mfe2)',
-      docsUrl: TORN_DOCS_URL,
-    });
-    expect(TORN_DOCS_URL).toContain('#entrypoint-coverage-and-tearing');
-    expect(versionOf(block, '1.2.0').notes.map((n) => n.label)).toEqual([
-      'fills 5 torn entrypoints',
-    ]);
-    expect(versionOf(block, '1.2.0').status).toBe('partly mapped');
-  });
-
   it('T5-AC-04 every declaration renders as a shipper, and the bindings keep the rest', () => {
     for (const fixture of [
       'frankenstein-live',
@@ -116,14 +102,14 @@ describe('package view — version deep dive (T6)', () => {
       '1.2.0',
     ).dive;
     expect(dive.merged).not.toBeNull();
-    expect(dive.builtBy.map((r) => r.name)).toEqual(['host', 'mfe1']);
+    expect(dive.builtBy.map((r) => r.name)).toEqual(['mfe1', 'host']);
     expect(
       dive.entrypoints!.groups.map((g) => [g.build?.name, g.items.map((i) => i.specifier)]),
     ).toEqual([
+      ['mfe1', [KIT, `${KIT}/dialog`, `${KIT}/table`]],
       ['host', [KIT]],
-      ['mfe1', [`${KIT}/dialog`, `${KIT}/table`]],
     ]);
-    expect(dive.files!.groups.map((g) => g.build?.name)).toEqual(['host', 'mfe1']);
+    expect(dive.files!.groups.map((g) => g.build?.name)).toEqual(['mfe1', 'host']);
     // A single build renders no headers.
     const single = versionOf(
       scopeOf(viewOf('out-of-range-nonstrict', `__GLOBAL__|${KIT}`)),
@@ -131,24 +117,6 @@ describe('package view — version deep dive (T6)', () => {
     ).dive;
     expect(single.entrypoints!.groups.map((g) => g.build)).toEqual([null]);
     expect(single.files!.groups.map((g) => g.build)).toEqual([null]);
-  });
-
-  it('T6-AC-02 torn-many: the elected version groups its torn entrypoints by filling version', () => {
-    const block = scopeOf(viewOf('torn-many', `__GLOBAL__|${KIT}`));
-    const tornGroup = versionOf(block, '1.4.0').dive.entrypoints!.tornGroup!;
-    expect(tornGroup.summary).toBe('8 torn entrypoints');
-    expect(tornGroup.groups.map((g) => [g.tag, g.remote?.name, g.specifiers.length])).toEqual([
-      ['1.2.0', 'mfe1', 5],
-      ['1.3.0', 'mfe2', 3],
-    ]);
-    // The filling version marks each specifier it fills.
-    const filler = versionOf(block, '1.3.0').dive.entrypoints!;
-    expect(filler.fillsTorn).not.toBeNull();
-    expect(filler.groups[0].items.filter((i) => i.torn !== null).map((i) => i.specifier)).toEqual([
-      `${KIT}/charts`,
-      `${KIT}/charts/legend`,
-      `${KIT}/date-picker`,
-    ]);
   });
 
   it('names who a version resolves for, out of range in red, and why nobody does', () => {

@@ -1221,11 +1221,9 @@ describe('buildPackagesVm — one row per package (packages-verdicts T4)', () =>
       );
     };
     expect(counts('out-of-range-nonstrict')).toEqual([1, 1, 1, 0]);
-    expect(counts('torn-many')).toEqual([1, 0, 0, 1]);
-    // One version from two builds is merged, never torn.
-    expect(counts('merged-entrypoints')).toEqual([0, 0, 0, 0]);
-    const torn = vmOf('torn-many', { filter: 'torn' });
-    expect(packageRows(torn).map((row) => row.marks.map((m) => m.kind))).toEqual([['torn']]);
+    // 4.8: the remotes the shared version does not cover keep their own copies; nothing is torn.
+    expect(counts('torn-many')).toEqual([1, 0, 1, 0]);
+    expect(counts('merged-entrypoints')).toEqual([0, 0, 1, 0]);
   });
 
   it('T4-AC-03 every <scope>|<pkg> link lands on its package and scope', () => {

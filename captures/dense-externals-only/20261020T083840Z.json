@@ -1,9 +1,9 @@
 {
   "schemaVersion": "lab-lossless-capture/1",
-  "capturedAt": "2026-09-30T11:30:21.409Z",
+  "capturedAt": "2026-10-20T08:38:44.059Z",
   "scenario": {
-    "scenarioId": "dense-chunking-only",
-    "orchestratorCommit": "4.7.0",
+    "scenarioId": "dense-externals-only",
+    "orchestratorCommit": "4.8.0",
     "ready": true,
     "readyError": null
   },
@@ -11,7 +11,7 @@
     "url": "http://localhost:4300/",
     "origin": "http://localhost:4300",
     "path": "/",
-    "title": "nf-lab dense-chunking-only",
+    "title": "nf-lab dense-externals-only",
     "readyState": "complete"
   },
   "collector": {
@@ -21,16 +21,21 @@
   "channels": {
     "nativeFederationGlobals": {
       "availability": "available",
-      "observedAt": "2026-09-30T11:30:21.408Z",
+      "observedAt": "2026-10-20T08:38:44.058Z",
       "data": {
         "present": true,
         "valueType": "object",
         "namespaceKeys": [
+          "cache-state",
           "remotes",
-          "shared-externals",
-          "shared-chunks"
+          "scoped-externals",
+          "shared-externals"
         ],
         "namespace": {
+          "cache-state": {
+            "version": "4.8.0",
+            "undecidedScopes": []
+          },
           "remotes": {
             "mfe1": {
               "scopeUrl": "./mfe1/",
@@ -46,6 +51,16 @@
               "exposes": []
             }
           },
+          "scoped-externals": {
+            "mfe1": {
+              "@nf-internal/chunk-Y6UYBMA7": {
+                "tag": "0.0.0",
+                "entries": {
+                  "@nf-internal/chunk-Y6UYBMA7": "chunk-Y6UYBMA7.js"
+                }
+              }
+            }
+          },
           "shared-externals": {
             "__GLOBAL__": {
               "@nf-lab/dense-lib": {
@@ -58,39 +73,18 @@
                     "remotes": [
                       {
                         "name": "mfe1",
-                        "bundle": "browser-shared",
                         "strictVersion": false,
                         "cached": true,
                         "requiredVersion": "^1.0.0",
                         "entries": {
-                          "@nf-lab/dense-lib": "_nf_lab_dense_lib.fJdoGqXTjq.js"
-                        }
-                      }
-                    ]
-                  }
-                ]
-              },
-              "@nf-lab/dense-lib/extra": {
-                "dirty": false,
-                "versions": [
-                  {
-                    "tag": "1.0.0",
-                    "action": "share",
-                    "host": false,
-                    "remotes": [
-                      {
-                        "name": "mfe1",
-                        "bundle": "browser-shared",
-                        "strictVersion": false,
-                        "cached": true,
-                        "requiredVersion": "^1.0.0",
-                        "entries": {
+                          "@nf-lab/dense-lib": "_nf_lab_dense_lib.fJdoGqXTjq.js",
                           "@nf-lab/dense-lib/extra": "_nf_lab_dense_lib_extra.IKoP9vbCZc.js"
                         }
                       }
                     ]
                   }
-                ]
+                ],
+                "servingBuild": "mfe1"
               },
               "@nf-lab/utils": {
                 "dirty": false,
@@ -111,7 +105,6 @@
                       },
                       {
                         "name": "mfe1",
-                        "bundle": "browser-shared",
                         "strictVersion": false,
                         "cached": false,
                         "requiredVersion": "^1.0.0",
@@ -121,16 +114,9 @@
                       }
                     ]
                   }
-                ]
+                ],
+                "servingBuild": "__NF-HOST__"
               }
-            }
-          },
-          "shared-chunks": {
-            "mfe1": {
-              "browser-shared": [
-                "chunk-Y6UYBMA7.js"
-              ],
-              "mapping-or-exposed": []
             }
           }
         }
@@ -138,7 +124,7 @@
     },
     "orchestratorGlobal": {
       "availability": "available",
-      "observedAt": "2026-09-30T11:30:21.409Z",
+      "observedAt": "2026-10-20T08:38:44.059Z",
       "data": {
         "present": true,
         "valueType": "object",
@@ -147,14 +133,15 @@
         ],
         "storage": {
           "__NATIVE_FEDERATION__": {
-            "version": "4.7.0",
+            "version": "4.8.0",
             "type": "globalThis",
             "namespace": "__NATIVE_FEDERATION__",
             "keys": [
               "remotes",
               "shared-externals",
               "scoped-externals",
-              "shared-chunks"
+              "shared-chunks",
+              "cache-state"
             ],
             "hasGet": true
           }
@@ -163,7 +150,7 @@
     },
     "domImportMaps": {
       "availability": "available",
-      "observedAt": "2026-09-30T11:30:21.409Z",
+      "observedAt": "2026-10-20T08:38:44.059Z",
       "data": {
         "count": 1,
         "maps": [
@@ -191,7 +178,7 @@
     },
     "importShim": {
       "availability": "available",
-      "observedAt": "2026-09-30T11:30:21.409Z",
+      "observedAt": "2026-10-20T08:38:44.059Z",
       "data": {
         "present": true,
         "valueType": "function",

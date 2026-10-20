@@ -13,13 +13,17 @@ import { mergedEntrypointsFixture } from './merged-entrypoints.fixture';
 import { multiScopeFixture } from './multi-scope.fixture';
 import { nonDenseFixture } from './non-dense.fixture';
 import { outOfRangeNonstrictFixture } from './out-of-range-nonstrict.fixture';
+import { ownTagOutOfRangeFixture } from './own-tag-out-of-range.fixture';
 import { poolingAnchorFixture } from './pooling-anchor.fixture';
+import { poolIncompatibleNonstrictFixture } from './pool-incompatible-nonstrict.fixture';
 import { poolPortfolioFixture } from './pool-portfolio.fixture';
 import { poolShowcaseFixture } from './pool-showcase.fixture';
 import { poolTagAnchoredFixture } from './pool-tag-anchored.fixture';
 import { poolTagCoherentFixture } from './pool-tag-coherent.fixture';
 import { poolTagIslandedFixture } from './pool-tag-islanded.fixture';
 import { poolTagOrphanFixture } from './pool-tag-orphan.fixture';
+import { poolUncoveredGapFixture } from './pool-uncovered-gap.fixture';
+import { poolUnshippedFixture } from './pool-unshipped.fixture';
 import { scopeIsolationFixture } from './scope-isolation.fixture';
 import { scopedFixture } from './scoped.fixture';
 import { selfFillFixture } from './self-fill.fixture';
@@ -65,6 +69,7 @@ export const FIXTURES = {
   'multi-scope': multiScopeFixture,
   'non-dense': nonDenseFixture,
   'out-of-range-nonstrict': outOfRangeNonstrictFixture,
+  'own-tag-out-of-range': ownTagOutOfRangeFixture,
   'pooling-anchor': poolingAnchorFixture,
   'pool-portfolio': poolPortfolioFixture,
   'pool-showcase': poolShowcaseFixture,
@@ -72,6 +77,9 @@ export const FIXTURES = {
   'pool-tag-coherent': poolTagCoherentFixture,
   'pool-tag-islanded': poolTagIslandedFixture,
   'pool-tag-orphan': poolTagOrphanFixture,
+  'pool-incompatible-nonstrict': poolIncompatibleNonstrictFixture,
+  'pool-uncovered-gap': poolUncoveredGapFixture,
+  'pool-unshipped': poolUnshippedFixture,
   'scope-isolation': scopeIsolationFixture,
   scoped: scopedFixture,
   'self-fill': selfFillFixture,

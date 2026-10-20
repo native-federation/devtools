@@ -52,21 +52,22 @@ describe('derivePoolFamilies — outcomes from stored rows', () => {
       'mfe2:ui',
       'mfe3:-',
     ]);
-    expect(family.statusMatrix.verdict.redirected).toMatchObject({ mixes: [NF_HOST, 'mfe1'] });
+    // 4.8: the subpool owner names itself in servedBy, so only the host's build counts as mixed in.
+    expect(family.statusMatrix.verdict.redirected).toMatchObject({ mixes: [NF_HOST] });
   });
 
-  it('pool-tag-islanded: mfe1 runs its own copy of everything; ui-core is left unshared', () => {
+  it('pool-tag-islanded: mfe1 wins, mfe2 runs its own copy of everything', () => {
     const family = familyOf('pool-tag-islanded');
-    expect(consumer('pool-tag-islanded', 'mfe1').outcome).toBe('own-copy');
-    expect(consumer('pool-tag-islanded', 'mfe2')).toMatchObject({
+    expect(consumer('pool-tag-islanded', 'mfe1')).toMatchObject({
       outcome: 'one-build',
       coherent: true,
     });
+    expect(consumer('pool-tag-islanded', 'mfe2').outcome).toBe('own-copy');
     expect(family.members.find((member) => member.packageName === '@nf-lab/ui-core')).toEqual({
       packageName: '@nf-lab/ui-core',
       followsPackage: null,
-      unshared: true,
-      scopedRemotes: ['mfe1', 'mfe2'],
+      unshared: false,
+      scopedRemotes: ['mfe2'],
     });
   });
 
@@ -166,8 +167,10 @@ describe('derivePoolFamilies — hand-built records', () => {
   });
 });
 
-// Stage 2 Task 10: the status matrix, against the orchestrator 4.7.0 captures of the nf-lab
+// Stage 2 Task 10: the status matrix, against the orchestrator 4.8.0 captures of the nf-lab
 // corpus (pool-showcase, pool-portfolio) and the 4.6.0 v2 corpus (pooling-anchor).
+// `not-shared` on a subpool member the host does not ship (ui-dom, acme-forms, acme-animations) is
+// this derivation misreading 4.8's subpools, which have no share row; pools-v48 Task 4 replaces it.
 describe('derivePoolFamilies — status matrix', () => {
   const poolsOf = (id: FixtureId) => {
     const projection = ingestSnapshot(FIXTURES[id]).resolutionProjection;
@@ -194,14 +197,14 @@ describe('derivePoolFamilies — status matrix', () => {
     }));
   };
 
-  it('T10-AC-01: pool-showcase — ui anchored on catalog, charts isolates catalog, form-kit one build', () => {
+  it('T10-AC-01: pool-showcase — ui in the subpool of admin, charts isolates dashboard, form-kit one build', () => {
     expect(sketch('pool-showcase', 'ui')).toEqual([
       {
-        band: 'shared:catalog serves=2 redirected=2',
+        band: 'shared:admin serves=2 redirected=2',
         rows: [
-          'catalog [ui] 1.0.0:serves-others 1.0.0:serves-others',
-          'admin ↪ [no tag] 1.0.0:unchanged 1.0.0:unchanged',
-          'checkout ↪ [ui] 1.0.0:unchanged 1.0.0:unchanged',
+          'admin [no tag] 1.0.0:serves-others 1.0.0:not-shared',
+          'catalog ↪ [ui] 1.0.0:unchanged 1.0.0:not-shared',
+          'checkout ↪ [ui] 1.0.0:unchanged 1.0.0:not-shared',
         ],
       },
       {
@@ -211,12 +214,12 @@ describe('derivePoolFamilies — status matrix', () => {
     ]);
     expect(sketch('pool-showcase', 'charts')).toEqual([
       {
-        band: 'shared:dashboard serves=0 redirected=0',
-        rows: ['dashboard [charts] 1.0.0:not-shared 2.0.0:unchanged'],
+        band: 'shared:catalog serves=0 redirected=0',
+        rows: ['catalog [charts] 1.1.0:unchanged 1.1.0:unchanged'],
       },
       {
-        band: 'isolated:catalog serves=0 redirected=0',
-        rows: ['catalog [charts] 1.1.0:isolated 1.1.0:conflict'],
+        band: 'isolated:dashboard serves=0 redirected=0',
+        rows: ['dashboard [charts] 1.0.0:isolated 2.0.0:conflict'],
       },
     ]);
     expect(sketch('pool-showcase', 'form-kit')).toEqual([
@@ -237,15 +240,15 @@ describe('derivePoolFamilies — status matrix', () => {
       torn: [],
       isolated: null,
       redirected: {
-        remotes: ['admin', 'checkout'],
-        anchors: ['catalog'],
-        mixes: [NF_HOST, 'catalog'],
+        remotes: ['catalog', 'checkout'],
+        anchors: ['admin'],
+        mixes: [NF_HOST],
       },
-      builds: ['catalog', NF_HOST],
+      builds: ['admin', NF_HOST],
     });
     expect(pools.get('charts')!.family.statusMatrix.verdict).toMatchObject({
       kind: 'isolated',
-      isolated: { remotes: ['catalog'], conflicts: 1, cause: 'incompatible' },
+      isolated: { remotes: ['dashboard'], conflicts: 1, cause: 'incompatible' },
       redirected: null,
     });
     expect(pools.get('form-kit')!.family.statusMatrix.verdict).toMatchObject({
@@ -263,7 +266,7 @@ describe('derivePoolFamilies — status matrix', () => {
       bands.map((b) => `${b.kind}:${b.owner} ${b.rows.map((r) => r.remote).join(',')}`),
     ).toEqual([
       `shared:${NF_HOST} ${NF_HOST},cart,products,profile,search,settings`,
-      'shared:orders orders,contacts,invoices,onboarding,reports',
+      'shared:contacts contacts,invoices,onboarding,orders,reports',
       'isolated:legacy legacy',
     ]);
     // Members sort as animations, common, core, forms, router.
@@ -290,9 +293,9 @@ describe('derivePoolFamilies — status matrix', () => {
       kind: 'isolated',
       isolated: { remotes: ['legacy'], conflicts: 2, cause: 'incompatible' },
       redirected: {
-        remotes: ['contacts', 'invoices', 'onboarding', 'reports'],
-        anchors: ['orders'],
-        mixes: [NF_HOST, 'orders'],
+        remotes: ['invoices', 'onboarding', 'orders', 'reports'],
+        anchors: ['contacts'],
+        mixes: [NF_HOST],
       },
     });
   });
@@ -315,9 +318,9 @@ describe('derivePoolFamilies — status matrix', () => {
     const dom = snapshot.runtime!.sharedExternals['__GLOBAL__']['@nf-lab/ui-dom'];
     dom.versions.find((v) => v.action === 'scope')!.remotes[0].requiredVersion = 'latest';
     const family = ingestSnapshot(snapshot).resolutionProjection.poolFamilies[0];
-    const mfe1 = family.statusMatrix.bands.find((b) => b.owner === 'mfe1')!.rows[0];
-    expect(mfe1.cells.map((cell) => cell?.state)).toEqual(['isolated', 'isolated']);
-    expect(mfe1.cells[1]).toMatchObject({ acceptsShared: null });
+    const mfe2 = family.statusMatrix.bands.find((b) => b.owner === 'mfe2')!.rows[0];
+    expect(mfe2.cells.map((cell) => cell?.state)).toEqual(['isolated', 'isolated']);
+    expect(mfe2.cells[1]).toMatchObject({ acceptsShared: null });
     expect(family.statusMatrix.verdict.isolated).toMatchObject({
       conflicts: 0,
       cause: 'incompatible',
