@@ -431,8 +431,6 @@ function claimRole(
   switch (claim.mappingState) {
     case 'anchored':
       return 'anchor-source';
-    case 'self-filled':
-      return 'self-filled-source';
     case 'fallback':
       return 'ordinary-shared';
     case 'own-selected':

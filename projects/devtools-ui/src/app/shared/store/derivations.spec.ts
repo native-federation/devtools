@@ -7,7 +7,7 @@
  *  - T7-AC-02: SEEDED most-specific tie → ambiguous; foreign origin →
  *    unattributable.
  *  - T7-AC-03: strict-split arrows (skip → winner, scope → own);
- *    self-fill `/extra` own arrow + parent link.
+ *    flat `/extra` own arrow + parent link.
  *  - T7-AC-04: live subpath externals parent-link across all four
  *    spellings; SEEDED orphan subpath yields no link.
  *  - T7-AC-05: capability badges (live matrix) + generation badge.
@@ -239,20 +239,20 @@ describe('deriveFederation — resolution arrows (T7-AC-03)', () => {
     });
   });
 
-  it('keeps the self-fill /extra external on its own share row with an own arrow and a parent link', () => {
-    const derived = deriveFixture('self-fill');
-    const extra = factsOf(derived, 'mfe1', '@nf-lab/conflict-lib/extra');
+  it('keeps a flat /extra external on its own share row with an own arrow and a parent link', () => {
+    const derived = deriveFixture('dense-chunking-only');
+    const extra = factsOf(derived, 'mfe1', '@nf-lab/dense-lib/extra');
 
     expect(extra.row.action).toBe('share');
     expect(extra.arrow).toEqual({
       kind: 'own',
       providerParticipant: 'mfe1',
-      file: '_nf_lab_conflict_lib_extra.GWjTDmPaoo.js',
-      targetUrl: 'http://localhost:4300/mfe1/_nf_lab_conflict_lib_extra.GWjTDmPaoo.js',
+      file: '_nf_lab_dense_lib_extra.IKoP9vbCZc.js',
+      targetUrl: 'http://localhost:4300/mfe1/_nf_lab_dense_lib_extra.IKoP9vbCZc.js',
       rule: 'registry-election',
     });
     expect(extra.parentLink).toEqual({
-      parentPackage: '@nf-lab/conflict-lib',
+      parentPackage: '@nf-lab/dense-lib',
       rule: 'name-derived',
     });
   });

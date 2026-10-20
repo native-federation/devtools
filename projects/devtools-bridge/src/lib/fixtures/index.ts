@@ -7,6 +7,7 @@ import { denseExternalsOnlyFixture } from './dense-externals-only.fixture';
 import { dynamicInitNativeFixture } from './dynamic-init-native.fixture';
 import { dynamicInitShimFixture } from './dynamic-init-shim.fixture';
 import { dynamicOverrideFixture } from './dynamic-override.fixture';
+import { fallbackUncoveredFixture } from './fallback-uncovered.fixture';
 import { exportedPlaygroundCheckoutFixture } from './exported-playground-checkout.fixture';
 import { frankensteinLiveFixture } from './frankenstein-live.fixture';
 import { mergedEntrypointsFixture } from './merged-entrypoints.fixture';
@@ -26,7 +27,6 @@ import { poolUncoveredGapFixture } from './pool-uncovered-gap.fixture';
 import { poolUnshippedFixture } from './pool-unshipped.fixture';
 import { scopeIsolationFixture } from './scope-isolation.fixture';
 import { scopedFixture } from './scoped.fixture';
-import { selfFillFixture } from './self-fill.fixture';
 import { strictScopeFixture } from './strict-scope.fixture';
 import { strictSplitFixture } from './strict-split.fixture';
 import { syntheticCollisionFixture } from './synthetic-collision.fixture';
@@ -41,7 +41,6 @@ import { syntheticMissingChannelFixture } from './synthetic-missing-channel.fixt
 import { syntheticMultiVersionFixture } from './synthetic-multi-version.fixture';
 import { syntheticNoImportMapsFixture } from './synthetic-no-import-maps.fixture';
 import { syntheticNotRecognizedFixture } from './synthetic-not-recognized.fixture';
-import { tornManyFixture } from './torn-many.fixture';
 
 /**
  * All checked-in fixtures. Ids equal the fixture file basenames
@@ -64,6 +63,7 @@ export const FIXTURES = {
   'dynamic-init-native': dynamicInitNativeFixture,
   'dynamic-init-shim': dynamicInitShimFixture,
   'dynamic-override': dynamicOverrideFixture,
+  'fallback-uncovered': fallbackUncoveredFixture,
   'exported-playground-checkout': exportedPlaygroundCheckoutFixture,
   'merged-entrypoints': mergedEntrypointsFixture,
   'multi-scope': multiScopeFixture,
@@ -82,10 +82,8 @@ export const FIXTURES = {
   'pool-unshipped': poolUnshippedFixture,
   'scope-isolation': scopeIsolationFixture,
   scoped: scopedFixture,
-  'self-fill': selfFillFixture,
   'strict-scope': strictScopeFixture,
   'strict-split': strictSplitFixture,
-  'torn-many': tornManyFixture,
   'synthetic-collision': syntheticCollisionFixture,
   'synthetic-dense-entries': syntheticDenseEntriesFixture,
   'synthetic-hostile': syntheticHostileFixture,

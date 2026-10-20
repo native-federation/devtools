@@ -172,7 +172,6 @@ const DISPOSITION_NOTES: Record<ResolvedCopySourceDisposition, string> = {
 const ROLE_NOTES: Record<ResolvedCopyEffectiveRole, string> = {
   'ordinary-shared': 'the selected shared copy of its share scope',
   'isolated-own': 'mapped only for its own declarers',
-  'self-filled-source': 'fills its consumer’s binding without an applicable shared source',
   'anchor-source': 'selected through an explicit servedBy anchor',
   'private-own': 'a private registration’s own mapping',
   unclassified: 'no closed rule explains this copy',
@@ -185,8 +184,8 @@ const UNKNOWN_TAG_NOTE = 'no uniquely evidenced source tag for this copy';
  * `scope-registration` as `isolated` with its declarer audience; every other
  * disposition stays a verbatim, visibly qualified deviation. Default roles
  * fold into the note — they are rendered by other elements (`shared`/
- * `isolated` themselves, the explicit-anchor qualifier, the consumers'
- * self-filled chips) and must not render twice.
+ * `isolated` themselves, the explicit-anchor qualifier) and must not render
+ * twice.
  */
 function dispositionVmOf(
   copy: ResolvedDependencyCopy,
@@ -305,12 +304,6 @@ function consumerDeviationsOf(
     deviations.push({
       label: 'anchored',
       note: `explicit servedBy anchor: ${anchorDisplay} — the binding resolves through the anchor's copy`,
-    });
-  }
-  if (states.has('self-filled')) {
-    deviations.push({
-      label: 'self-filled',
-      note: 'no applicable shared source — the consumer’s own copy fills the binding',
     });
   }
   if (states.has('own-selected') && registration.action === 'scope') {

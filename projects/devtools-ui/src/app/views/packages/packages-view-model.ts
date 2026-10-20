@@ -65,9 +65,8 @@ export type {
 } from './packages-detail-vm';
 export type { ChunkClaimVm } from './packages-chunk-vm';
 export type * from './packages-version-vm';
-export { TORN_DOCS_URL } from './packages-version-vm';
 
-export type PackagesFilter = 'all' | 'multi' | 'out-of-range' | 'isolated' | 'torn';
+export type PackagesFilter = 'all' | 'multi' | 'out-of-range' | 'isolated';
 export type PackagesSort = 'name' | 'copies' | 'remotes';
 
 /** Caller-owned UI state — filters, search, sort and selection live in the view. */
@@ -130,7 +129,6 @@ const FILTER_NOUNS: Record<PackagesFilter, string> = {
   multi: 'packages with multiple versions',
   'out-of-range': 'packages running out of range',
   isolated: 'isolated packages',
-  torn: 'torn packages',
 };
 
 const FILTERS: { id: PackagesFilter; label: string; note: string | null }[] = [
@@ -150,7 +148,6 @@ const FILTERS: { id: PackagesFilter; label: string; note: string | null }[] = [
     label: 'Isolated',
     note: 'a strict remote rejects the shared version and keeps its own copy',
   },
-  { id: 'torn', label: 'Torn', note: 'entrypoints run a different version than their package' },
 ];
 
 function keeps(filter: PackagesFilter, entry: PackageEntry): boolean {

@@ -1,6 +1,6 @@
 /**
  * Packages detail per scope (packages-verdicts T5/T6): the versions table,
- * range check, torn banner and the version deep dive, read through
+ * range check and the version deep dive, read through
  * `buildPackagesVm` from the real captures of the Task 1 log.
  */
 import { FIXTURES, NF_HOST } from 'devtools-bridge';
@@ -101,7 +101,8 @@ describe('package view — version deep dive (T6)', () => {
       scopeOf(viewOf('merged-entrypoints', `__GLOBAL__|${KIT}`)),
       '1.2.0',
     ).dive;
-    expect(dive.merged).not.toBeNull();
+    // mfe1's copy is scoped, not a second `share` build, so 4.8's 1.2.0 is not merged.
+    expect(dive.merged).toBeNull();
     expect(dive.builtBy.map((r) => r.name)).toEqual(['mfe1', 'host']);
     expect(
       dive.entrypoints!.groups.map((g) => [g.build?.name, g.items.map((i) => i.specifier)]),

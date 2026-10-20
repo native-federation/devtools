@@ -593,7 +593,8 @@ describe('materializeResolvedCopies — source dispositions vs effective roles (
     expect(consumersOf(harness, copy)).toEqual(['mfe1', 'mfe2']);
   });
 
-  it('marks the unique skip source as self-filled-source for own and later-consumer self-fill', () => {
+  // A pre-4.8 self-fill: the skip copy's own selection contributes no closed role.
+  it('leaves a skip copy selected for its own and a later consumer unclassified', () => {
     const harness = derive(
       seedSnapshot({
         remotes: { mfe1: './mfe1/', mfe3: './mfe3/' },
@@ -619,7 +620,7 @@ describe('materializeResolvedCopies — source dispositions vs effective roles (
     const copy = harness.copies[0];
     expect(copy.source).toEqual(sharedDeclarationSource(harness, 'mfe1', 'pkg'));
     expect(copy.sourceDisposition).toBe('skip-registration');
-    expect(copy.effectiveRoles).toEqual(['self-filled-source']);
+    expect(copy.effectiveRoles).toEqual(['unclassified']);
     expect(copy.resolutionContexts).toHaveLength(1);
     expect(copy.resolutionContexts[0].claimIds).toHaveLength(2);
   });

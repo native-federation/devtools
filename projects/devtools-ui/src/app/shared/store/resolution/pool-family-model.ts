@@ -21,10 +21,6 @@ export interface PoolConsumer {
   poolCauses: { cause: string; members: string[] }[];
   /** Member package → the remote whose build serves it to this consumer. */
   servingBuilds: Record<string, string>;
-  /** Whether some single build ships the resolved specifier → tag combination; null for the host. */
-  coherent: boolean | null;
-  /** Resolved `specifier@tag` combination (sorted). */
-  combination: string[];
 }
 
 /**
@@ -62,8 +58,8 @@ export interface PoolStatusRow {
 
 /**
  * The remotes that load one build. `isolated` is a remote running the whole pool from its own
- * build; `mixed` collects remotes served by several builds (a torn combination, which pooling
- * prevents), so it has no owner.
+ * build; `mixed` collects remotes served by several builds (from 4.8: the global map extends the
+ * winner's build with packages it does not ship), so it has no owner.
  */
 export interface PoolBuildBand {
   kind: 'shared' | 'isolated' | 'mixed';
@@ -76,12 +72,11 @@ export interface PoolBuildBand {
 }
 
 /**
- * One verdict per pool: `kind` is its worst outcome (torn > isolated > redirected > one-build); the
- * other outcome summaries stay set when they also occurred, so a view can fold them into one line.
+ * One verdict per pool: `kind` is its worst outcome (isolated > redirected > one-build); the other
+ * outcome summaries stay set when they also occurred, so a view can fold them into one line.
  */
 export interface PoolVerdict {
-  kind: 'torn' | 'isolated' | 'redirected' | 'one-build';
-  torn: string[];
+  kind: 'isolated' | 'redirected' | 'one-build';
   isolated: {
     remotes: string[];
     conflicts: number;

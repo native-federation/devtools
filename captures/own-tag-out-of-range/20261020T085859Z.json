@@ -1,8 +1,8 @@
 {
   "schemaVersion": "lab-lossless-capture/1",
-  "capturedAt": "2026-10-20T08:38:45.191Z",
+  "capturedAt": "2026-10-20T08:59:10.425Z",
   "scenario": {
-    "scenarioId": "merged-entrypoints",
+    "scenarioId": "own-tag-out-of-range",
     "orchestratorCommit": "4.8.0",
     "ready": true,
     "readyError": null
@@ -11,7 +11,7 @@
     "url": "http://localhost:4300/",
     "origin": "http://localhost:4300",
     "path": "/",
-    "title": "nf-lab merged-entrypoints",
+    "title": "nf-lab own-tag-out-of-range",
     "readyState": "complete"
   },
   "collector": {
@@ -21,7 +21,7 @@
   "channels": {
     "nativeFederationGlobals": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:38:45.191Z",
+      "observedAt": "2026-10-20T08:59:10.424Z",
       "data": {
         "present": true,
         "valueType": "object",
@@ -41,7 +41,7 @@
               "exposes": [
                 {
                   "moduleName": "./main",
-                  "file": "main-374BJDUE.js"
+                  "file": "main-I2IWCNAM.js"
                 }
               ]
             },
@@ -64,27 +64,18 @@
                         "name": "__NF-HOST__",
                         "strictVersion": true,
                         "cached": true,
-                        "requiredVersion": "^1.0.0",
+                        "requiredVersion": "^2.0.0",
                         "entries": {
                           "@nf-lab/kit": "_nf_lab_kit.DSYCipaGyy.js"
                         }
-                      }
-                    ]
-                  },
-                  {
-                    "tag": "1.2.0",
-                    "host": false,
-                    "action": "scope",
-                    "remotes": [
+                      },
                       {
                         "name": "mfe1",
                         "strictVersion": true,
-                        "cached": true,
+                        "cached": false,
                         "requiredVersion": "^1.0.0",
                         "entries": {
-                          "@nf-lab/kit": "_nf_lab_kit.DSYCipaGyy.js",
-                          "@nf-lab/kit/table": "_nf_lab_kit_table.B_lIn12dNZ.js",
-                          "@nf-lab/kit/dialog": "_nf_lab_kit_dialog.P5E_5ASKB7.js"
+                          "@nf-lab/kit": "_nf_lab_kit.DSYCipaGyy.js"
                         }
                       }
                     ]
@@ -99,7 +90,7 @@
     },
     "orchestratorGlobal": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:38:45.191Z",
+      "observedAt": "2026-10-20T08:59:10.425Z",
       "data": {
         "present": true,
         "valueType": "object",
@@ -125,26 +116,19 @@
     },
     "domImportMaps": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:38:45.191Z",
+      "observedAt": "2026-10-20T08:59:10.425Z",
       "data": {
         "count": 1,
         "maps": [
           {
             "index": 0,
             "type": "importmap-shim",
-            "text": "{\"imports\":{\"@nf-lab/kit\":\"./_nf_lab_kit.DSYCipaGyy.js\",\"mfe1/./main\":\"./mfe1/main-374BJDUE.js\"},\"scopes\":{\"./mfe1/\":{\"@nf-lab/kit\":\"./mfe1/_nf_lab_kit.DSYCipaGyy.js\",\"@nf-lab/kit/table\":\"./mfe1/_nf_lab_kit_table.B_lIn12dNZ.js\",\"@nf-lab/kit/dialog\":\"./mfe1/_nf_lab_kit_dialog.P5E_5ASKB7.js\"}}}",
+            "text": "{\"imports\":{\"@nf-lab/kit\":\"./_nf_lab_kit.DSYCipaGyy.js\",\"mfe1/./main\":\"./mfe1/main-I2IWCNAM.js\"}}",
             "parsed": true,
             "map": {
               "imports": {
                 "@nf-lab/kit": "./_nf_lab_kit.DSYCipaGyy.js",
-                "mfe1/./main": "./mfe1/main-374BJDUE.js"
-              },
-              "scopes": {
-                "./mfe1/": {
-                  "@nf-lab/kit": "./mfe1/_nf_lab_kit.DSYCipaGyy.js",
-                  "@nf-lab/kit/table": "./mfe1/_nf_lab_kit_table.B_lIn12dNZ.js",
-                  "@nf-lab/kit/dialog": "./mfe1/_nf_lab_kit_dialog.P5E_5ASKB7.js"
-                }
+                "mfe1/./main": "./mfe1/main-I2IWCNAM.js"
               }
             }
           }
@@ -153,7 +137,7 @@
     },
     "importShim": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:38:45.191Z",
+      "observedAt": "2026-10-20T08:59:10.425Z",
       "data": {
         "present": true,
         "valueType": "function",
@@ -161,15 +145,9 @@
         "map": {
           "imports": {
             "@nf-lab/kit": "http://localhost:4300/_nf_lab_kit.DSYCipaGyy.js",
-            "mfe1/./main": "http://localhost:4300/mfe1/main-374BJDUE.js"
+            "mfe1/./main": "http://localhost:4300/mfe1/main-I2IWCNAM.js"
           },
-          "scopes": {
-            "http://localhost:4300/mfe1/": {
-              "@nf-lab/kit": "http://localhost:4300/mfe1/_nf_lab_kit.DSYCipaGyy.js",
-              "@nf-lab/kit/table": "http://localhost:4300/mfe1/_nf_lab_kit_table.B_lIn12dNZ.js",
-              "@nf-lab/kit/dialog": "http://localhost:4300/mfe1/_nf_lab_kit_dialog.P5E_5ASKB7.js"
-            }
-          },
+          "scopes": {},
           "integrity": {}
         }
       }

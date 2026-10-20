@@ -37,7 +37,6 @@
     "dynamic-init-native",
     "dynamic-init-shim",
     "dynamic-override",
-    "self-fill",
     "co-declared-share",
     "pooling-anchor"
   ],
@@ -95,12 +94,6 @@
       "path": "dynamic-override/20260811T095734Z.json",
       "runstamp": "20260811T095734Z",
       "sha256": "be9910505030bbae68ac5bbae6ddd4b0e13863d974657439bebd3662e546ae8c"
-    },
-    {
-      "scenario": "self-fill",
-      "path": "self-fill/20260811T095850Z.json",
-      "runstamp": "20260811T095850Z",
-      "sha256": "7536378ad45ec27b7662e5758d7f2caa8ab902f344b591691f8e1a9d06739def"
     },
     {
       "scenario": "co-declared-share",

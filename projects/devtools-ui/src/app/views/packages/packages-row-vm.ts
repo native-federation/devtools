@@ -2,7 +2,7 @@
  * Row half of the Packages vm builder — one row per package across its
  * share scopes (packages-verdicts T4). A row is the package name, status
  * marks for the deviations the projection publishes (out of range,
- * isolated, torn), a `strict` tag when any scope is `strict`, and how many
+ * isolated), a `strict` tag when any scope is `strict`, and how many
  * copies the import map materializes. Scope names, versions and entrypoints live in
  * the detail.
  *
@@ -13,7 +13,7 @@ import type { TreeTableRow } from '../../shared/kit/tree-table';
 import type { PackageScopeVerdicts } from '../../shared/store/resolution';
 import { GLOBAL_SCOPE, STRICT_SCOPE, type PackageGroup } from './packages-vm-shared';
 
-export type PackageMarkKind = 'out-of-range' | 'isolated' | 'torn';
+export type PackageMarkKind = 'out-of-range' | 'isolated';
 
 export interface PackageMarkVm {
   kind: PackageMarkKind;
@@ -83,13 +83,6 @@ export function marksOf(entry: PackageEntry): PackageMarkVm[] {
     marks.push({
       kind: 'isolated',
       note: `${isolated.join(', ')} ${isolated.length === 1 ? 'keeps its' : 'keep their'} own copy`,
-    });
-  }
-  const torn = entry.verdicts.flatMap((v) => v.torn);
-  if (torn.length > 0) {
-    marks.push({
-      kind: 'torn',
-      note: `${plural(torn.length, 'entrypoint resolves', 'entrypoints resolve')} to a different version than the package`,
     });
   }
   return marks;

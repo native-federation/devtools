@@ -2,9 +2,9 @@
  * Pools view model (share-pools Stage 2, Task 11) against the wording
  * contract in docs/work/share-pools/design/pools-explainer-mock.md and
  * the mock-up design/pools-matrix-mock.html. The pool-showcase, pool-portfolio
- * and pool-tag-* fixtures are orchestrator 4.7.0 captures; pooling-anchor is
- * 4.6.0. States no capture reaches (torn, pending, the rarer membership notes)
- * run on edited clones.
+ * and pool-tag-* fixtures are orchestrator 4.8.0 captures; pooling-anchor is
+ * 4.6.0. States no capture reaches (pending, the rarer membership notes) run on
+ * edited clones.
  */
 import { describe, expect, it } from 'vitest';
 import { FIXTURES, NF_HOST, type FixtureId, type SnapshotV1 } from 'devtools-bridge';
@@ -192,28 +192,6 @@ describe('buildPoolsVm (share-pools T11)', () => {
       expect(card.pendingNote).toBe('pending re-election — outcomes not settled yet');
       expect(card.verdict).toBeNull();
       expect(allCells(card).every((cell) => cell.state === null)).toBe(true);
-    });
-
-    it('a torn combination leads with Mixed builds', () => {
-      const base = projectionOf('pool-tag-coherent');
-      const [family] = base.poolFamilies;
-      const projection: CanonicalResolutionProjection = {
-        ...base,
-        poolFamilies: [
-          {
-            ...family,
-            statusMatrix: {
-              ...family.statusMatrix,
-              verdict: { ...family.statusMatrix.verdict, kind: 'torn', torn: ['mfe2'] },
-            },
-          },
-        ],
-      };
-      const [card] = buildPoolsVm(projection, '4.7.0').pools;
-      expect(verdictLine(card)).toBe(
-        '✕ Mixed builds — mfe2 · no single build ships their combination',
-      );
-      expect(card.verdict!.tone).toBe('torn');
     });
 
     it('membership notes: a lone remote, a shared tag string, an untagged entrypoint', () => {

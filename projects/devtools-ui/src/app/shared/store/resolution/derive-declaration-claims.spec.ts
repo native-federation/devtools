@@ -346,7 +346,8 @@ describe('deriveResolutionClaims — action and domain evidence retention (T4-AC
 });
 
 describe('deriveResolutionClaims — seeded action paths (source-confirmed-unobserved, T4-AC-01/T4-AC-02)', () => {
-  it('self-fills a global skip entry from its own declaration and serves later skip consumers', () => {
+  // Orchestrator 4.8 maps no skip copy's own files; a pre-4.8 self-fill reads as plain own selection.
+  it('reads a pre-4.8 global skip self-fill as own-selected, its later consumers not-selected', () => {
     const harness = derive(
       seedSnapshot({
         remotes: { [NF_HOST]: './', mfe1: './m1/', mfe2: './m2/' },
@@ -367,17 +368,16 @@ describe('deriveResolutionClaims — seeded action paths (source-confirmed-unobs
         imports: { 'lab-pkg': './m1/own1.js' },
       }),
     );
-    // Own skip self-fill outranks own-selected; the own candidate stays visible.
     const ownFill = claimFor(harness, 'mfe1', 'lab-pkg');
-    expect(ownFill.mappingState).toBe('self-filled');
+    expect(ownFill.mappingState).toBe('own-selected');
     expect(ownFill.ownCandidateSelected).toBe(true);
 
     const laterConsumer = claimFor(harness, 'mfe2', 'lab-pkg');
-    expect(laterConsumer.mappingState).toBe('self-filled');
+    expect(laterConsumer.mappingState).toBe('not-selected');
     expect(laterConsumer.ownCandidateSelected).toBe(false);
   });
 
-  it('keeps a blocked binding terminal: no self-fill, no selection, no source attribution', () => {
+  it('keeps a blocked binding terminal: no selection, no source attribution', () => {
     const harness = derive(
       seedSnapshot({
         remotes: { [NF_HOST]: './', mfe1: './m1/' },
@@ -497,7 +497,7 @@ describe('deriveResolutionClaims — seeded action paths (source-confirmed-unobs
     expect(covered.resolutionDomain).toEqual({ kind: 'share-scope', name: 'team' });
 
     const uncovered = claimFor(harness, 'mfe2', 'team-pkg/extra');
-    expect(uncovered.mappingState).toBe('self-filled');
+    expect(uncovered.mappingState).toBe('own-selected');
     expect(uncovered.ownCandidateSelected).toBe(true);
   });
 
@@ -609,7 +609,7 @@ describe('deriveResolutionClaims — seeded action paths (source-confirmed-unobs
 });
 
 describe('deriveResolutionClaims — surface boundaries and traceability (T4-AC-02/T4-AC-03/T4-AC-05, source-confirmed-unobserved)', () => {
-  it('self-fills across skip registrations of the same shared external', () => {
+  it('reads a pre-4.8 fill across skip registrations of one external as own selection', () => {
     const harness = derive(
       seedSnapshot({
         remotes: { [NF_HOST]: './', mfe1: './m1/', mfe2: './m2/' },
@@ -633,8 +633,8 @@ describe('deriveResolutionClaims — surface boundaries and traceability (T4-AC-
       }),
     );
     // The filler sits in another skip registration of the SAME shared external.
-    expect(claimFor(harness, 'mfe1', 'cross-pkg').mappingState).toBe('self-filled');
-    expect(claimFor(harness, 'mfe2', 'cross-pkg').mappingState).toBe('self-filled');
+    expect(claimFor(harness, 'mfe1', 'cross-pkg').mappingState).toBe('own-selected');
+    expect(claimFor(harness, 'mfe2', 'cross-pkg').mappingState).toBe('not-selected');
   });
 
   it('never guesses between ambiguous share sources for a skip claim', () => {

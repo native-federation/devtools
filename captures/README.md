@@ -115,7 +115,7 @@ recorded from a newer playground commit, so it keeps its own manifest. All four 
 | Scenario | Witnesses |
 |---|---|
 | `out-of-range-nonstrict` | host shares 2.0.0; a non-strict `^1.0.0` stored as a plain `skip`, a strict one `scope` |
-| `torn-many` | the shared 1.4.0 lacks the secondaries mfe1 and mfe2 import; on 4.8 both run kit from their own build (`scope`, no cause) and the global map serves no kit secondary — the witness that nothing is torn |
+| `fallback-uncovered` | the shared 1.4.0 lacks the secondaries mfe1 and mfe2 import; both run kit from their own build (`scope`, no cause) and the global map serves no kit secondary — the witness that 4.8 borrows no entrypoint (recorded as `torn-many` on 4.7) |
 | `merged-entrypoints` | host and mfe1 both ship 1.2.0; mfe1's copy adds secondaries, so on 4.8 it runs its own copy (`scope`) — nothing is merged |
 | `multi-scope` | one package in `__GLOBAL__`, `team-a` and `strict`, each with its own election |
 

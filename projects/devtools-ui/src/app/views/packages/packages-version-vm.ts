@@ -2,7 +2,7 @@
  * Detail half of the Packages vm builder (packages-verdicts T5/T6): one
  * block per share scope of the selected package, each with the versions
  * table (one row per registered version, deviations as notes), the range
- * check, the torn banner, and per version the deep dive (who ships it, who
+ * check, and per version the deep dive (who ships it, who
  * it resolves for, its entrypoints and files). Every fact comes from the
  * projection's `packageScopeVerdicts`; the existing copy blocks stay
  * available per scope as the collapsed bindings section.
@@ -27,11 +27,6 @@ import {
   targetFileName,
 } from './packages-vm-shared';
 
-export const TORN_DOCS_URL =
-  'https://native-federation.com/docs/v4/orchestrator/version-resolver/#entrypoint-coverage-and-tearing';
-const TORN_NOTE =
-  'Torn: some entrypoints of this package resolve to a different version than the package itself. No copy of the shared version contains them, so the orchestrator fills each one from the build that declares it. Harmless for most libraries, but packages whose entrypoints share module state can break.';
-
 export interface RemoteRefVm {
   /** Display name — the host sentinel reads as 'host'. */
   name: string;
@@ -45,7 +40,7 @@ export interface LabelNoteVm {
   note: string;
 }
 
-export type VersionNoteKind = 'out-of-range' | 'own-copy' | 'fills-torn' | 'merged';
+export type VersionNoteKind = 'out-of-range' | 'own-copy' | 'merged';
 
 export interface VersionNoteVm extends LabelNoteVm {
   kind: VersionNoteKind;
@@ -71,8 +66,6 @@ export interface RunnerVm {
 
 export interface EntrypointVm {
   specifier: string;
-  /** Present when this specifier is torn (filled for another version). */
-  torn: LabelNoteVm | null;
 }
 
 export interface BuildGroupVm<Item> {
@@ -84,12 +77,6 @@ export interface BuildGroupVm<Item> {
 export interface FileVm {
   name: string;
   url: string | null;
-}
-
-export interface TornGroupVm {
-  tag: string;
-  remote: RemoteRefVm | null;
-  specifiers: string[];
 }
 
 export interface DeepDiveVm {
@@ -104,9 +91,6 @@ export interface DeepDiveVm {
   entrypoints: {
     count: number;
     groups: BuildGroupVm<EntrypointVm>[];
-    fillsTorn: LabelNoteVm | null;
-    /** On the elected version: the torn specifiers other builds fill for it. */
-    tornGroup: { summary: string; note: string; groups: TornGroupVm[] } | null;
   } | null;
   files: {
     count: number;
@@ -140,13 +124,6 @@ export interface RangeCheckVm {
   rows: { remote: RemoteRefVm; range: string; cells: RangeCellVm[] }[];
 }
 
-export interface TornBannerVm {
-  count: number;
-  text: string;
-  note: string;
-  docsUrl: string;
-}
-
 export interface ScopeBlockVm {
   /** `<scope>|<pkg>` — the block's anchor and the `select` value of links into it. */
   id: string;
@@ -159,7 +136,6 @@ export interface ScopeBlockVm {
   /** Shown instead of `elected` in the strict scope or without a `share` row. */
   electionNote: string | null;
   pool: { label: string; note: string; poolSelect: string } | null;
-  torn: TornBannerVm | null;
   versions: VersionRowVm[];
   rangeCheck: RangeCheckVm | null;
   /** The existing per-copy view of this scope (bindings, unresolved, diagnostics). */
@@ -258,46 +234,23 @@ function notesOf(
         .join('\n'),
     });
   }
-  const fills = verdicts.torn.filter((t) => t.fillingTag === version.tag);
-  if (fills.length > 0) {
-    notes.push({
-      kind: 'fills-torn',
-      label: `fills ${plural(fills.length, 'torn entrypoint', 'torn entrypoints')}`,
-      note: `fills these entrypoints for the shared ${verdicts.electedTag}, which no copy of it contains:\n${fills
-        .map((t) => t.specifier)
-        .join('\n')}`,
-    });
-  }
   if (version.merged) {
     notes.push({
       kind: 'merged',
-      label: `merged · ${plural(version.builds.length, 'build', 'builds')}`,
+      label: `merged · ${plural(shareBuildsOf(version).length, 'build', 'builds')}`,
       note: mergedNoteOf(version),
     });
   }
   return notes;
 }
 
+const shareBuildsOf = (version: VersionVerdict) => version.builds.filter((b) => b.fromShareRow);
+
 function mergedNoteOf(version: VersionVerdict): string {
-  const builds = version.builds.map((b) =>
+  const builds = shareBuildsOf(version).map((b) =>
     b.sourceRemote ? participantDisplay(b.sourceRemote) : 'a build',
   );
-  return `Copies of ${version.tag} merge: the version serves every entrypoint any copy declares, each from the first copy that has it (${builds.join(', ')}). Same version everywhere, so not torn.`;
-}
-
-function tornGroupsOf(verdicts: PackageScopeVerdicts): TornGroupVm[] {
-  const groups = new Map<string, TornGroupVm>();
-  for (const torn of verdicts.torn) {
-    const key = `${torn.fillingTag}\n${torn.fillingRemote ?? ''}`;
-    const group = groups.get(key) ?? {
-      tag: torn.fillingTag,
-      remote: torn.fillingRemote === null ? null : remoteRef(torn.fillingRemote),
-      specifiers: [],
-    };
-    group.specifiers.push(torn.specifier);
-    groups.set(key, group);
-  }
-  return [...groups.values()].sort((a, b) => b.specifiers.length - a.specifiers.length);
+  return `No serving build is recorded, so the map serves each entrypoint of ${version.tag} from the first copy that declares it (${builds.join(', ')}). One version, several builds.`;
 }
 
 function sriOf(version: VersionVerdict): LabelNoteVm & { complete: boolean } {
@@ -337,7 +290,6 @@ function diveOf(
   const runners = verdicts.declarations.filter((d) => d.runsTag === version.tag);
   const builds = version.builds.filter((b) => b.specifiers.length > 0 || b.chunkFiles.length > 0);
   const multi = builds.length > 1;
-  const tornSpecifiers = new Set(verdicts.torn.map((t) => t.specifier));
 
   const mapped =
     version.status === 'shared'
@@ -350,11 +302,9 @@ function diveOf(
             .map((d) => participantDisplay(d.participant))
             .join(', ')}`
         : version.status === 'partly-mapped'
-          ? 'only for the torn entrypoints it fills'
+          ? 'only for the remotes its build serves'
           : 'not mapped';
 
-  const fillsTorn = version.builds.some((b) => b.specifiers.some((s) => tornSpecifiers.has(s)));
-  const tornGroups = tornGroupsOf(verdicts);
   const entrypoints =
     builds.length === 0
       ? null
@@ -362,29 +312,8 @@ function diveOf(
           count: builds.reduce((n, b) => n + b.specifiers.length, 0),
           groups: builds.map((b) => ({
             build: multi && b.sourceRemote ? remoteRef(b.sourceRemote) : null,
-            items: b.specifiers.map((specifier) => ({
-              specifier,
-              torn:
-                tornSpecifiers.has(specifier) && version.tag !== elected
-                  ? {
-                      label: 'torn',
-                      note: `fills this entrypoint for the shared ${elected}, which no copy of ${elected} contains`,
-                    }
-                  : null,
-            })),
+            items: b.specifiers.map((specifier) => ({ specifier })),
           })),
-          fillsTorn:
-            fillsTorn && version.tag !== elected
-              ? { label: 'fills torn entrypoints', note: TORN_NOTE }
-              : null,
-          tornGroup:
-            version.tag === elected && verdicts.torn.length > 0
-              ? {
-                  summary: plural(verdicts.torn.length, 'torn entrypoint', 'torn entrypoints'),
-                  note: TORN_NOTE,
-                  groups: tornGroups,
-                }
-              : null,
         };
   const files =
     builds.length === 0
@@ -466,19 +395,6 @@ function rangeCheckOf(verdicts: PackageScopeVerdicts): RangeCheckVm | null {
   };
 }
 
-function tornBannerOf(verdicts: PackageScopeVerdicts): TornBannerVm | null {
-  if (verdicts.torn.length === 0) return null;
-  const groups = tornGroupsOf(verdicts)
-    .map((g) => `${g.specifiers.length} from ${g.tag}${g.remote ? ` (${g.remote.name})` : ''}`)
-    .join(', ');
-  return {
-    count: verdicts.torn.length,
-    text: `${plural(verdicts.torn.length, 'entrypoint resolves', 'entrypoints resolve')} to a different version than ${verdicts.electedTag}: ${groups}`,
-    note: TORN_NOTE,
-    docsUrl: TORN_DOCS_URL,
-  };
-}
-
 function poolOf(verdicts: PackageScopeVerdicts, pools: readonly TagPool[]): ScopeBlockVm['pool'] {
   const pool = pools.find((p) => p.sharedExternalIds.includes(verdicts.sharedExternalId));
   return pool === undefined
@@ -523,7 +439,6 @@ export function buildPackageView(
             ? 'every exact version shared'
             : 'no shared version elected in this capture',
       pool: poolOf(verdicts, indexes.projection.tagPools),
-      torn: tornBannerOf(verdicts),
       versions: verdicts.versions.map((version) => {
         const shippers = version.declarationIds.map((id) => recordById.get(id)!).filter(Boolean);
         return {

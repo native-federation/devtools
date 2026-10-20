@@ -24,16 +24,13 @@ describe('derivePoolFamilies — outcomes from stored rows', () => {
   it('pooling-anchor: mfe2 is redirected onto mfe1, whose build it serves', () => {
     expect(consumer('pooling-anchor', NF_HOST)).toMatchObject({
       outcome: 'one-build',
-      coherent: null,
     });
     expect(consumer('pooling-anchor', 'mfe1')).toMatchObject({
       outcome: 'one-build',
-      coherent: true,
     });
     expect(consumer('pooling-anchor', 'mfe2')).toMatchObject({
       outcome: 'redirected',
       servingBuilds: { '@nf-lab/conflict-lib': 'mfe1', '@nf-lab/conflict-lib/extra': 'mfe1' },
-      coherent: true,
     });
   });
 
@@ -60,7 +57,6 @@ describe('derivePoolFamilies — outcomes from stored rows', () => {
     const family = familyOf('pool-tag-islanded');
     expect(consumer('pool-tag-islanded', 'mfe1')).toMatchObject({
       outcome: 'one-build',
-      coherent: true,
     });
     expect(consumer('pool-tag-islanded', 'mfe2').outcome).toBe('own-copy');
     expect(family.members.find((member) => member.packageName === '@nf-lab/ui-core')).toEqual({
@@ -74,9 +70,7 @@ describe('derivePoolFamilies — outcomes from stored rows', () => {
   it('pool-tag-coherent: every consumer one build, nothing redirected, not pending', () => {
     const family = familyOf('pool-tag-coherent');
     expect(family.pending).toBe(false);
-    expect(family.consumers.every((entry) => entry.outcome === 'one-build' && entry.coherent)).toBe(
-      true,
-    );
+    expect(family.consumers.every((entry) => entry.outcome === 'one-build')).toBe(true);
     expect(consumer('pool-tag-coherent', 'mfe2').servingBuilds).toEqual({
       '@nf-lab/ui-core': 'mfe1',
       '@nf-lab/ui-dom': 'mfe1',
@@ -84,8 +78,8 @@ describe('derivePoolFamilies — outcomes from stored rows', () => {
   });
 });
 
-// Hand-built rows for states no capture reaches: a torn combination (which
-// pooling prevents), a dirty record, and an entrypoint joining untagged.
+// Hand-built rows for states no capture reaches: a consumer served by two builds, a dirty
+// record, and an entrypoint joining untagged.
 describe('derivePoolFamilies — hand-built records', () => {
   type Row = { remote: string; tag: string; action: string; pool?: string; servedBy?: string };
   const familyFrom = (packages: Record<string, Row[]>, dirty = false) => {
@@ -125,8 +119,8 @@ describe('derivePoolFamilies — hand-built records', () => {
     return derivePoolFamilies(evidence, deriveTagPools(evidence).tagPools, NF_HOST)[0];
   };
 
-  it('flags a torn combination no single build shipped', () => {
-    // mfe2 takes a@2 from mfe3 and b@1 from mfe1; no build ships a@2 + b@1.
+  it('puts a consumer served by two builds in the mixed outcome', () => {
+    // mfe2 takes a from mfe3's build and b from mfe1's.
     const family = familyFrom({
       a: [
         { remote: 'mfe3', tag: '2.0.0', action: 'share', pool: 'p' },
@@ -141,8 +135,7 @@ describe('derivePoolFamilies — hand-built records', () => {
     const mfe2 = family.consumers.find((entry) => entry.remote === 'mfe2')!;
     expect(mfe2).toMatchObject({
       outcome: 'mixed-builds',
-      coherent: false,
-      combination: ['a@2.0.0', 'b@1.0.0'],
+      servingBuilds: { a: 'mfe3', b: 'mfe1' },
     });
   });
 
@@ -237,7 +230,6 @@ describe('derivePoolFamilies — status matrix', () => {
     const pools = poolsOf('pool-showcase');
     expect(pools.get('ui')!.family.statusMatrix.verdict).toEqual({
       kind: 'redirected',
-      torn: [],
       isolated: null,
       redirected: {
         remotes: ['catalog', 'checkout'],

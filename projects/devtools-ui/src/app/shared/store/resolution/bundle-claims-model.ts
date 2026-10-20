@@ -40,8 +40,7 @@ export interface ChunkGroupProjection {
 /**
  * Whether a copy's bundle evidence is backed by registered chunks. Only
  * `mapped-source` may be presented without qualification; `source-only`
- * (bundle declared, no registered chunk group — e.g. named-share-scope or
- * dynamic self-fill) and `ambiguous` (no unique source) surface uncertainty.
+ * (bundle declared, no registered chunk group — e.g. a named share scope) and `ambiguous` (no unique source) surface uncertainty.
  */
 export type BundleClaimStatus = 'mapped-source' | 'source-only' | 'ambiguous';
 

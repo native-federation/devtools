@@ -359,7 +359,6 @@ const STATE_LABELS: Record<ClaimMappingState, string> = {
   'own-selected': 'selected',
   'not-selected': 'not selected',
   anchored: 'anchored',
-  'self-filled': 'self-filled',
   fallback: 'fallback',
   blocked: 'blocked',
   unknown: 'unknown',
@@ -370,7 +369,6 @@ const STATE_NOTES: Record<ClaimMappingState, string> = {
   'not-selected':
     'its own candidate is not the selected target — the binding still resolves through this entry',
   anchored: 'an explicit servedBy anchor selects this target',
-  'self-filled': 'no applicable shared source — the consumer’s own copy fills the binding',
   fallback: 'the binding resolves to the elected shared copy through this entry',
   blocked: 'the matching entry terminally blocks this binding',
   unknown: 'mapping state not derivable from the captured evidence',

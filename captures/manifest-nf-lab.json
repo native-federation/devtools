@@ -1,12 +1,12 @@
 {
   "schemaVersion": "lab-lossless-corpus/1",
-  "runId": "20261020T083840Z",
-  "createdAt": "2026-10-20T08:39:19.663Z",
+  "runId": "20261020T085859Z",
+  "createdAt": "2026-10-20T08:59:44.996Z",
   "source": {
     "playground": {
       "repository": "native-federation/playground",
       "branch": "lab/grouping-and-pooling",
-      "commit": "52a199cd12384fd6a7b8462fc3891b75667d2f51",
+      "commit": "a59ce417580d54a03ead6aefd59f20a2e90464d6",
       "runner": "lab/run-scenario.mjs"
     },
     "orchestratorCommit": "4.8.0",
@@ -41,57 +41,57 @@
   "captures": [
     {
       "scenario": "dense-both",
-      "path": "dense-both/20261020T083840Z.json",
-      "runstamp": "20261020T083840Z",
-      "sha256": "9b4faecf1b73108acd23494c256dc454e9945afb688c58b54dedf897e44999e9"
+      "path": "dense-both/20261020T085859Z.json",
+      "runstamp": "20261020T085859Z",
+      "sha256": "97155e81e0c88e8cfffec10edcc5985687e6c76792a48ef15590ef3826d0200f"
     },
     {
       "scenario": "dense-chunking-only",
-      "path": "dense-chunking-only/20261020T083840Z.json",
-      "runstamp": "20261020T083840Z",
-      "sha256": "361ca892b1925a8a10535e28c8d7566700e8113603f3d98c3af499058a3083dc"
+      "path": "dense-chunking-only/20261020T085859Z.json",
+      "runstamp": "20261020T085859Z",
+      "sha256": "374fc3affedd2184fc53dabe7035e0b8f61513a1ef35ee35a2c5a36a87737760"
     },
     {
       "scenario": "dense-externals-only",
-      "path": "dense-externals-only/20261020T083840Z.json",
-      "runstamp": "20261020T083840Z",
-      "sha256": "5732dd50566f632250792578366bc14b7d9d42d370c2ab456d1b8e62ce4b803d"
+      "path": "dense-externals-only/20261020T085859Z.json",
+      "runstamp": "20261020T085859Z",
+      "sha256": "8d5cae15408663a11f3b3322f743268495b2a9790bde36aa1f3186b7ef261294"
     },
     {
       "scenario": "pool-portfolio",
-      "path": "pool-portfolio/20261020T083840Z.json",
-      "runstamp": "20261020T083840Z",
-      "sha256": "dcf3bf9c097bb2dfec9644a0f6722af7ce6f5df71fb9d481efada1858301fac5"
+      "path": "pool-portfolio/20261020T085859Z.json",
+      "runstamp": "20261020T085859Z",
+      "sha256": "f582a1bbac86c752d718b4c071cc89d824f5d1aedd78b1fc49d903ce0f8b1573"
     },
     {
       "scenario": "pool-showcase",
-      "path": "pool-showcase/20261020T083840Z.json",
-      "runstamp": "20261020T083840Z",
-      "sha256": "ee5c8c54a58b4c62b29384a4817f9b15b316b18456b73f6f8b89d2ca45589d39"
+      "path": "pool-showcase/20261020T085859Z.json",
+      "runstamp": "20261020T085859Z",
+      "sha256": "9bcd1bacc14954f3dd336db6e69d44f5c7f79d6ecfbd8def562130d2fa81a127"
     },
     {
       "scenario": "pool-tag-anchored",
-      "path": "pool-tag-anchored/20261020T083840Z.json",
-      "runstamp": "20261020T083840Z",
-      "sha256": "17cc527c5831329f4e6768b2bb1fdd18412634e5830b4d8ec76cf4b9641856b6"
+      "path": "pool-tag-anchored/20261020T085859Z.json",
+      "runstamp": "20261020T085859Z",
+      "sha256": "3fcd9c16546e01278174a54a810fbb376fac64046a8f4f4d9ab938837d556cbb"
     },
     {
       "scenario": "pool-tag-coherent",
-      "path": "pool-tag-coherent/20261020T083840Z.json",
-      "runstamp": "20261020T083840Z",
-      "sha256": "0b0b1eea749ef916cd8424011b1399ee3a3fb8600da17dc151831d585efcf080"
+      "path": "pool-tag-coherent/20261020T085859Z.json",
+      "runstamp": "20261020T085859Z",
+      "sha256": "4370b277d85d7c6658c421af50a74aebb483c1740f0a74d99d83beaa01ae0ded"
     },
     {
       "scenario": "pool-tag-islanded",
-      "path": "pool-tag-islanded/20261020T083840Z.json",
-      "runstamp": "20261020T083840Z",
-      "sha256": "e516c5bc573bcffec73305d8e23be31e1f2817e49fb01d8d277fab047632c2e9"
+      "path": "pool-tag-islanded/20261020T085859Z.json",
+      "runstamp": "20261020T085859Z",
+      "sha256": "056d45b026a8baa4f64174bf1e31c8df29fc23793a9768bd2169fba74a112877"
     },
     {
       "scenario": "pool-tag-orphan",
-      "path": "pool-tag-orphan/20261020T083840Z.json",
-      "runstamp": "20261020T083840Z",
-      "sha256": "c168570f2c7aaa36ec6245dfb9dfef3ca961fe13cc2544331dc45d447ddbc492"
+      "path": "pool-tag-orphan/20261020T085859Z.json",
+      "runstamp": "20261020T085859Z",
+      "sha256": "99b43485adb4e2fd537926780bf2297671e014f79bb0c6243cf34a45d9844cb3"
     }
   ]
 }

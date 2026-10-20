@@ -8,7 +8,7 @@ import type { PackageDetailVm, PackageViewVm } from './packages-view-model';
 /**
  * Detail pane of the Packages view (packages-verdicts T5/T6): one block per
  * share scope with the versions table, a version's deep dive opened inline
- * under its row, the range check, the torn banner and the per-copy bindings.
+ * under its row, the range check and the per-copy bindings.
  * Dumb over `PackageViewVm`; which version is open is view state.
  */
 @Component({

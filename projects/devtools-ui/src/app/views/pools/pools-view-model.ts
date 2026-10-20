@@ -23,12 +23,11 @@ export const POOL_LEGEND: readonly { state: PoolCellState; label: string }[] = [
   { state: 'unchanged', label: 'unchanged or redirected' },
 ];
 
-// The orchestrator's `PoolCause` (v4.7+), as the short label a verdict leads with. An unknown value is shown raw.
+// The orchestrator's `PoolCause` (4.8), as the short label a verdict leads with. Any other value,
+// such as 4.7's `torn` / `unshared`, is shown raw.
 const CAUSE_LABELS: Record<string, string> = {
   incompatible: 'version conflict',
   uncovered: 'not covered',
-  torn: 'would mix builds',
-  unshared: 'no shared copy',
 };
 
 export interface PoolRemoteVm {
@@ -66,8 +65,8 @@ export interface PoolBandVm {
 
 export interface PoolVerdictVm {
   icon: string;
-  /** Only isolation and a torn combination are coloured. */
-  tone: 'isolated' | 'torn' | 'quiet';
+  /** Only isolation is coloured. */
+  tone: 'isolated' | 'quiet';
   type: string;
   cause: string | null;
   who: string;
@@ -135,7 +134,7 @@ export function hasPoolTags(projection: CanonicalResolutionProjection): boolean 
 
 // Problem pools first, in the verdict's own order.
 function severity(family: PoolFamily): number {
-  return ['torn', 'isolated', 'redirected', 'one-build'].indexOf(family.statusMatrix.verdict.kind);
+  return ['isolated', 'redirected', 'one-build'].indexOf(family.statusMatrix.verdict.kind);
 }
 
 function poolCardOf(pool: TagPool, family: PoolFamily, allPools: readonly TagPool[]): PoolCardVm {
@@ -244,15 +243,6 @@ function rangeNote(cell: PoolStatusCell): string {
 function verdictOf(verdict: PoolVerdict): PoolVerdictVm {
   const redirect = verdict.redirected;
   switch (verdict.kind) {
-    case 'torn':
-      return {
-        icon: '✕',
-        tone: 'torn',
-        type: 'Mixed builds',
-        cause: null,
-        who: names(verdict.torn),
-        why: 'no single build ships their combination',
-      };
     case 'isolated': {
       const isolated = verdict.isolated!;
       const why = [

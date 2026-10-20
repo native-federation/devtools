@@ -14,10 +14,11 @@ hidden until its view lands.
 every registered version with its status (shared, scoped, partly mapped, not
 mapped) and the resolver's verdict per declaration (provides, same version,
 reuses shared, own copy, out of range). Filters for multiple versions, out of
-range, isolated and torn packages; a range check per scope; a per-version deep
-dive with shipped by, entrypoints and files (grouped per build when one
-version merges several builds), SRI coverage; the per-copy bindings stay
-available per scope.
+range and isolated packages; a range check per scope; a per-version deep dive
+with shipped by, entrypoints and files (grouped per build when a version has
+several), SRI coverage; the per-copy bindings stay available per scope.
+Orchestrator 4.8 borrows no entrypoint from another build, so the devtool shows
+no torn entrypoints; older pages render without them.
 
 **Remotes** — the same data from each participant's point of view: exposes
 with their mapped targets, the remote's own dependency declarations and where
@@ -37,10 +38,11 @@ chunk bundle — with honest outcomes where attribution cannot be proven.
 
 **Pools** — one card per explicit pool tag (`pool` on a shared external): a
 matrix of every remote's copy of every member, grouped by the build it loads,
-and one verdict per pool (one build, redirected, isolated, torn). Membership
-is rebuilt from the stored tags exactly as the orchestrator forms it; the
+and one verdict per pool (one build, redirected, isolated). Membership is
+rebuilt from the stored tags exactly as the orchestrator forms it; the
 outcomes are read off the rows pooling wrote back (`servedBy`, `scope`) and
-the stored `poolCause` (orchestrator 4.7+). The tab appears only when the
+the stored `poolCause` (orchestrator 4.8: `incompatible` or `uncovered`; older
+values are shown raw). The tab appears only when the
 capture carries a pool tag.
 
 Any snapshot can be exported as JSON, which doubles as a reproducible bug

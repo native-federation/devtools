@@ -1,6 +1,6 @@
 {
   "schemaVersion": "lab-lossless-capture/1",
-  "capturedAt": "2026-10-20T08:38:58.458Z",
+  "capturedAt": "2026-10-20T08:59:18.396Z",
   "scenario": {
     "scenarioId": "pool-showcase",
     "orchestratorCommit": "4.8.0",
@@ -21,7 +21,7 @@
   "channels": {
     "nativeFederationGlobals": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:38:58.458Z",
+      "observedAt": "2026-10-20T08:59:18.395Z",
       "data": {
         "present": true,
         "valueType": "object",
@@ -410,7 +410,7 @@
     },
     "orchestratorGlobal": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:38:58.458Z",
+      "observedAt": "2026-10-20T08:59:18.395Z",
       "data": {
         "present": true,
         "valueType": "object",
@@ -436,7 +436,7 @@
     },
     "domImportMaps": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:38:58.458Z",
+      "observedAt": "2026-10-20T08:59:18.395Z",
       "data": {
         "count": 1,
         "maps": [
@@ -484,7 +484,7 @@
     },
     "importShim": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:38:58.458Z",
+      "observedAt": "2026-10-20T08:59:18.395Z",
       "data": {
         "present": true,
         "valueType": "function",
