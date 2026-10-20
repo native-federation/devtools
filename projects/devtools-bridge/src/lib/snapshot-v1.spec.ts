@@ -50,7 +50,7 @@ describe('SnapshotV1 pooling-anchor compatibility (T2.1-AC-01, T2.1-AC-02)', () 
     const roundTripped: SnapshotV1 = JSON.parse(JSON.stringify(FIXTURES['pooling-anchor']));
 
     expect(roundTripped.schemaVersion).toBe(1);
-    expect(roundTripped.capture.collectorVersion).toBe('nf-devtools-collector/4');
+    expect(roundTripped.capture.collectorVersion).toBe('nf-devtools-collector/5');
 
     const declarations = Object.entries(roundTripped.runtime!.sharedExternals).flatMap(
       ([scope, packages]) =>

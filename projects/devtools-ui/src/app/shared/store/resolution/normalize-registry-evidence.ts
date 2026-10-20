@@ -242,6 +242,8 @@ export function normalizeRegistryEvidence(
         packageName,
         dirty: external.dirty,
         poolName: typeof external.poolName === 'string' ? external.poolName : null,
+        poolWinner: typeof external.poolWinner === 'string' ? external.poolWinner : null,
+        servingBuild: typeof external.servingBuild === 'string' ? external.servingBuild : null,
         versionRegistrationIds,
         provenance: provenance(presentEvidence(sharedPath)),
       });

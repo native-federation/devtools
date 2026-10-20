@@ -13,7 +13,7 @@ export const poolingAnchorFixture: SnapshotV1 = {
     "pageUrl": "http://localhost:4300/",
     "capturedAt": "2026-08-16T18:25:44.271Z",
     "mode": "passive",
-    "collectorVersion": "nf-devtools-collector/4"
+    "collectorVersion": "nf-devtools-collector/5"
   },
   "channels": {
     "nativeFederationGlobals": {

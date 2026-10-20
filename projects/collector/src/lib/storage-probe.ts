@@ -3,7 +3,7 @@
  * probe's guarantees, next to shim-map-probe.ts.
  *
  * An orchestrator configured with `localStorageEntry` / `sessionStorageEntry`
- * keeps its four repositories as JSON strings under `<namespace>.<key>`
+ * keeps its repositories as JSON strings under `<namespace>.<key>`
  * in web storage instead of on a global. Reaching a Storage object means
  * running the Window's `localStorage` / `sessionStorage` getter, which the
  * strictly passive probe (passive-probe.ts) must never do — so the access
@@ -16,7 +16,7 @@
  * page. Past that one access everything is descriptor-level: items are
  * read as the Storage object's named own properties, so `getItem` (which a
  * page could patch) is never called, storage is never enumerated, and only
- * the four `<namespace>.<key>` names are read. Values leave as bounded raw
+ * the five `<namespace>.<key>` names are read. Values leave as bounded raw
  * strings; JSON parsing and schema projection happen host-side in the
  * mapper.
  *
@@ -115,7 +115,7 @@ export const STORAGE_PROBE_SOURCE = `(() => {
   const storageNames = source.discovery === "default"
     ? ["localStorage", "sessionStorage"]
     : ["localStorage", "sessionStorage"].filter((name) => name === source.type);
-  const repositoryKeys = ["remotes", "scoped-externals", "shared-externals", "shared-chunks"];
+  const repositoryKeys = ["remotes", "scoped-externals", "shared-externals", "shared-chunks", "cache-state"];
 
   const readStorage = (name) => {
     let storage;
@@ -150,7 +150,7 @@ export const STORAGE_PROBE_SOURCE = `(() => {
   }
 
   return {
-    schemaVersion: "storage-probe/1",
+    schemaVersion: "storage-probe/2",
     source,
     storages,
     errors

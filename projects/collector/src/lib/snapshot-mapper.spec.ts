@@ -97,7 +97,7 @@ function makeRawAnchorProbe(
   });
 
   return {
-    schemaVersion: 'passive-probe/4',
+    schemaVersion: 'passive-probe/5',
     page: { origin: 'https://edge.example', path: '/', readyState: 'complete' },
     globals: {
       nativeFederation: {
@@ -150,10 +150,22 @@ function registerAnchorProjectionTests(
       expect(capturedAnchor(stored).poolCause).toBe('uncovered');
 
       const legacy = capture(makeAnchorParticipant());
-      expect(hasOwn(legacy.runtime!.sharedExternals['__GLOBAL__']['anchor-package'], 'poolName')).toBe(
-        false,
-      );
+      expect(
+        hasOwn(legacy.runtime!.sharedExternals['__GLOBAL__']['anchor-package'], 'poolName'),
+      ).toBe(false);
       expect(hasOwn(capturedAnchor(legacy), 'poolCause')).toBe(false);
+    });
+
+    it('keeps v4.8 poolWinner and servingBuild, and omits non-strings', () => {
+      const stored = capture(makeAnchorParticipant(), { poolWinner: 'mfe1', servingBuild: 'host' });
+      const external = stored.runtime!.sharedExternals['__GLOBAL__']['anchor-package'];
+      expect(external.poolWinner).toBe('mfe1');
+      expect(external.servingBuild).toBe('host');
+
+      const malformed = capture(makeAnchorParticipant(), { poolWinner: 7, servingBuild: null });
+      const dropped = malformed.runtime!.sharedExternals['__GLOBAL__']['anchor-package'];
+      expect(hasOwn(dropped, 'poolWinner')).toBe(false);
+      expect(hasOwn(dropped, 'servingBuild')).toBe(false);
     });
 
     it.each(ANCHOR_FIELDS)('omits a non-string %s without coercion', (field: AnchorField) => {
@@ -483,7 +495,10 @@ describe('unrecognized shapes (T7-AC-04)', () => {
           remotes: {},
           'shared-externals': {
             __GLOBAL__: {
-              pkg: { dirty: false, versions: [{ tag: '1.0.0', action: 'share', host: false, remotes }] },
+              pkg: {
+                dirty: false,
+                versions: [{ tag: '1.0.0', action: 'share', host: false, remotes }],
+              },
             },
           },
         },
@@ -496,7 +511,9 @@ describe('unrecognized shapes (T7-AC-04)', () => {
       const raw = evaluateProbe(PASSIVE_PROBE_SOURCE, page([participant(extra)]));
       const snapshot = mapProbeResult(raw, null, { capturedAt: CAPTURED_AT });
       // The participant row is dropped, never silently normalized…
-      expect(snapshot.runtime!.sharedExternals['__GLOBAL__']['pkg'].versions[0].remotes).toEqual([]);
+      expect(snapshot.runtime!.sharedExternals['__GLOBAL__']['pkg'].versions[0].remotes).toEqual(
+        [],
+      );
       // …and the drop is recorded loudly.
       expect(snapshot.errors).toContainEqual({
         stage: 'mapper',
@@ -545,8 +562,20 @@ describe('unrecognized shapes (T7-AC-04)', () => {
                   action: 'share',
                   host: false,
                   remotes: [
-                    { name: 'a', requiredVersion: '^1', strictVersion: false, cached: true, file: 'a.js' },
-                    { name: 'b', requiredVersion: '^1', strictVersion: false, cached: true, entries: { pkg: 'b.js' } },
+                    {
+                      name: 'a',
+                      requiredVersion: '^1',
+                      strictVersion: false,
+                      cached: true,
+                      file: 'a.js',
+                    },
+                    {
+                      name: 'b',
+                      requiredVersion: '^1',
+                      strictVersion: false,
+                      cached: true,
+                      entries: { pkg: 'b.js' },
+                    },
                   ],
                 },
               ],

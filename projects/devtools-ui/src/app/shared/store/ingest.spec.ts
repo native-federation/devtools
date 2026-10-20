@@ -427,9 +427,7 @@ describe('ingestSnapshot — SPA-navigated capture (resolution base recovery)', 
 
     const host = model.remotes.find((remote) => remote.isHost)!;
     expect(host.resolvedScopeUrl).toBe('https://seeded.example/playground/');
-    expect(model.effectiveMap.imports['pkg']).toBe(
-      'https://seeded.example/playground/pkg.hash.js',
-    );
+    expect(model.effectiveMap.imports['pkg']).toBe('https://seeded.example/playground/pkg.hash.js');
 
     const projection = model.resolutionProjection;
     expect(projection.copies).toHaveLength(1);
@@ -764,7 +762,7 @@ describe('ingestSnapshot — provenance carry', () => {
       schemaVersion: 1,
       pageUrl: 'https://lutzleonhardt.de/frankenstein-meeting-room/',
       capturedAt: '2026-08-11T11:56:25.504Z',
-      collectorVersion: 'nf-devtools-collector/4',
+      collectorVersion: 'nf-devtools-collector/5',
       generation: 'v4',
       runtimeSource: {
         storage: 'globalThis',
@@ -773,8 +771,40 @@ describe('ingestSnapshot — provenance carry', () => {
         orchestratorVersion: null,
         otherNamespaces: [],
       },
+      cacheState: null,
     });
     expect(model.channels).toEqual(FIXTURES['frankenstein-live'].channels);
+  });
+
+  // No 4.8 capture exists yet (plan Task 2), so the 4.8 fields are grafted onto a 4.7 one.
+  it('carries the 4.8 cache state and serving fields, null when absent', () => {
+    const base = FIXTURES['pool-showcase'];
+    const scopes = structuredClone(base.runtime!.sharedExternals);
+    const [packageName, external] = Object.entries(scopes['__GLOBAL__'])[0];
+    scopes['__GLOBAL__'][packageName] = { ...external, poolWinner: 'host', servingBuild: 'mfe1' };
+    const model = ingestSnapshot({
+      ...base,
+      runtime: {
+        ...base.runtime!,
+        sharedExternals: scopes,
+        cacheState: { version: '4.8.0', undecidedScopes: ['__GLOBAL__'] },
+      },
+    });
+
+    expect(model.provenance.cacheState).toEqual({
+      version: '4.8.0',
+      undecidedScopes: ['__GLOBAL__'],
+    });
+    const records = model.registryEvidence.sharedExternals;
+    const record = records.find(
+      (r) => r.shareScope === '__GLOBAL__' && r.packageName === packageName,
+    );
+    expect(record).toMatchObject({ poolWinner: 'host', servingBuild: 'mfe1' });
+    expect(
+      records
+        .filter((r) => r !== record)
+        .every((r) => r.poolWinner === null && r.servingBuild === null),
+    ).toBe(true);
   });
 });
 
