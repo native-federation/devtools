@@ -68,6 +68,14 @@ function rangeText(rejections: readonly Rejection[], which: string): string {
   return `its range ${clauses.join('; ')}`;
 }
 
+// A stored `servedBy` (orchestrator 4.8): the subpool whose build the declaration runs; its owner names itself.
+export function subpoolWhereText(owner: string | null, participant: string): string {
+  if (owner === null) return 'runs another build in a subpool';
+  return owner === participant
+    ? 'its build serves a subpool of its pool'
+    : `runs ${participantDisplay(owner)}'s build in a subpool of its pool`;
+}
+
 /** `<cause>: <text>` for a package verdict's reason; null when nothing explains it. */
 export function placementReasonText(reason: PlacementReason): string | null {
   const surface =

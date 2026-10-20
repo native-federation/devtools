@@ -149,6 +149,8 @@ export interface DependencyGraphNode extends GraphNodeBase {
   toggleX: number;
   /** The accordion-open copy: its secondary entrypoints list below it. */
   expanded: boolean;
+  /** Why an isolated copy runs on its own; null on a shared copy. */
+  note: string | null;
 }
 
 export interface ChunkGraphNode extends GraphNodeBase {

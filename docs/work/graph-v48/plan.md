@@ -20,6 +20,9 @@ tsconfig mappings, secondary version stamps) are build-time and do not reach the
 
 ## Task 1: Graph wording without "borrowed"
 
+Status: DONE (`e6b56f6`). Amendment: the edge-state table is graph-local (`EDGE_STATE_TEXT`);
+Import Map's labels are single words for a claim row.
+
 ### Instructions
 
 - Toolbar hint (`graph.html`): `dotted edge = borrowed` → `dotted edge = another remote's copy`.
@@ -34,6 +37,9 @@ tsconfig mappings, secondary version stamps) are build-time and do not reach the
 - **T1-AC-02** — no edge tooltip contains a raw state value (`not-selected`, `own-selected`, `anchored`).
 
 ## Task 2: Isolated nodes and subpool edges say why
+
+Status: DONE. Amendment: T2-AC-04 is covered by the existing all-tabs render spec over the
+pre-4.8 corpus; no new pin.
 
 ### Instructions
 

@@ -290,7 +290,7 @@ describe('buildGraphModel', () => {
   it('renders pooling-anchor anchored relations dotted and orders equal labels by copy ID', () => {
     const model = modelOf('pooling-anchor');
 
-    const anchored = model.edges.filter((e) => e.tooltip === "a subpool's build");
+    const anchored = model.edges.filter((e) => e.tooltip?.includes('subpool of its pool'));
     expect(anchored.length).toBe(2);
     expect(anchored.every((e) => e.style === 'dotted')).toBe(true);
     expect(anchored.map((e) => e.sourceId).sort()).toEqual(['mfe1', 'mfe2']);
@@ -954,6 +954,66 @@ describe('buildGraphModel', () => {
     const byDependency = new Map(model.bundleEdgeRefs.map((r) => [r.dependencyKey, r.colorIndex]));
     expect(byDependency.get('dependency:copy-colored')).toBe(3);
     expect(byDependency.get('dependency:copy-host')).toBeNull();
+  });
+});
+
+// graph-v48 T2: isolated nodes and subpool edges carry the placement reason
+// the Packages verdicts derive, worded by `shared/placement-text.ts`.
+describe('buildGraphModel — placement notes (orchestrator 4.8)', () => {
+  const notesOf = (model: GraphModel) =>
+    dependencyNodesOf(model)
+      .filter((node) => node.note !== null)
+      .map((node) => [node.label, node.subLabel, node.note]);
+
+  // T2-AC-01: an unpooled fallback names the entrypoints the serving build lacks.
+  it('fallback-uncovered: each falling-back copy names its missing entrypoints', () => {
+    expect(notesOf(modelOf('fallback-uncovered'))).toEqual([
+      [
+        '@nf-lab/kit',
+        '1.2.0',
+        'runs its own build — not covered: the serving build of host lacks @nf-lab/kit/table, @nf-lab/kit/table/sort, @nf-lab/kit/table/paginator, @nf-lab/kit/dialog, @nf-lab/kit/forms',
+      ],
+      [
+        '@nf-lab/kit',
+        '1.3.0',
+        'runs its own build — not covered: the serving build of host lacks @nf-lab/kit/charts, @nf-lab/kit/charts/legend, @nf-lab/kit/date-picker',
+      ],
+    ]);
+  });
+
+  // T2-AC-02: a pooled isolation names range, tag and strictness.
+  it('pool-incompatible-nonstrict: the isolated pool members name the rejecting range', () => {
+    const reason =
+      'runs its own build — version conflict: its range ^1.0.0 (not strict) rejects the global 2.0.0 of @nf-lab/ui-core, @nf-lab/ui-dom';
+    expect(notesOf(modelOf('pool-incompatible-nonstrict'))).toEqual([
+      ['@nf-lab/ui-core', '1.1.0', reason],
+      ['@nf-lab/ui-dom', '1.1.0', reason],
+    ]);
+  });
+
+  // T2-AC-03: a subpool member's edge names the owner's build and the pool's reason;
+  // the owner's own edge says its build serves the subpool.
+  it('pool-showcase: subpool edges name the owner and the reason', () => {
+    const model = modelOf('pool-showcase');
+    const labelById = new Map(model.nodes.map((node) => [node.id, node.label]));
+    const tooltipOf = (remote: string, label: string) =>
+      model.edges.find((e) => e.sourceId === remote && labelById.get(e.targetId) === label)
+        ?.tooltip;
+    const reason = 'not covered: the global map lacks @nf-lab/ui-dom';
+    expect(tooltipOf('catalog', '@nf-lab/ui-dom')).toBe(
+      `runs admin's build in a subpool of its pool — ${reason}`,
+    );
+    expect(tooltipOf('admin', '@nf-lab/ui-dom')).toBe(
+      `its build serves a subpool of its pool — ${reason}`,
+    );
+  });
+
+  it('leaves shared copies without a note and marks private copies as such', () => {
+    expect(notesOf(modelOf('co-declared-share'))).toEqual([]);
+    expect(notesOf(modelOf('scoped')).map(([, , note]) => note)).toEqual([
+      'private registration — a scoped external, not shared',
+      'private registration — a scoped external, not shared',
+    ]);
   });
 });
 

@@ -280,12 +280,12 @@ describe('GraphView', () => {
     expect(el.querySelectorAll('path.graph-edge').length).toBe(projection.consumerRelations.length);
   });
 
-  // T1-AC-03: the anchored relation renders dotted with `anchored` listed;
-  // private copies render with the isolated (dashed) metadata.
+  // T1-AC-03: the anchored relations render dotted and name the subpool
+  // (graph-v48 T2); private copies render with the isolated (dashed) metadata.
   it('renders pooling-anchor anchored edges dotted and scoped copies isolated', async () => {
     const anchorEl = await createView('pooling-anchor');
     const dottedTitles = edgeTitles(anchorEl, true);
-    expect(dottedTitles.filter((title) => title === "a subpool's build").length).toBe(2);
+    expect(dottedTitles.filter((title) => title.includes('subpool of its pool')).length).toBe(2);
 
     TestBed.resetTestingModule();
     const scopedEl = await createView('scoped');
@@ -293,6 +293,17 @@ describe('GraphView', () => {
     expect(dependencies.length).toBe(2);
     expect(dependencies.every((node) => node.classList.contains('isolated'))).toBe(true);
     expect(scopedEl.querySelectorAll('.graph-node.remote.isolated').length).toBe(0);
+  });
+
+  // graph-v48 T2-AC-01: the dashed node's tooltip says why it runs its own build.
+  it('titles a falling-back copy with the label and its reason', async () => {
+    const el = await createView('fallback-uncovered');
+    const titles = Array.from(el.querySelectorAll('.graph-node.dependency.isolated')).map(
+      (node) => node.querySelector('title')?.textContent ?? '',
+    );
+    expect(titles).toContain(
+      '@nf-lab/kit\nruns its own build — not covered: the serving build of host lacks @nf-lab/kit/charts, @nf-lab/kit/charts/legend, @nf-lab/kit/date-picker',
+    );
   });
 
   // T1-AC-05: forbidden delivery vocabulary never reaches the rendered DOM.
