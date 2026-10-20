@@ -33,8 +33,8 @@ guesses.
 
 - 📦 **Packages** — the negotiation, per package and share scope: every
   version, the resolver's verdict for each remote, and a deep dive into who
-  ships it, its entrypoints and its files. Out-of-range remotes and isolated
-  copies are called out, not averaged away.
+  ships it, its entrypoints and its files. Out-of-range remotes, own copies
+  and subpools are called out with the reason, not averaged away.
 - 🛰️ **Remotes** — each participant from its own point of view: what it
   exposes, what it declares, and where every single dependency really
   resolves.
@@ -43,10 +43,10 @@ guesses.
   them, group the dependency column by provider, share scope, pool, or build.
 - 🗺️ **Import Map** — the effective map, row by row, each entry attributed
   to its package, its provider, and the chunk bundle that serves it.
-- 🧩 **Pools** — one matrix per explicit pool tag: which build each remote
-  loads the family from, which copies pooling redirected or isolated, and
-  the reason the orchestrator stored. Appears only when the capture carries
-  pool tags.
+- 🧩 **Pools** — one matrix per explicit pool tag: which remotes run on the
+  global map, in a subpool, or on their own build, and why — every range
+  rejection and every entrypoint the global map lacks. Appears only when the
+  capture carries pool tags.
 - 📤 **Export JSON** — freeze the entire snapshot to a file. Doubles as a
   reproducible bug report.
 - 🔒 **Read-only, zero permissions** — no host permissions, no content
@@ -88,6 +88,20 @@ it isn't strict — the orchestrator stores a plain skip for it.
 
 Exposes, provided packages, and — line by line — which dependency this remote
 consumes from whom, and which own version lost the negotiation.
+
+## Why a remote left the pool
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/pools-dark.png">
+  <img src="docs/assets/readme/pools-light.png" alt="The Pools tab: pool acme with the host's build on the global map, five remotes in a subpool on contacts' build because the global map lacks acme-animations and acme-forms, and legacy on its own build because its range rejects three global versions">
+</picture>
+
+The host's build serves the global map, but it ships neither `acme-animations`
+nor `acme-forms`, so five remotes share a subpool on contacts' build instead.
+`legacy` runs the whole family from its own build: its ranges reject three of
+the global versions, each one listed. Reasons are recomputed from the stored
+records with the orchestrator's own rules and checked against the cause it
+stored.
 
 ## Requirements
 

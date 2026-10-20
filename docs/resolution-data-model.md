@@ -571,6 +571,7 @@ classDiagram
     +string? electedTag
     +VersionVerdict[] versions
     +DeclarationVerdictRecord[] declarations
+    +string? servingBuild
   }
   class VersionVerdict {
     +string tag
@@ -583,6 +584,8 @@ classDiagram
     +ParticipantDeclarationId declarationId
     +DeclarationVerdict verdict
     +boolean? acceptsElected
+    +PlacementReason? reason
+    +string? subpoolOf
     +string? runsTag
   }
   class TagPool {
@@ -724,10 +727,18 @@ Package verdicts restate the resolver's own decisions per registry key
 (share scope, package), the Packages tab's read surface. The elected tag is
 the `share` row (none in the `strict` scope); each declaration's verdict is
 read off its row action — first participant of the `share` row `provides`,
-a `scope` row is an `own-copy`, a `skip` row `reuses-shared` — and the one
-computation is again the `semver` range check, which tells `reuses-shared`
-from `out-of-range` (a non-strict declaration the orchestrator left on a
-plain `skip` although its range rejects the elected tag). Each registered
+a `scope` row is an `own-copy`, a `skip` row with a `servedBy` runs a
+`subpool`, any other `skip` row `reuses-shared` — and the one computation is
+again the `semver` range check (a copy's own tag always passes, as in
+`createAcceptsTag`), which tells `reuses-shared` from `out-of-range` (a
+non-strict declaration the orchestrator left on a plain `skip` although its
+range rejects the elected tag). An `own-copy` or `subpool` declaration
+carries a `reason`: in a tag pool, its pool family consumer's recomputed miss
+and stored cause; otherwise recomputed against the package's stored
+`servingBuild` as `serving.ts` `fallsBack` judges it — a strict range that
+rejects the serving tag, entrypoints the serving build does not publish, or
+the package shipped at two tags (a root and its flat secondaries form one
+package). A placement the stored rows do not explain has no miss. Each registered
 version carries its status (`shared`, `scoped`, `partly-mapped`,
 `not-mapped`) and its builds, the copies that materialize it with their
 entry and chunk files; `merged` marks a shared version the map assembles from

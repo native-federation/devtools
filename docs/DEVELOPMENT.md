@@ -13,17 +13,23 @@ hidden until its view lands.
 **Packages** — one row per package; per share scope the elected version and
 every registered version with its status (shared, scoped, partly mapped, not
 mapped) and the resolver's verdict per declaration (provides, same version,
-reuses shared, own copy, out of range). Filters for multiple versions, out of
-range and isolated packages; a range check per scope; a per-version deep dive
-with shipped by, entrypoints and files (grouped per build when a version has
-several), SRI coverage; the per-copy bindings stay available per scope.
+reuses shared, subpool, own copy, out of range). An own copy or subpool says
+why: in a pool, the pool's reason; otherwise what the package's stored serving
+build does not serve (a strict range it rejects, entrypoints it lacks, a
+second version). Filters for multiple versions, out of range and isolated
+packages; a range check per scope (a copy's own version always passes); a
+per-version deep dive with shipped by, a Why line, entrypoints (marked where
+the serving build or global map lacks them) and files (grouped per build when
+a version has several), SRI coverage; the per-copy bindings stay available per
+scope.
 Orchestrator 4.8 borrows no entrypoint from another build, so the devtool shows
 no torn entrypoints; older pages render without them.
 
 **Remotes** — the same data from each participant's point of view: exposes
 with their mapped targets, the remote's own dependency declarations and where
-each one resolves, capability evidence (SRI, dense chunking), chunk
-attribution, and scoped externals.
+each one resolves (`subpool of <owner>` / `isolated` chips carry the reason),
+capability evidence (SRI, dense chunking), chunk attribution, and scoped
+externals.
 
 **Graph** — remotes, dependencies, and build files as one traceable picture:
 tick remotes to include or exclude their consumers, hover to trace a
@@ -36,14 +42,20 @@ borrowed dependencies.
 owner-consensus headers, each row attributed to its package, provider, and
 chunk bundle — with honest outcomes where attribution cannot be proven.
 
-**Pools** — one card per explicit pool tag (`pool` on a shared external): a
-matrix of every remote's copy of every member, grouped by the build it loads,
-and one verdict per pool (one build, redirected, isolated). Membership is
-rebuilt from the stored tags exactly as the orchestrator forms it; the
-outcomes are read off the rows pooling wrote back (`servedBy`, `scope`) and
-the stored `poolCause` (orchestrator 4.8: `incompatible` or `uncovered`; older
-values are shown raw). The tab appears only when the
-capture carries a pool tag.
+**Pools** — one card per explicit pool tag (`pool` on a shared external): how
+much of what the remotes import the global map serves, then a matrix of every
+remote's copy of every member, banded by where it runs — the global map (the
+stored winner, plus packages it takes from other builds), a subpool on another
+remote's build, or its own build — and one verdict per pool. Every remote off
+the global map gets its reason: every range rejection (strict or not, own
+version exempt), every entrypoint the global map lacks, or a combination no
+single build ships; `rejected` and `gap` cells mark where. Membership is
+rebuilt from the stored tags exactly as the orchestrator forms it; placement
+is read off the rows pooling wrote back (`servedBy`, `scope`), the reason is
+recomputed with the orchestrator 4.8 rules and checked against the stored
+`poolCause`; a contradiction reads as unexplained, never guessed. A pool is
+pending while a member is `dirty` or a runtime load left its scope undecided
+(`cache-state`). The tab appears only when the capture carries a pool tag.
 
 Any snapshot can be exported as JSON, which doubles as a reproducible bug
 report.
@@ -102,7 +114,9 @@ npm test         # UI, bridge, collector, and guard suites
 The dev panel can replay captured scenarios without a running application via
 `?fixture=<id>` — strict share scopes, split versions across remotes, scope
 isolation, dynamic initialization, explicit pool tags (coherent, islanded,
-anchored, orphan, a four-pool showcase, a twelve-remote portfolio), the dense
+anchored, orphan, a four-pool showcase, a twelve-remote portfolio) and the 4.8
+placement reasons (uncovered gap, non-strict rejection, unshipped combination,
+own-version range), the dense
 remoteEntry formats, a live capture of a deployed Angular/React host, and
 synthetic storage-discovery states (web storage, custom namespace, custom
 adapter).
