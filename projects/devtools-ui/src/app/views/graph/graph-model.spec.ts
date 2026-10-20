@@ -249,7 +249,7 @@ describe('buildGraphModel', () => {
     expect(bySource.get('mfe2')).toEqual(
       expect.objectContaining({
         style: 'dotted',
-        tooltip: 'served by mfe1 (its own is not selected)',
+        tooltip: 'served by mfe1',
       }),
     );
   });
@@ -289,10 +289,18 @@ describe('buildGraphModel', () => {
   // listed; since T2, cluster order (host first, then mfe1) precedes the
   // label/copy-ID order within a cluster.
   it('renders pooling-anchor anchored relations dotted and orders equal labels by copy ID', () => {
-    const model = modelOf('pooling-anchor');
+    const projection = projectionOf('pooling-anchor');
+    const model = buildGraphModel(projection);
 
-    const anchored = model.edges.filter((e) => e.tooltip?.match(/^(its own copy|served by mfe1)$/));
+    const anchoredIds = new Set(
+      projection.consumerRelations
+        .filter((r) => r.mappingStates.includes('anchored'))
+        .map((r): string => r.id),
+    );
+    const anchored = model.edges.filter((e) => anchoredIds.has(e.id));
     expect(anchored.length).toBe(2);
+    // The subpool owner's edge is its own copy; the member's names the owner.
+    expect(anchored.map((e) => e.tooltip).sort()).toEqual(['its own copy', 'served by mfe1']);
     expect(anchored.every((e) => e.style === 'dotted')).toBe(true);
     expect(anchored.map((e) => e.sourceId).sort()).toEqual(['mfe1', 'mfe2']);
 
@@ -467,9 +475,7 @@ describe('buildGraphModel', () => {
       }),
     );
     expect(model.edges[0].style).toBe('dotted');
-    expect(model.edges[0].tooltip).toBe(
-      "the shared copy (it skips its own); another remote's copy (its own is not selected); its own copy",
-    );
+    expect(model.edges[0].tooltip).toBe("the shared copy; another remote's copy; its own copy");
   });
 
   // Review regression: remote names are arbitrary capture strings — one that
@@ -799,7 +805,7 @@ describe('buildGraphModel', () => {
       expect.objectContaining({
         sourceId: 'mfe2',
         style: 'dotted',
-        tooltip: 'served by mfe1 (its own is not selected)',
+        tooltip: 'served by mfe1',
       }),
     ]);
   });

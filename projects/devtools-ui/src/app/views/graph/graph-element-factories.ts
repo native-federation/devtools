@@ -189,8 +189,8 @@ export function remoteOrder(a: RemoteProjection, b: RemoteProjection): number {
 
 const EDGE_STATE_TEXT: Record<ClaimMappingState, string> = {
   'own-selected': 'its own copy',
-  'not-selected': "another remote's copy (its own is not selected)",
-  fallback: 'the shared copy (it skips its own)',
+  'not-selected': "another remote's copy",
+  fallback: 'the shared copy',
   anchored: "another remote's build",
   blocked: 'blocked by the map',
   unknown: 'not derivable from the capture',
@@ -204,12 +204,7 @@ function servedByText(state: ClaimMappingState, consumer: string, server: string
   if (server === consumer) {
     return 'its own copy';
   }
-  const servedBy = `served by ${participantDisplay(server)}`;
-  return state === 'fallback'
-    ? `${servedBy} (it skips its own)`
-    : state === 'not-selected'
-      ? `${servedBy} (its own is not selected)`
-      : servedBy;
+  return `served by ${participantDisplay(server)}`;
 }
 
 export function edgeOf(

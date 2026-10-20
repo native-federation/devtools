@@ -248,7 +248,7 @@ describe('GraphView', () => {
     const edges = el.querySelectorAll<SVGPathElement>('path.graph-edge');
     expect(edges.length).toBe(2);
     expect(el.querySelectorAll('path.graph-edge.dotted').length).toBe(1);
-    expect(edgeTitles(el, true)).toEqual(['served by mfe1 (its own is not selected)']);
+    expect(edgeTitles(el, true)).toEqual(['served by mfe1']);
     expect(edgeTitles(el, false)).toEqual(['']);
 
     // Review follow-up: every edge carries an invisible wide hit path with
@@ -285,9 +285,8 @@ describe('GraphView', () => {
   it('renders pooling-anchor anchored edges dotted and scoped copies isolated', async () => {
     const anchorEl = await createView('pooling-anchor');
     const dottedTitles = edgeTitles(anchorEl, true);
-    expect(
-      dottedTitles.filter((title) => /^(its own copy|served by mfe1)$/.test(title)).length,
-    ).toBe(2);
+    // Two anchored edges (owner and member) plus mfe2's not-selected `extra` edge.
+    expect(dottedTitles.sort()).toEqual(['its own copy', 'served by mfe1', 'served by mfe1']);
 
     TestBed.resetTestingModule();
     const scopedEl = await createView('scoped');
