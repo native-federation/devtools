@@ -2,7 +2,7 @@
 // cases pin the null contract and the ranges the Pools tab actually meets.
 import { describe, expect, it } from 'vitest';
 
-import { satisfiesRange } from './semver-range';
+import { acceptsTag, satisfiesRange } from './semver-range';
 
 describe('satisfiesRange', () => {
   it.each([
@@ -27,5 +27,18 @@ describe('satisfiesRange', () => {
     ['not-a-version', '^1.0.0'],
   ])('declines %s against %s instead of answering false', (version, range) => {
     expect(satisfiesRange(version, range)).toBeNull();
+  });
+});
+
+describe('acceptsTag', () => {
+  it.each([
+    // A range that excludes the copy's own version still accepts it (own-tag-out-of-range).
+    ['1.2.0', '1.2.0', '^2.0.0', true],
+    ['v1.2.0', '1.2.0', '^2.0.0', true],
+    ['2.0.0', '1.1.0', '^1.0.0', false],
+    ['2.0.0', '1.1.0', '>=1.0.0 <3.0.0', true],
+    ['2.0.0', '1.1.0', 'latest', null],
+  ])('%s offered to a %s copy with %s is %s', (offered, own, range, expected) => {
+    expect(acceptsTag(offered, own, range)).toBe(expected);
   });
 });

@@ -697,15 +697,26 @@ package` edges with at least two members, never in the `strict` scope; a
 tagged package that joins nothing is an `orphanPoolTag`. The pool name is the
 stored `poolName` (orchestrator 4.7+), else the alphabetically first member;
 the ID always keys on the latter. `poolFamilies` (one per pool, same order)
-re-runs nothing the orchestrator decided: the serving build per
-`(remote, member)` is read off the stored row — `scope` is the remote's own
-build, `servedBy` names the build, otherwise the first participant of the
-`share` row — and the status matrix folds those into bands per build with
-one verdict (`isolated > redirected > one-build`). The model makes one
-computation of its own, a consistency check on stored facts: a strict range
-that rejects the shared tag (npm `semver`, the orchestrator's own `satisfies`
-call) marks a `conflict` cell. A stored `poolCause` is published as is, never
-inferred. `copyGroupingFacets` (one per copy, same order) names
+read where pooling put each remote off the stored rows (orchestrator 4.8
+`pooling/records.ts`): every member row `scope` is its own build (`self`), a
+`servedBy` is that remote's subpool (an owner names itself), otherwise the
+global map; a mix 4.8 never writes is `unknown`. The global surface is what the
+global map serves per member: the copy of the stored `servingBuild` (else the
+first participant) at the `share` tag, extensions from other builds included;
+`poolWinner` is published as the family's winner. Why a remote is off that
+surface is recomputed in the orchestrator's own precedence (`election.ts`
+`missOf`, `rules.ts`): every range rejection, strict first, with the copy's own
+tag always accepted (`createAcceptsTag`); else every specifier the surface
+lacks (`coverage`); else the first specifier no single build ships with the
+rest (`unshipped`). `consistent` checks the placement against that reason and
+the stored `poolCause`, which is published as is, never overridden: a
+contradiction reads as unexplained, not as a guess. The status matrix folds
+consumers into bands (global, subpool, isolated, unknown) with one verdict
+(`isolated > redirected > one-build`); the verdict's isolation cause is the
+stored one only when every isolated remote stores it, the subpool cause the
+recomputed one only when every redirected remote shares it. A pool is pending
+while a member is `dirty` or its scope is in `cache-state.undecidedScopes`.
+`copyGroupingFacets` (one per copy, same order) names
 each copy's share scope, tag pool, and build outputs; the Graph's share-scope,
 pool, and build groupings read nothing else.
 

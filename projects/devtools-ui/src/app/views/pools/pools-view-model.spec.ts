@@ -82,22 +82,21 @@ describe('buildPoolsVm (share-pools T11)', () => {
     );
   });
 
-  // `not-shared` on ui-dom is the pre-4.8 derivation misreading a subpool (pools-v48 Task 4).
   it("ui: catalog and checkout in the subpool on admin's build", () => {
     const card = cardOf('pool-showcase', 'ui');
     expect(sketch(card)).toEqual([
+      { band: 'Build of host · host precedence', rows: [`${NF_HOST} 2.0.0:unchanged ·`] },
       {
         band: 'Build of admin · serves 2 others · 2 redirected',
         rows: [
-          'admin [no tag] 1.0.0:serves-others 1.0.0:not-shared',
-          'catalog [ui] ↪ 1.0.0:unchanged 1.0.0:not-shared',
-          'checkout [ui] ↪ 1.0.0:unchanged 1.0.0:not-shared',
+          'admin [no tag] 1.0.0:serves-others 1.0.0:serves-others',
+          'catalog [ui] ↪ 1.0.0:unchanged 1.0.0:unchanged',
+          'checkout [ui] ↪ 1.0.0:unchanged 1.0.0:unchanged',
         ],
       },
-      { band: 'Build of host · host precedence', rows: [`${NF_HOST} 2.0.0:unchanged ·`] },
     ]);
     expect(verdictLine(card)).toBe(
-      '↪ Redirected · would mix builds — catalog, checkout → build of admin · shared versions come from host',
+      '↪ Redirected · not covered — catalog, checkout → build of admin',
     );
     expect(card.verdict!.tone).toBe('quiet');
     expect(tooltip(card, 'catalog', 0)).toBe(
@@ -155,9 +154,7 @@ describe('buildPoolsVm (share-pools T11)', () => {
     const vm = vmOf('pooling-anchor');
     const [card] = vm.pools;
     expect(card.name).toBe('@nf-lab/conflict-lib');
-    expect(verdictLine(card)).toBe(
-      '↪ Redirected · would mix builds — mfe2 → build of mfe1 · shared versions come from host and mfe1',
-    );
+    expect(verdictLine(card)).toBe('↪ Redirected · not covered — mfe2 → build of mfe1');
     expect(vm.versionWarning).toBe(
       'No orchestrator version found (exposed from 4.7.0). Pool names and reasons may be missing.',
     );

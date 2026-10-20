@@ -156,7 +156,12 @@ export function ingestSnapshot(snapshot: SnapshotV1): FederationModel {
       bundleClaims,
       tagPools.tagPools,
     ),
-    poolFamilies: derivePoolFamilies(registryEvidence, tagPools.tagPools, NF_HOST),
+    poolFamilies: derivePoolFamilies(
+      registryEvidence,
+      tagPools.tagPools,
+      NF_HOST,
+      runtime?.cacheState?.undecidedScopes ?? [],
+    ),
     packageScopeVerdicts: derivePackageVerdicts(registryEvidence, {
       claims: declarationResolutionClaims,
       copies: resolvedCopies,
