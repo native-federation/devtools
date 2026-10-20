@@ -345,7 +345,7 @@ describe('buildRemoteDetail — registry action ≠ zone (T8.6-AC-03)', () => {
     expect(labels).not.toContain('kept own copy');
   });
 
-  it('keeps the pooling anchor a provides block: anchored chip, skip in the tooltip', () => {
+  it('keeps the pooling anchor a provides block: subpool owner chip, skip in the tooltip', () => {
     const mfe1 = detailOf('pooling-anchor', 'mfe1');
 
     // skip + anchored → the copy still sits in PROVIDES; the skip action is
@@ -353,10 +353,11 @@ describe('buildRemoteDetail — registry action ≠ zone (T8.6-AC-03)', () => {
     expect(mfe1.provides).toHaveLength(1);
     const [block] = mfe1.provides;
     expect(block.packageName).toBe('@nf-lab/conflict-lib');
+    // The 4.6 capture is read with 4.8's rules: the anchor owns a subpool.
     expect(block.deviations).toEqual([
       {
-        label: 'anchored',
-        note: "explicit servedBy anchor: mfe1 — the binding resolves through the anchor's copy",
+        label: 'subpool owner',
+        note: 'its build serves a subpool of its pool — not covered: every entrypoint is on the global map, but no single build ships @nf-lab/conflict-lib/extra with the rest',
       },
     ]);
     expect(block.declared.note).toBe(SKIP_NOTE);
@@ -368,14 +369,31 @@ describe('buildRemoteDetail — registry action ≠ zone (T8.6-AC-03)', () => {
     expect(mfe1.unresolved).toEqual([]);
   });
 
-  it('renders the pooled consumer with anchored and not-selected consumes rows', () => {
+  // 4.8: catalog runs admin's build because the global map lacks ui-dom; dashboard's strict
+  // chart-dom range keeps the charts pool on its own build.
+  it('names the subpool and the reason on 4.8 records', () => {
+    const catalog = detailOf('pool-showcase', 'catalog');
+    const ui = catalog.consumes.find((row) => row.packageName === '@nf-lab/ui-core')!;
+    expect(ui.deviations).toContainEqual({
+      label: 'subpool of admin',
+      note: "runs admin's build in a subpool of its pool — not covered: the global map lacks @nf-lab/ui-dom",
+    });
+    const dashboard = detailOf('pool-showcase', 'dashboard');
+    const dom = dashboard.provides.find((block) => block.packageName === '@nf-lab/chart-dom')!;
+    expect(dom.deviations[0]).toEqual({
+      label: 'isolated',
+      note: 'runs its own build — version conflict: its range rejects the global @nf-lab/chart-dom 1.1.0 (^2.0.0, strict)',
+    });
+  });
+
+  it('renders the pooled consumer with subpool and not-selected consumes rows', () => {
     const mfe2 = detailOf('pooling-anchor', 'mfe2');
 
     expect(mfe2.provides).toEqual([]);
     expect(mfe2.consumes).toHaveLength(2);
     const [anchor, extra] = mfe2.consumes;
     expect(anchor.packageName).toBe('@nf-lab/conflict-lib');
-    expect(anchor.deviations.map((state) => state.label)).toEqual(['anchored']);
+    expect(anchor.deviations.map((state) => state.label)).toEqual(['subpool of mfe1']);
     expect(anchor.file).toBe('_nf_lab_conflict_lib.JF7uEdSVsN.js');
     expect(anchor.source.label).toBe('mfe1');
     expect(anchor.declared.note).toBe(SKIP_NOTE);

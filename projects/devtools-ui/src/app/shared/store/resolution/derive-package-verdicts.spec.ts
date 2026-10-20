@@ -190,3 +190,64 @@ describe('derivePackageVerdicts — build surface', () => {
     expect(chunks.every((c) => c.url?.startsWith('http://localhost:4300/'))).toBe(true);
   });
 });
+
+// pools-v48 Task 6: why a declaration is off the global map, against orchestrator 4.8 records.
+describe('derivePackageVerdicts — placement reasons (pools-v48 T6)', () => {
+  it('T6-AC-01 fallback-uncovered: the serving build lacks every secondary the remote ships', () => {
+    const kit = entry('fallback-uncovered', '__GLOBAL__', KIT);
+    expect(kit.servingBuild).toBe(NF_HOST);
+    expect(byRemote(kit)['mfe2'].reason).toEqual({
+      scope: 'package',
+      build: NF_HOST,
+      miss: {
+        kind: 'coverage',
+        missing: [`${KIT}/charts`, `${KIT}/charts/legend`, `${KIT}/date-picker`],
+      },
+      storedCause: null,
+    });
+  });
+
+  it('out-of-range-nonstrict: a strict range that rejects the serving tag', () => {
+    expect(
+      byRemote(entry('out-of-range-nonstrict', '__GLOBAL__', KIT))['mfe2'].reason,
+    ).toMatchObject({
+      scope: 'package',
+      miss: {
+        kind: 'range',
+        rejections: [{ tag: '2.0.0', requiredVersion: '^1.0.0', strict: true }],
+      },
+    });
+  });
+
+  it('T6-AC-02 a pooled own copy carries the pool reason, not a strict-range guess', () => {
+    const core = entry('pool-uncovered-gap', '__GLOBAL__', '@nf-lab/ui-core');
+    expect(byRemote(core)['mfe1']).toMatchObject({
+      verdict: 'own-copy',
+      acceptsElected: true,
+      reason: {
+        scope: 'pool',
+        build: NF_HOST,
+        miss: { kind: 'coverage', missing: ['@nf-lab/ui-core/testing'] },
+        storedCause: 'uncovered',
+      },
+    });
+  });
+
+  it('a subpool member runs its owner build, with the pool reason', () => {
+    const dom = entry('pool-showcase', '__GLOBAL__', '@nf-lab/ui-dom');
+    expect(byRemote(dom)['catalog']).toMatchObject({
+      verdict: 'subpool',
+      subpoolOf: 'admin',
+      reason: { scope: 'pool', miss: { kind: 'coverage', missing: ['@nf-lab/ui-dom'] } },
+    });
+  });
+
+  it('own-tag-out-of-range: a range that excludes its own version still accepts it', () => {
+    const kit = entry('own-tag-out-of-range', '__GLOBAL__', KIT);
+    expect(byRemote(kit)[NF_HOST]).toMatchObject({
+      requiredVersion: '^2.0.0',
+      acceptsElected: true,
+    });
+    expect(kit.declarations.every((d) => d.verdict !== 'out-of-range')).toBe(true);
+  });
+});

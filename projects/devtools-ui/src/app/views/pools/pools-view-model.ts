@@ -4,12 +4,12 @@ import type {
   PoolCellState,
   PoolConsumer,
   PoolFamily,
-  PoolMiss,
   PoolStatusCell,
   PoolStatusRow,
   PoolVerdict,
   TagPool,
 } from '../../shared/store/resolution';
+import { causeLabel, causeOfMiss, missText } from '../../shared/placement-text';
 import { GLOBAL_SCOPE, isHostRemote, participantDisplay } from '../../shared/view-conventions';
 
 // Wording contract: docs/work/pools-v48/design/pools-reasons-mock.md.
@@ -25,13 +25,6 @@ export const POOL_LEGEND: readonly { state: PoolCellState; label: string }[] = [
   { state: 'serves-others', label: 'build that serves other remotes' },
   { state: 'unchanged', label: 'global map or subpool' },
 ];
-
-// The orchestrator's `PoolCause` (4.8), as the short label a verdict leads with. Any other value,
-// such as 4.7's `torn` / `unshared`, is shown raw.
-const CAUSE_LABELS: Record<string, string> = {
-  incompatible: 'version conflict',
-  uncovered: 'not covered',
-};
 
 export interface PoolRemoteVm {
   name: string;
@@ -277,7 +270,7 @@ function rowOf(
 
 function reasonOf(consumer: PoolConsumer): PoolReasonVm | null {
   const { placement, miss, storedCause, consistent } = consumer;
-  const derived = miss === null ? null : miss.kind === 'range' ? 'incompatible' : 'uncovered';
+  const derived = miss === null ? null : causeOfMiss(miss);
   if (placement.kind === 'global' && consistent) return null;
   if (placement.kind === 'unknown')
     return {
@@ -312,23 +305,6 @@ function reasonOf(consumer: PoolConsumer): PoolReasonVm | null {
       unexplained: true,
     };
   return { cause: causeLabel(derived!), text, unexplained: false };
-}
-
-// Every rejection and every missing entrypoint, not only the first the orchestrator logs.
-function missText(miss: PoolMiss): string {
-  switch (miss.kind) {
-    case 'range':
-      return `its range rejects the global ${miss.rejections
-        .map(
-          (r) =>
-            `${r.specifier} ${r.tag} (${r.requiredVersion}${r.strict ? ', strict' : ', not strict'})`,
-        )
-        .join(', ')}`;
-    case 'coverage':
-      return `the global map lacks ${miss.missing.join(', ')}`;
-    case 'unshipped':
-      return `every entrypoint is on the global map, but no single build ships ${miss.gap} with the rest`;
-  }
 }
 
 function cellText(cell: PoolStatusCell, row: PoolStatusRow, band: PoolBuildBand): string {
@@ -438,10 +414,6 @@ function notesOf(
     }
   }
   return notes;
-}
-
-function causeLabel(cause: string): string {
-  return CAUSE_LABELS[cause] ?? cause;
 }
 
 // Up to two names; a longer list reads as a count, and the matrix shows who.

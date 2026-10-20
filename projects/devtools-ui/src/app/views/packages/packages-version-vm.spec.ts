@@ -152,3 +152,49 @@ describe('package view — version deep dive (T6)', () => {
     expect(files.sri.complete).toBe(files.sri.label === 'SRI ✓');
   });
 });
+
+describe('package view — placement reasons (pools-v48 T6)', () => {
+  it('T6-AC-01 fallback-uncovered: the own-copy note names the missing secondaries', () => {
+    const block = scopeOf(viewOf('fallback-uncovered', `__GLOBAL__|${KIT}`));
+    expect(versionOf(block, '1.3.0').notes).toContainEqual({
+      kind: 'own-copy',
+      label: 'mfe2 own copy',
+      note: `mfe2: not covered: the serving build of host lacks ${KIT}/charts, ${KIT}/charts/legend, ${KIT}/date-picker · runs its own 1.3.0 from its own build`,
+    });
+  });
+
+  it('the deep dive says why and marks the entrypoints the serving build lacks', () => {
+    const dive = versionOf(
+      scopeOf(viewOf('fallback-uncovered', `__GLOBAL__|${KIT}`)),
+      '1.3.0',
+    ).dive;
+    expect(dive.why.map((line) => [line.remote.name, line.text])).toEqual([
+      [
+        'mfe2',
+        `not covered: the serving build of host lacks ${KIT}/charts, ${KIT}/charts/legend, ${KIT}/date-picker · runs its own 1.3.0 from its own build`,
+      ],
+    ]);
+    expect(dive.entrypoints!.groups[0].items).toEqual([
+      { specifier: KIT, missing: null },
+      { specifier: `${KIT}/charts`, missing: "not in host's build" },
+      { specifier: `${KIT}/charts/legend`, missing: "not in host's build" },
+      { specifier: `${KIT}/date-picker`, missing: "not in host's build" },
+    ]);
+  });
+
+  it('T6-AC-02 a pooled own copy never reads as a strict rejection', () => {
+    const block = scopeOf(viewOf('pool-uncovered-gap', '__GLOBAL__|@nf-lab/ui-core'));
+    const [note] = versionOf(block, '1.0.0').notes.filter((n) => n.kind === 'own-copy');
+    expect(note.note).toBe(
+      'mfe1: not covered: the global map lacks @nf-lab/ui-core/testing · runs its whole pool from its own build',
+    );
+    expect(note.note).not.toContain('strict');
+  });
+
+  it('names the subpool a member runs in', () => {
+    const block = scopeOf(viewOf('pool-showcase', '__GLOBAL__|@nf-lab/ui-core'));
+    expect(versionOf(block, '1.0.0').notes.find((n) => n.kind === 'subpool')).toMatchObject({
+      label: 'admin, catalog, checkout subpool',
+    });
+  });
+});

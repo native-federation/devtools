@@ -137,6 +137,20 @@
                         </dd>
                         <dt>Mapped</dt>
                         <dd>{{ version.dive.mapped }}</dd>
+                        @if (version.dive.why.length > 0) {
+                          <dt>Why</dt>
+                          <dd class="why">
+                            @for (line of version.dive.why; track line.remote.select) {
+                              <span class="why-line"
+                                ><nf-participant-chip
+                                  [name]="line.remote.name"
+                                  [host]="line.remote.host"
+                                />
+                                {{ line.text }}</span
+                              >
+                            }
+                          </dd>
+                        }
                         <dt>Resolves for</dt>
                         <dd>
                           @for (runner of version.dive.runsIn; track runner.remote.select) {
@@ -199,6 +213,9 @@
                                 @for (item of group.items; track item.specifier) {
                                   <li>
                                     <span class="mono">{{ item.specifier }}</span>
+                                    @if (item.missing; as missing) {
+                                      <span class="missing-note">{{ missing }}</span>
+                                    }
                                   </li>
                                 }
                               </ul>

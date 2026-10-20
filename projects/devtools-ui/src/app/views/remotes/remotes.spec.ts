@@ -445,14 +445,14 @@ describe('RemotesView', () => {
   // T8.6-AC-03 (DOM half): pooling-anchor — provides block with anchored
   // chip; skip only in the registration tooltip. strict-split — isolated
   // audience without a kept-own-copy chip.
-  it('keeps the pooling anchor a provides block with the anchored chip', async () => {
+  it('keeps the pooling anchor a provides block with the subpool owner chip', async () => {
     const fixture = await createView({ fixture: 'pooling-anchor', select: 'mfe1' });
     const el = fixture.nativeElement as HTMLElement;
 
     const block = el.querySelector<HTMLElement>('.provides-block')!;
     const facts = Array.from(block.querySelectorAll<HTMLElement>('.copy-fact'));
-    expect(facts.map((fact) => fact.textContent)).toEqual(['anchored']);
-    expect(facts[0].title).toContain('explicit servedBy anchor: mfe1');
+    expect(facts.map((fact) => fact.textContent)).toEqual(['subpool owner']);
+    expect(facts[0].title).toContain('its build serves a subpool of its pool');
     // The skip action appears ONLY in the registration tooltip.
     expect(block.querySelector<HTMLElement>('.head-declared')?.title).toBe(
       'registered with action skip — the registry election does not take this copy',

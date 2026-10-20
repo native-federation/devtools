@@ -146,7 +146,7 @@ const FILTERS: { id: PackagesFilter; label: string; note: string | null }[] = [
   {
     id: 'isolated',
     label: 'Isolated',
-    note: 'a strict remote rejects the shared version and keeps its own copy',
+    note: 'a remote runs its own copy: its range rejects the shared version, or the build serving the package lacks an entrypoint it ships',
   },
 ];
 

@@ -131,6 +131,12 @@ export function ingestSnapshot(snapshot: SnapshotV1): FederationModel {
   );
   const resolvedCopies = attachBundleClaimIds(materializedCopies, bundleClaims);
   const tagPools = deriveTagPools(registryEvidence);
+  const poolFamilies = derivePoolFamilies(
+    registryEvidence,
+    tagPools.tagPools,
+    NF_HOST,
+    runtime?.cacheState?.undecidedScopes ?? [],
+  );
   const projectedRemotes = remotes.map(({ name, isHost, scopeUrl, resolvedScopeUrl }) => ({
     name,
     isHost,
@@ -156,13 +162,10 @@ export function ingestSnapshot(snapshot: SnapshotV1): FederationModel {
       bundleClaims,
       tagPools.tagPools,
     ),
-    poolFamilies: derivePoolFamilies(
-      registryEvidence,
-      tagPools.tagPools,
-      NF_HOST,
-      runtime?.cacheState?.undecidedScopes ?? [],
-    ),
+    poolFamilies,
     packageScopeVerdicts: derivePackageVerdicts(registryEvidence, {
+      tagPools: tagPools.tagPools,
+      poolFamilies,
       claims: declarationResolutionClaims,
       copies: resolvedCopies,
       resolutions: effectiveConsumerResolutions,
