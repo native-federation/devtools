@@ -37,6 +37,10 @@ Notes: 4.8 clears any 4.7-shaped cache on first init (`cache-state.version` stam
 
 ## Task 1: Collect the 4.8 evidence
 
+Status: DONE (`8239235`). Amendment: `cache-state` lives on `runtime`
+(`RuntimeRepositoriesV1.cacheState`), not `runtimeSource` — it is stored
+state, read from the same holder as the repositories.
+
 ### Instructions
 
 - Add `poolWinner` and `servingBuild` (per external) to the passive probe
@@ -57,6 +61,13 @@ Notes: 4.8 clears any 4.7-shaped cache on first init (`cache-state.version` stam
 - `projects/collector/src/lib/{passive-probe,runtime-schema,storage-probe,snapshot-mapper}.ts`, `projects/devtools-bridge/src/lib/snapshot-v1.ts`, `RES/normalize-registry-evidence.ts`
 
 ## Task 2: Witness captures on 4.8.0
+
+Status: DONE (`d5f75ed`, re-recorded in `781c0b2`). Amendments: the 4.7
+captures were replaced, not kept (scenario ids are unique across
+`captures/`; the 4.6 v2 corpus covers older orchestrators). No
+`fallback-unpooled` scenario — `fallback-uncovered` (the renamed
+`torn-many`) and `merged-entrypoints` witness the unpooled fallback. The four
+new scenarios form the corpus `nf-lab-placements`.
 
 ### Instructions
 
@@ -81,6 +92,13 @@ Notes: 4.8 clears any 4.7-shaped cache on first init (`cache-state.version` stam
 - `captures/`, `scripts/{lab-corpora,validate-lab-corpus,build-lab-manifest,derive-fixtures}.mjs`, `captures/README.md`
 
 ## Task 3: Remove torn, self-fill and mixed builds
+
+Status: DONE (`781c0b2`). Amendments: `merged` kept, narrowed to
+`share`-row builds (4.8 still merges without a serving build);
+`mixed-builds` left for Task 4 (a global remote can run on the winner plus
+extensions); `torn-many` renamed `fallback-uncovered` and re-recorded; the
+4.6 `self-fill` capture deleted. `views/tabs-render.spec.ts` covers
+T3-AC-03.
 
 ### Instructions
 
@@ -113,6 +131,13 @@ Notes: 4.8 clears any 4.7-shaped cache on first init (`cache-state.version` stam
 
 ## Task 4: Derive pool placements and reasons
 
+Status: DONE (`e6fd9d1`). Amendments: `PoolMiss` is `range | coverage |
+unshipped` (no `none`; a placement without a miss is `null`); every
+rejection and every missing specifier is listed; the surface is the global
+map's (winner plus extensions), not `poolWinner`'s copies; `PoolConsumer`
+replaced `outcome` with `placement` / `miss` / `storedCause` / `consistent`;
+pending also covers `cache-state.undecidedScopes`.
+
 ### Instructions
 
 - New store derivation per (scope, pool, remote) → `PoolPlacement`:
@@ -140,6 +165,11 @@ Notes: 4.8 clears any 4.7-shaped cache on first init (`cache-state.version` stam
 - `RES/derive-pool-families.ts`, `RES/pool-family-model.ts`, `RES/projection-model.ts`, `shared/store/semver-range.ts`, orchestrator `src/lib/core/1.domain/pooling/{election,rules,records}.ts`
 
 ## Task 5: Pools tab — show why
+
+Status: DONE (`0941235`). Amendments: `rejected` replaces `conflict` and
+covers non-strict ranges (they isolate in 4.8); a reason shared by every row
+of a band sits under the band label; the contract is
+`design/pools-reasons-mock.md`, not an update of the share-pools mock.
 
 ### Instructions
 
@@ -173,6 +203,13 @@ Notes: 4.8 clears any 4.7-shaped cache on first init (`cache-state.version` stam
 
 ## Task 6: Align Packages and Remotes with placements
 
+Status: DONE (`849d81b`). Amendments: a `subpool` verdict (`skip` with
+`servedBy`); `PlacementReason` on `own-copy` / `subpool` declarations; the
+Packages deep dive got a Why line and per-entrypoint "not in <build>'s
+build" markers; reason phrasing shared in `shared/placement-text.ts`. The
+pool-chip link to a remote's Pools row was not done (moved to Out of
+scope).
+
 ### Instructions
 
 - Packages: a `scope` row no longer always says "strict remote rejects";
@@ -195,6 +232,11 @@ Notes: 4.8 clears any 4.7-shaped cache on first init (`cache-state.version` stam
 
 ## Task 7: Docs and assets
 
+Status: DONE (`8c2c4a9`). Amendments: only Pools screenshots added
+(`docs/assets/readme/pools-{light,dark}.png`); README Packages / Remotes and
+store screenshots unchanged (their content did not change); no direct link to
+the orchestrator's "What pooling stores" section.
+
 ### Instructions
 
 - `README.md`, `docs/DEVELOPMENT.md`, `docs/resolution-data-model.md`
@@ -207,6 +249,8 @@ Notes: 4.8 clears any 4.7-shaped cache on first init (`cache-state.version` stam
 
 ## Out of scope
 
+- A pool chip that jumps to the remote's row in Pools (Task 6; needs a Pools
+  `remote` query parameter).
 - Strict-scope per-tag fallbacks (not stored; recompute later from `strictTagScopes` rules).
 - Reading orchestrator log lines (gap/strict detail is re-derived instead).
 - A page-wide "no tear" import walk (the orchestrator's test oracle `page-graph.ts`).
