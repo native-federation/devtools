@@ -168,6 +168,7 @@ export function dependencyNodeAt(
     subLabelTooltip: tag === null ? null : tag.labelTooltip,
     isolated: isIsolated(copy),
     expanded: false,
+    note: null,
     subLabelX: x + NODE_W - LABEL_PAD - TOGGLE_W,
     subLabelY: y + LABEL_BASELINE,
     toggleX: x + NODE_W - LABEL_PAD,
@@ -195,20 +196,22 @@ const EDGE_STATE_TEXT: Record<ClaimMappingState, string> = {
   unknown: 'not derivable from the capture',
 };
 
+// `subpool` replaces the generic `anchored` text when the consumer's declaration names its subpool.
 export function edgeOf(
   relation: ConsumerCopyRelation,
   source: RemoteGraphNode,
   target: DependencyGraphNode,
+  subpool: string | null = null,
 ): GraphEdge {
   const solid = relation.mappingStates.every((state) => state === 'own-selected');
+  const textOf = (state: ClaimMappingState) =>
+    state === 'anchored' && subpool !== null ? subpool : EDGE_STATE_TEXT[state];
   return {
     id: relation.id,
     sourceId: source.id,
     targetId: target.id,
     style: solid ? 'solid' : 'dotted',
-    tooltip: solid
-      ? null
-      : Array.from(new Set(relation.mappingStates), (state) => EDGE_STATE_TEXT[state]).join('; '),
+    tooltip: solid ? null : Array.from(new Set(relation.mappingStates), textOf).join('; '),
     path: edgePath(
       source.x + source.width,
       source.y + source.height / 2,

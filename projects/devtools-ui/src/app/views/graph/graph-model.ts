@@ -1,8 +1,13 @@
+import { placementReasonText, subpoolWhereText } from '../../shared/placement-text';
 import type {
   BundleClaim,
   CanonicalResolutionProjection,
   ChunkGroupProjection,
+  ConsumerCopyRelation,
   CopyGroupingFacets,
+  DeclarationResolutionClaim,
+  DeclarationVerdictRecord,
+  ParticipantDeclarationId,
   ResolvedDependencyCopy,
 } from '../../shared/store/resolution';
 import {
@@ -164,6 +169,11 @@ export function buildGraphModel(
   let dependencyCursor = MARGIN + HEADER_H;
 
   const listItems: GraphListItem[] = [];
+  const verdictByDeclaration = new Map(
+    projection.packageScopeVerdicts.flatMap((verdicts) =>
+      verdicts.declarations.map((record) => [record.declarationId, record] as const),
+    ),
+  );
   const facetsByCopyId = new Map(projection.copyGroupingFacets.map((f) => [f.copyId, f]));
   const expandedCopyId = options.expandedCopyId ?? null;
   const layoutDependencyCluster = (seed: ClusterSeed, entries: typeof sortedCopies): void => {
@@ -172,7 +182,11 @@ export function buildGraphModel(
     let nodeY = boxY + CLUSTER_HEADER + CLUSTER_PAD;
     for (const entry of entries) {
       const expanded = entry.copy.id === expandedCopyId;
-      const node = { ...dependencyNodeAt(entry.copy, entry.fullLabel, nodeY), expanded };
+      const node = {
+        ...dependencyNodeAt(entry.copy, entry.fullLabel, nodeY),
+        expanded,
+        note: isolationNoteOf(entry.copy, verdictByDeclaration),
+      };
       dependencyNodes.push(node);
       orderedDependencyEntries.push(entry);
       dependencyHueByCopyId.set(entry.copy.id, colorIndex);
@@ -495,6 +509,7 @@ export function buildGraphModel(
   // consumer is merely filtered, never "dropped". Nodes come only from the
   // projection's remotes and copies, never invented for an edge.
   const projectionCopyIds = new Set(projection.copies.map((copy) => copy.id));
+  const resolutionClaimById = new Map(projection.declarationResolutionClaims.map((c) => [c.id, c]));
   const edges: GraphEdge[] = [];
   const droppedRelationIds: string[] = [];
   for (const relation of projection.consumerRelations) {
@@ -508,7 +523,14 @@ export function buildGraphModel(
     }
     // A selected (or unfiltered) consumer's relation is exactly what keeps
     // its copy rendered, so the node lookup cannot miss.
-    edges.push(edgeOf(relation, source, dependencyNodeById.get(relation.copyId)!));
+    edges.push(
+      edgeOf(
+        relation,
+        source,
+        dependencyNodeById.get(relation.copyId)!,
+        subpoolNoteOf(relation, resolutionClaimById, verdictByDeclaration),
+      ),
+    );
   }
 
   // --- Bundle-edge references (rendered by the hover trace only) ---------
@@ -624,6 +646,54 @@ export function graphAdjacencyOf(model: GraphModel): ReadonlyMap<string, Readonl
     link(ref.dependencyKey, ref.chunkKey);
   }
   return adjacency;
+}
+
+type VerdictLookup = ReadonlyMap<ParticipantDeclarationId, DeclarationVerdictRecord>;
+
+function reasonTextOf(
+  declarationId: ParticipantDeclarationId,
+  verdicts: VerdictLookup,
+): string | null {
+  const reason = verdicts.get(declarationId)?.reason ?? null;
+  return reason === null ? null : placementReasonText(reason);
+}
+
+// Worded as the Remotes `isolated` chip: the same verdict lookup, the same reason text.
+function isolationNoteOf(copy: ResolvedDependencyCopy, verdicts: VerdictLookup): string | null {
+  if (copy.source.kind === 'private-registration') {
+    return 'private registration — a scoped external, not shared';
+  }
+  if (copy.sourceDisposition !== 'scope-registration') {
+    return null;
+  }
+  const reason =
+    copy.source.kind === 'shared-declaration'
+      ? reasonTextOf(copy.source.declarationId, verdicts)
+      : null;
+  return reason === null
+    ? 'the evidenced source is registered with action scope — an isolated copy'
+    : `runs its own build — ${reason}`;
+}
+
+function subpoolNoteOf(
+  relation: ConsumerCopyRelation,
+  claimById: ReadonlyMap<string, DeclarationResolutionClaim>,
+  verdicts: VerdictLookup,
+): string | null {
+  for (const claimId of relation.claimIds) {
+    const claim = claimById.get(claimId);
+    if (claim?.mappingState !== 'anchored' || claim.subject.kind !== 'shared') {
+      continue;
+    }
+    const verdict = verdicts.get(claim.subject.participantDeclarationId);
+    if (verdict === undefined) {
+      continue;
+    }
+    const where = subpoolWhereText(verdict.subpoolOf, verdict.participant);
+    const reason = reasonTextOf(verdict.declarationId, verdicts);
+    return reason === null ? where : `${where} — ${reason}`;
+  }
+  return null;
 }
 
 /** Last path segment of a target URL — the file name a build emitted. */
