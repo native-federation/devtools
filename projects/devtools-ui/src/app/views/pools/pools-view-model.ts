@@ -168,7 +168,7 @@ function bandOf(band: PoolBuildBand, members: readonly string[], pending: boolea
   if (band.redirected > 0) note.push(`${band.redirected} redirected`);
   if (band.hostPrecedence) note.push('host precedence');
   return {
-    label: band.owner === null ? 'Mixed builds' : `Build of ${participantDisplay(band.owner)}`,
+    label: band.owner === null ? 'Unknown placement' : `Build of ${participantDisplay(band.owner)}`,
     note: note.length > 0 ? note.join(' · ') : null,
     rows: band.rows.map((row) => rowOf(row, band, members, pending)),
   };
@@ -222,7 +222,7 @@ function cellText(
     case 'serves-others':
       return `Serves ${plural(band.servesOthers, 'other remote')}`;
     case 'unchanged':
-      if (owner === null) return 'Served by several builds';
+      if (owner === null) return 'Placement not readable from the stored rows';
       if (row.redirected) return `Redirected to the build of ${owner}`;
       return band.owner === row.remote
         ? 'Unchanged: its own build'
@@ -263,9 +263,9 @@ function verdictOf(verdict: PoolVerdict): PoolVerdictVm {
         icon: '↪',
         tone: 'quiet',
         type: 'Redirected',
-        cause: 'would mix builds',
+        cause: redirect!.cause === null ? null : causeLabel(redirect!.cause),
         who: `${names(redirect!.remotes)} → build of ${redirect!.anchors.map(participantDisplay).join(', ')}`,
-        why: `shared versions come from ${redirect!.mixes.map(participantDisplay).join(' and ')}`,
+        why: null,
       };
     case 'one-build':
       return {
