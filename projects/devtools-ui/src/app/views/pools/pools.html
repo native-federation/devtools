@@ -44,15 +44,41 @@
             >show in Graph</a
           >
         </header>
-        <p class="pool-coverage" [attr.data-complete]="pool.coverage.complete">
-          {{ pool.coverage.text }}
-          @if (pool.coverage.missing.length > 0) {
-            · missing: <span class="mono">{{ pool.coverage.missing.join(', ') }}</span>
-          }
-        </p>
+        <div
+          class="pool-coverage"
+          [attr.data-complete]="pool.selected ? pool.coverage.complete : null"
+        >
+          <p class="pool-coverage-line">{{ pool.coverage.text }}</p>
+        </div>
         <div class="pool-matrix-wrap">
-          <table class="pool-matrix">
+          <table
+            class="pool-matrix"
+            [style.--pool-columns]="pool.columns.length"
+            [style.--pool-remote-width]="remoteWidth()"
+          >
+            <colgroup>
+              <col class="pool-col-remote" />
+              @for (column of pool.columns; track column.packageName) {
+                <col class="pool-col" />
+              }
+            </colgroup>
             <thead>
+              @if (pool.scopeGroups; as groups) {
+                <tr class="pool-scope-row">
+                  <th></th>
+                  @for (group of groups; track $index) {
+                    <th
+                      scope="colgroup"
+                      class="mono"
+                      [class.pool-scope-none]="group.label === ''"
+                      [attr.colspan]="group.span"
+                      [title]="group.label"
+                    >
+                      {{ group.label }}
+                    </th>
+                  }
+                </tr>
+              }
               <tr>
                 <th scope="col" class="pool-scope-prefix mono">
                   {{ pool.scopePrefix }}{{ pool.scopePrefix ? '/' : '' }}
@@ -63,29 +89,49 @@
               </tr>
             </thead>
             @for (band of pool.bands; track band.label) {
-              <tbody>
+              <tbody [class.pool-band-lens]="band.active">
                 <tr class="pool-band">
                   <th scope="rowgroup" [attr.colspan]="pool.columns.length + 1">
-                    <span class="pool-band-label">{{ band.label }}</span>
-                    @if (band.note) {
-                      <span class="pool-band-note">· {{ band.note }}</span>
-                    }
-                    @if (band.reason; as reason) {
-                      <span
-                        class="pool-reason"
-                        [attr.data-unexplained]="reason.unexplained ? '' : null"
-                      >
-                        @if (reason.cause) {
-                          <span class="pool-reason-cause">{{ reason.cause }}:</span>
-                        }
-                        {{ reason.text }}
-                      </span>
-                    }
+                    <span class="pool-band-head">
+                      @if (band.selectable) {
+                        <button
+                          type="button"
+                          class="pool-band-label pool-lens-button"
+                          [attr.aria-pressed]="band.active"
+                          [title]="
+                            band.active
+                              ? 'Clear the selection'
+                              : band.lensOwner === null
+                                ? 'Show what keeps remotes off the global map'
+                                : 'Judge every remote against this build'
+                          "
+                          (click)="toggleBand(pool, band)"
+                        >
+                          {{ band.label }}
+                        </button>
+                      } @else {
+                        <span class="pool-band-label">{{ band.label }}</span>
+                      }
+                      @if (band.note) {
+                        <span class="pool-band-note">· {{ band.note }}</span>
+                      }
+                    </span>
                   </th>
                 </tr>
                 @for (row of band.rows; track row.remote.name) {
-                  <tr>
-                    <th scope="row">
+                  <tr
+                    class="pool-row"
+                    [class.pool-row-selectable]="band.selectable"
+                    (click)="band.selectable && selectBand(pool, band)"
+                    [class.selected]="isSelectedRow(pool.id, row.remote.name)"
+                    [class.hovered]="isHovered(pool.id, row.remote.name)"
+                    (mouseenter)="hoverRemotes(pool.id, [row.remote])"
+                    (mouseleave)="hoverRemotes(null)"
+                  >
+                    <th
+                      scope="row"
+                      [attr.aria-current]="isSelectedRow(pool.id, row.remote.name) ? 'true' : null"
+                    >
                       <span class="pool-remote">
                         <nf-participant-chip [name]="row.remote.name" [host]="row.remote.host" />
                         @if (row.tag) {
@@ -94,25 +140,25 @@
                         @if (row.redirected) {
                           <span class="pool-redirected">↪ subpool</span>
                         }
+                        @if (row.chip; as chip) {
+                          <span
+                            class="pool-cause tip"
+                            tabindex="0"
+                            [attr.data-unexplained]="chip.unexplained ? '' : null"
+                            [attr.data-tip]="chip.tooltip"
+                            [attr.aria-label]="chip.tooltip"
+                            >{{ chip.label }}</span
+                          >
+                        }
                       </span>
-                      @if (row.reason; as reason) {
-                        <span
-                          class="pool-reason"
-                          [attr.data-unexplained]="reason.unexplained ? '' : null"
-                        >
-                          @if (reason.cause) {
-                            <span class="pool-reason-cause">{{ reason.cause }}:</span>
-                          }
-                          {{ reason.text }}
-                        </span>
-                      }
                     </th>
                     @for (cell of row.cells; track $index) {
                       <td
                         class="mono"
                         [attr.data-state]="cell.state"
                         [attr.tabindex]="cell.tooltip ? 0 : null"
-                        [attr.title]="cell.tooltip"
+                        [attr.data-tip]="cell.tooltip"
+                        [attr.data-tip-head]="cell.tooltip ? '' : null"
                         [attr.aria-label]="cell.tooltip"
                       >
                         {{ cell.text }}
@@ -124,19 +170,61 @@
             }
           </table>
         </div>
+        @if (pool.coverage.issues.length > 0) {
+          <ul class="pool-issues">
+            @for (issue of pool.coverage.issues; track $index) {
+              <li
+                [attr.data-kind]="issue.kind"
+                [class.hovered]="isHoveredIssue(pool.id, issue)"
+                [class.selected]="isSelectedIssue(pool.id, issue)"
+                (mouseenter)="hoverRemotes(pool.id, issue.all)"
+                (mouseleave)="hoverRemotes(null)"
+              >
+                <ng-container
+                  *ngTemplateOutlet="remoteChips; context: { $implicit: issue.remotes }"
+                />
+                <span class="pool-issue-problem">
+                  <span class="pool-issue-label">{{ issue.label }}</span>
+                  <span
+                    class="mono pool-issue-subject"
+                    [attr.tabindex]="issue.subjectAll ? 0 : null"
+                    [attr.data-tip]="issue.subjectAll"
+                    [attr.data-tip-list]="issue.subjectAll ? '' : null"
+                    [attr.aria-label]="issue.subjectAll"
+                    >{{ issue.subject }}</span
+                  >
+                  @if (issue.detail) {
+                    <span class="pool-issue-detail">{{ issue.detail }}</span>
+                  }
+                </span>
+              </li>
+            }
+          </ul>
+        }
         @if (pool.verdict; as verdict) {
-          <p class="pool-verdict" [attr.data-tone]="verdict.tone" role="status">
-            <span class="pool-verdict-type"
-              ><span aria-hidden="true">{{ verdict.icon }}</span> {{ verdict.type
-              }}{{ verdict.cause ? ' · ' + verdict.cause : '' }}</span
-            >
-            <span class="pool-verdict-detail"
-              >{{ verdict.who }}
-              @if (verdict.why) {
-                <span class="pool-verdict-why"> · {{ verdict.why }}</span>
+          <section
+            class="pool-explainer"
+            [class.pool-explainer-lens]="pool.lens !== null"
+            [attr.data-tone]="verdict.tone"
+          >
+            <p class="pool-verdict" [attr.data-tone]="verdict.tone" role="status">
+              <span class="pool-verdict-type"
+                ><span aria-hidden="true">{{ verdict.icon }}</span> {{ verdict.type
+                }}{{ verdict.cause ? ' · ' + verdict.cause : '' }}</span
+              >
+              <span class="pool-verdict-detail"
+                >{{ verdict.who }}
+                @if (verdict.why) {
+                  <span class="pool-verdict-why"> · {{ verdict.why }}</span>
+                }
+              </span>
+              @if (pool.selected) {
+                <button type="button" class="pool-lens-reset" (click)="lens.set(null)">
+                  clear selection
+                </button>
               }
-            </span>
-          </p>
+            </p>
+          </section>
         }
         @if (pool.pendingNote) {
           <p class="view-observation">{{ pool.pendingNote }}</p>
@@ -157,4 +245,54 @@
   } @else {
     <p class="view-observation">no captured snapshot to render</p>
   }
+  @if (tip(); as t) {
+    <div
+      class="pool-tip"
+      role="tooltip"
+      [class.pool-tip-above]="t.above"
+      [class.pool-tip-list]="t.list"
+      [style.left.px]="t.x"
+      [style.top.px]="t.y"
+    >
+      @if (t.head) {
+        <div class="pool-tip-head">{{ t.head }}</div>
+      }
+      @for (line of t.lines; track $index) {
+        <div class="pool-tip-line">
+          @if (line.label) {
+            <span class="pool-tip-label">{{ line.label }}:</span>
+          }
+          {{ line.text }}
+        </div>
+      }
+    </div>
+  }
 </section>
+
+<ng-template #remoteChips let-list>
+  <span class="pool-remote-list">
+    @for (remote of list.shown; track remote.name) {
+      <nf-participant-chip [name]="remote.name" [host]="remote.host" />
+      @if (remote.subpool; as subpool) {
+        <span
+          class="pool-remote-subpool tip"
+          tabindex="0"
+          [attr.data-tip]="subpool.names"
+          data-tip-list
+          [attr.aria-label]="'subpool of ' + subpool.count + ': ' + subpool.names"
+          >↪ subpool{{ subpool.count > 1 ? ' · ' + subpool.count : '' }}</span
+        >
+      }
+    }
+    @if (list.more > 0) {
+      <span
+        class="pool-remote-more tip"
+        tabindex="0"
+        [attr.data-tip]="list.moreNames"
+        data-tip-list
+        [attr.aria-label]="list.moreNames"
+        >+{{ list.more }} more</span
+      >
+    }
+  </span>
+</ng-template>

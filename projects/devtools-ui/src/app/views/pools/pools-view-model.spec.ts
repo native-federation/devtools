@@ -10,7 +10,7 @@ import { FIXTURES, NF_HOST, type FixtureId, type SnapshotV1 } from 'devtools-bri
 
 import { ingestSnapshot } from '../../shared/store/ingest';
 import type { CanonicalResolutionProjection } from '../../shared/store/resolution';
-import { buildPoolsVm, hasPoolTags, type PoolCardVm } from './pools-view-model';
+import { buildPoolsVm, hasPoolTags, remoteListOf, type PoolCardVm } from './pools-view-model';
 
 // Each fixture carries the version its page exposed: 4.8.0 for the nf-lab corpora, none for v2.
 const vmOfSnapshot = (snapshot: SnapshotV1) => {
@@ -23,6 +23,16 @@ const vmOfSnapshot = (snapshot: SnapshotV1) => {
 const vmOf = (id: FixtureId) => vmOfSnapshot(FIXTURES[id]);
 const projectionOf = (id: FixtureId) => ingestSnapshot(FIXTURES[id]).resolutionProjection;
 const cardOf = (id: FixtureId, name: string) => vmOf(id).pools.find((pool) => pool.name === name)!;
+// The card with its global-map band selected: the warning lists the pool's issues.
+const selectedCard = (id: FixtureId, name: string) => {
+  const model = ingestSnapshot(FIXTURES[id]);
+  const pool = model.resolutionProjection.tagPools.find((p) => p.name === name)!;
+  return buildPoolsVm(
+    model.resolutionProjection,
+    model.provenance.runtimeSource?.orchestratorVersion ?? null,
+    { poolId: pool.id, owner: null },
+  ).pools.find((card) => card.id === pool.id)!;
+};
 
 // The matrix as a reader scans it: one line per band, then `remote [tag] cell…` per row.
 const sketch = (card: PoolCardVm) =>
@@ -39,11 +49,30 @@ const verdictLine = (card: PoolCardVm) => {
   const v = card.verdict!;
   return `${v.icon} ${v.type}${v.cause ? ` · ${v.cause}` : ''} — ${v.who}${v.why ? ` · ${v.why}` : ''}`;
 };
+// The warning box as a reader scans it: `<remotes> <label> <subject> [detail]`, a subpool as
+// `<owner> (subpool: <its remotes>)`.
+const issueLines = (card: PoolCardVm) =>
+  card.coverage.issues.map((i) =>
+    [
+      i.remotes.shown
+        .map((r) => (r.subpool ? `${r.name} (subpool: ${r.subpool.names})` : r.name))
+        .join(', ') + (i.remotes.more > 0 ? ` +${i.remotes.more}` : ''),
+      i.label,
+      i.subjectAll ?? i.subject,
+      i.detail,
+    ]
+      .filter((part) => part !== null)
+      .join(' '),
+  );
+const gaps = (card: PoolCardVm) =>
+  card.coverage.issues
+    .filter((i) => i.kind === 'missing')
+    .map((i) => `${i.subject} (${i.all.map((r) => r.name).join(', ')})`);
 const allCells = (card: PoolCardVm) => card.bands.flatMap((b) => b.rows).flatMap((r) => r.cells);
 // A row's reason, or its band's when every row of the band shares it.
 const reasonOf = (card: PoolCardVm, remote: string) => {
   const band = card.bands.find((b) => b.rows.some((r) => r.remote.name === remote))!;
-  const reason = band.reason ?? band.rows.find((r) => r.remote.name === remote)!.reason;
+  const [reason = null] = band.rows.find((r) => r.remote.name === remote)!.reasons;
   return reason === null ? null : `${reason.cause ? `${reason.cause}: ` : ''}${reason.text}`;
 };
 const tooltip = (card: PoolCardVm, remote: string, column: number) =>
@@ -57,6 +86,47 @@ describe('buildPoolsVm (share-pools T11)', () => {
       '@nf-lab/icons: tag "icons" by catalog joined nothing — likely a typo or a missing sibling',
     ]);
     expect(vm.versionWarning).toBeNull();
+  });
+
+  it('mixed scopes: one header cell per scope, labels without their own scope', () => {
+    // The coherent ui pool with ui-dom moved to another scope and a third, unscoped member
+    // renamed in: a design-system package next to a framework, as real pools mix them.
+    const snapshot: SnapshotV1 = JSON.parse(
+      JSON.stringify(FIXTURES['pool-tag-coherent']).replaceAll('@nf-lab/ui-dom', '@nf-ds/buttons'),
+    );
+    const [card] = vmOfSnapshot(snapshot).pools;
+    expect(card.scopePrefix).toBeNull();
+    expect(card.scopeGroups).toEqual([
+      { label: '@nf-ds/', span: 1 },
+      { label: '@nf-lab/', span: 1 },
+    ]);
+    expect(card.columns.map((column) => column.label)).toEqual(['buttons', 'ui-core']);
+  });
+
+  it('an unscoped package (like rxjs) gets its own unlabelled run after the scoped ones', () => {
+    const snapshot: SnapshotV1 = JSON.parse(
+      JSON.stringify(FIXTURES['pool-tag-coherent']).replaceAll('@nf-lab/ui-dom', 'ui-dom'),
+    );
+    const [card] = vmOfSnapshot(snapshot).pools;
+    expect(card.scopeGroups).toEqual([
+      { label: '@nf-lab/', span: 1 },
+      { label: '', span: 1 },
+    ]);
+    expect(card.columns.map((column) => column.label)).toEqual(['ui-core', 'ui-dom']);
+  });
+
+  it('only unscoped packages: no corner prefix, no scope row, full names', () => {
+    const snapshot: SnapshotV1 = JSON.parse(
+      JSON.stringify(FIXTURES['pool-tag-coherent']).replaceAll('@nf-lab/ui-', 'ui-'),
+    );
+    const [card] = vmOfSnapshot(snapshot).pools;
+    expect(card.scopePrefix).toBeNull();
+    expect(card.scopeGroups).toBeNull();
+    expect(card.columns.map((column) => column.label)).toEqual(['ui-core', 'ui-dom']);
+  });
+
+  it('a single scope keeps the corner prefix and no scope row', () => {
+    expect(cardOf('pool-showcase', 'charts').scopeGroups).toBeNull();
   });
 
   it('charts: dashboard on its own build, its range rejecting the global chart-dom', () => {
@@ -79,7 +149,7 @@ describe('buildPoolsVm (share-pools T11)', () => {
       { band: 'Own build · dashboard', rows: ['dashboard [charts] 1.0.0:isolated 2.0.0:rejected'] },
     ]);
     expect(reasonOf(card, 'dashboard')).toBe(
-      'version conflict: its range rejects the global @nf-lab/chart-dom 1.1.0 (^2.0.0, strict)',
+      'version conflict: its range ^2.0.0 (strict) rejects the global 1.1.0 of @nf-lab/chart-dom',
     );
     expect(reasonOf(card, 'catalog')).toBeNull();
     expect(verdictLine(card)).toBe('✕ Own build · version conflict — dashboard · 1 rejection');
@@ -93,12 +163,12 @@ describe('buildPoolsVm (share-pools T11)', () => {
   });
 
   it("ui: catalog and checkout in the subpool on admin's build, for the ui-dom the host lacks", () => {
-    const card = cardOf('pool-showcase', 'ui');
-    expect(card.coverage).toEqual({
+    const card = selectedCard('pool-showcase', 'ui');
+    expect(card.coverage).toMatchObject({
       text: 'Global map serves 1 of 2 entrypoints the remotes import',
       complete: false,
-      missing: ['@nf-lab/ui-dom (admin, catalog, checkout)'],
     });
+    expect(gaps(card)).toEqual(['@nf-lab/ui-dom (admin, catalog, checkout)']);
     expect(sketch(card)).toEqual([
       {
         band: 'Global map · build of host · host precedence',
@@ -146,6 +216,23 @@ describe('buildPoolsVm (share-pools T11)', () => {
     ]);
   });
 
+  it("pool-portfolio: legacy also says why contacts' subpool does not take it", () => {
+    const card = selectedCard('pool-portfolio', 'acme');
+    const legacy = card.bands[2].rows[0];
+    expect(legacy.reasons.map((r) => `${r.cause}: ${r.text}`)).toEqual([
+      'version conflict: its range ^16.0.0 rejects the global 18.2.0 of @nf-lab/acme-core, @nf-lab/acme-router (strict) and @nf-lab/acme-common (not strict)',
+      'not in the subpool of contacts: its range ^16.0.0 rejects the served 18.1.3 of @nf-lab/acme-core, @nf-lab/acme-router (strict) and @nf-lab/acme-animations, @nf-lab/acme-common, @nf-lab/acme-forms (not strict)',
+    ]);
+    expect(legacy.chip).toMatchObject({ label: 'version conflict', unexplained: false });
+    // The warning box: legacy's conflicts first (strict, then not), then the two missing packages.
+    expect(issueLines(card)).toEqual([
+      'legacy conflict @nf-lab/acme-core, @nf-lab/acme-router global 18.2.0 · needs ^16.0.0 (strict)',
+      'legacy conflict @nf-lab/acme-common global 18.2.0 · needs ^16.0.0',
+      'contacts (subpool: contacts, invoices, onboarding, orders, reports), legacy missing @nf-lab/acme-animations',
+      'contacts (subpool: contacts, invoices, onboarding, orders, reports), legacy missing @nf-lab/acme-forms',
+    ]);
+  });
+
   it('pool-portfolio: every rejection of legacy listed, the subpool folded into the verdict', () => {
     const card = cardOf('pool-portfolio', 'acme');
     expect(card.columns.map((c) => c.label)).toEqual([
@@ -161,7 +248,7 @@ describe('buildPoolsVm (share-pools T11)', () => {
       'Own build · legacy · null',
     ]);
     expect(reasonOf(card, 'legacy')).toBe(
-      'version conflict: its range rejects the global @nf-lab/acme-core 18.2.0 (^16.0.0, strict), @nf-lab/acme-router 18.2.0 (^16.0.0, strict), @nf-lab/acme-common 18.2.0 (^16.0.0, not strict)',
+      'version conflict: its range ^16.0.0 rejects the global 18.2.0 of @nf-lab/acme-core, @nf-lab/acme-router (strict) and @nf-lab/acme-common (not strict)',
     );
     expect(reasonOf(card, 'reports')).toBe(
       'not covered: the global map lacks @nf-lab/acme-animations, @nf-lab/acme-forms',
@@ -180,11 +267,9 @@ describe('buildPoolsVm (share-pools T11)', () => {
   });
 
   it('pool-uncovered-gap: the secondary entrypoint the global map lacks', () => {
-    const card = cardOf('pool-uncovered-gap', 'ui');
-    expect(card.coverage).toMatchObject({
-      text: 'Global map serves 2 of 3 entrypoints the remotes import',
-      missing: ['@nf-lab/ui-core/testing (mfe1)'],
-    });
+    const card = selectedCard('pool-uncovered-gap', 'ui');
+    expect(card.coverage.text).toBe('Global map serves 2 of 3 entrypoints the remotes import');
+    expect(gaps(card)).toEqual(['@nf-lab/ui-core/testing (mfe1)']);
     expect(sketch(card)[1]).toEqual({
       band: 'Own build · mfe1',
       rows: ['mfe1 [ui] 1.0.0:gap 1.0.0:isolated'],
@@ -201,7 +286,7 @@ describe('buildPoolsVm (share-pools T11)', () => {
   it('pool-incompatible-nonstrict: a non-strict range rejects too', () => {
     const card = cardOf('pool-incompatible-nonstrict', 'ui');
     expect(reasonOf(card, 'mfe1')).toBe(
-      'version conflict: its range rejects the global @nf-lab/ui-core 2.0.0 (^1.0.0, not strict), @nf-lab/ui-dom 2.0.0 (^1.0.0, not strict)',
+      'version conflict: its range ^1.0.0 (not strict) rejects the global 2.0.0 of @nf-lab/ui-core, @nf-lab/ui-dom',
     );
     expect(verdictLine(card)).toBe('✕ Own build · version conflict — mfe1 · 2 rejections');
   });
@@ -297,9 +382,9 @@ describe('buildPoolsVm (share-pools T11)', () => {
             if (remote.name === 'mfe2') remote.poolCause = 'future';
       const [card] = vmOfSnapshot(snapshot).pools;
       expect(verdictLine(card)).toBe('✕ Own build · future — mfe2 · 1 rejection · 1 unexplained');
-      expect(card.bands[1].reason).toEqual({
+      expect(card.bands[1].rows[0].reasons[0]).toEqual({
         cause: 'future',
-        text: "its range rejects the global @nf-lab/ui-dom 1.1.0 (^2.0.0, strict) — but the stored cause is 'future'",
+        text: "its range ^2.0.0 (strict) rejects the global 1.1.0 of @nf-lab/ui-dom — but the stored cause is 'future'",
         unexplained: true,
       });
     });
@@ -366,5 +451,132 @@ describe('buildPoolsVm (share-pools T11)', () => {
     it('does not warn when the record carries v4.7 pool state but no version was exposed', () => {
       expect(warningOf(null, FIXTURES['pool-tag-islanded'])).toBeNull();
     });
+  });
+});
+
+describe('buildPoolsVm — many remotes', () => {
+  it('shows up to six remote chips; beyond that five, and the rest named on hover', () => {
+    const remotes = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({ name: `mfe${i + 1}`, host: false }));
+    expect(remoteListOf(remotes(6))).toMatchObject({ more: 0, moreNames: '' });
+    expect(remoteListOf(remotes(6)).shown.length).toBe(6);
+    // 50 micro frontends: five chips, "+45 more".
+    const many = remoteListOf(remotes(50));
+    expect(many.shown.map((r) => r.name)).toEqual(['mfe1', 'mfe2', 'mfe3', 'mfe4', 'mfe5']);
+    expect(many.more).toBe(45);
+    expect(many.moreNames.startsWith('mfe6, mfe7')).toBe(true);
+  });
+
+  it("pool-portfolio: a subpool's five remotes collapse into its owner, named on hover", () => {
+    const animations = selectedCard('pool-portfolio', 'acme').coverage.issues.find(
+      (i) => i.kind === 'missing',
+    )!;
+    expect(animations.subject).toBe('@nf-lab/acme-animations');
+    expect(animations.remotes.shown).toEqual([
+      {
+        name: 'contacts',
+        host: false,
+        subpool: { count: 5, names: 'contacts, invoices, onboarding, orders, reports' },
+      },
+      { name: 'legacy', host: false },
+    ]);
+    // Hovering the line still lights every remote it hits.
+    expect(animations.all.length).toBe(6);
+  });
+});
+
+// A band click judges the pool against that band's build: what-if evidence next to where each remote runs.
+describe('buildPoolsVm — judged against one build', () => {
+  const lensCard = (id: FixtureId, name: string, owner: string | null) => {
+    const model = ingestSnapshot(FIXTURES[id]);
+    const projection = model.resolutionProjection;
+    const pool = projection.tagPools.find((p) => p.name === name)!;
+    return buildPoolsVm(projection, '4.8.0', { poolId: pool.id, owner }).pools.find(
+      (card) => card.id === pool.id,
+    )!;
+  };
+  const rowOf = (card: PoolCardVm, remote: string) =>
+    card.bands.flatMap((b) => b.rows).find((r) => r.remote.name === remote)!;
+  const lines = (card: PoolCardVm, remote: string) =>
+    rowOf(card, remote).reasons.map((r) => `${r.cause}: ${r.text}`);
+
+  it("pool-portfolio, contacts' build: who fits it, and where each actually runs", () => {
+    const card = lensCard('pool-portfolio', 'acme', 'contacts');
+    expect(card.lens).toBe('contacts');
+    expect(verdictLine(card)).toBe(
+      '◎ Build of contacts — fits 11 of 12 remotes · 1 version conflict',
+    );
+    expect(card.coverage).toMatchObject({
+      text: 'Build of contacts ships all 5 entrypoints the remotes import',
+      complete: true,
+    });
+    expect(issueLines(card)).toEqual([
+      'legacy conflict @nf-lab/acme-core, @nf-lab/acme-router build of contacts 18.1.3 · needs ^16.0.0 (strict)',
+      'legacy conflict @nf-lab/acme-animations, @nf-lab/acme-common, @nf-lab/acme-forms build of contacts 18.1.3 · needs ^16.0.0',
+    ]);
+    // Judged against the build first, then where it really runs.
+    expect(lines(card, 'legacy')).toEqual([
+      'version conflict with the build of contacts: its range ^16.0.0 rejects the served 18.1.3 of @nf-lab/acme-core, @nf-lab/acme-router (strict) and @nf-lab/acme-animations, @nf-lab/acme-common, @nf-lab/acme-forms (not strict)',
+      'runs on: its own build',
+    ]);
+    expect(lines(card, 'cart')).toEqual([
+      'fits the build of contacts: its ranges accept every version, and the build ships every entrypoint it imports',
+      'runs on: the global map',
+    ]);
+    expect(lines(card, 'contacts')).toEqual(['runs on: its own build, which serves its subpool']);
+    expect(rowOf(card, 'contacts').chip?.label).toBe('this build');
+    expect(rowOf(card, 'legacy').cells.map((c) => c.state)).toEqual(Array(5).fill('rejected'));
+    // Every band selects; only the selected one is active. The global map has no lens of its own.
+    expect(card.bands.map((b) => [b.lensOwner, b.selectable, b.active])).toEqual([
+      [null, true, false],
+      ['contacts', true, true],
+      ['legacy', true, false],
+    ]);
+  });
+
+  it('nothing selected by default: no warning, no active band', () => {
+    const card = cardOf('pool-portfolio', 'acme');
+    expect(card.selected).toBe(false);
+    expect(card.coverage.issues).toEqual([]);
+    expect(card.bands.some((b) => b.active)).toBe(false);
+  });
+
+  it('the global map selected: its band active, the warning lists the pool issues', () => {
+    const card = lensCard('pool-portfolio', 'acme', null);
+    expect(card).toMatchObject({ selected: true, lens: null });
+    expect(card.bands.map((b) => b.active)).toEqual([true, false, false]);
+    expect(card.coverage.issues.length).toBe(4);
+    expect(card.verdict?.type).toBe('Own build');
+  });
+
+  it('a lens for another pool, or an unknown owner, leaves the card on the global map', () => {
+    const card = lensCard('pool-portfolio', 'acme', 'nope');
+    expect(card.lens).toBeNull();
+    expect(card.selected).toBe(false);
+    expect(card.verdict?.type).toBe('Own build');
+  });
+});
+
+// Older orchestrators (the v2 corpus is 4.6; 4.7 records carry no poolWinner) and every lens.
+describe('buildPoolsVm — every fixture, every build', () => {
+  it('renders each pool judged against each of its builds without throwing', () => {
+    let lenses = 0;
+    for (const id of Object.keys(FIXTURES) as FixtureId[]) {
+      const model = ingestSnapshot(FIXTURES[id]);
+      const projection = model.resolutionProjection;
+      const version = model.provenance.runtimeSource?.orchestratorVersion ?? null;
+      projection.tagPools.forEach((pool, index) => {
+        for (const lens of projection.poolFamilies[index].lenses) {
+          const card = buildPoolsVm(projection, version, {
+            poolId: pool.id,
+            owner: lens.owner,
+          }).pools.find((c) => c.id === pool.id)!;
+          expect(card.lens).toBe(lens.owner);
+          expect(card.bands.flatMap((b) => b.rows).length).toBe(pool.remotes.length);
+          lenses++;
+        }
+      });
+    }
+    expect(lenses).toBeGreaterThan(20);
   });
 });

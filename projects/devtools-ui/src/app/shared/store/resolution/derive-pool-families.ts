@@ -7,6 +7,8 @@ import type {
   PoolConsumer,
   PoolFamily,
   PoolFamilyMember,
+  PoolLens,
+  PoolLensCell,
   PoolMiss,
   PoolPlacement,
   PoolRangeRejection,
@@ -148,6 +150,17 @@ export function derivePoolFamilies(
       };
     });
 
+    const lenses = pool.remotes.flatMap((owner, index) =>
+      rowsOf(owner).length === 0
+        ? []
+        : [lensOf(owner, builds[index], pool.remotes, pool.members, rowsOf)],
+    );
+    const lensOfOwner = new Map(lenses.map((lens) => [lens.owner, lens]));
+    const subpoolOwners = [
+      ...new Set(
+        pool.remotes.flatMap((remote) => rowsOf(remote).flatMap((row) => row.servedBy ?? [])),
+      ),
+    ].filter((owner) => pool.remotes.includes(owner));
     const consumers: PoolConsumer[] = pool.remotes.map((remote) => {
       const rows = rowsOf(remote);
       const placement = placementOf(rows);
@@ -169,6 +182,13 @@ export function derivePoolFamilies(
               : (row.servedBy ?? memberSurface.get(row.member)?.build ?? remote),
           ]),
         ),
+        subpoolMisses:
+          placement.kind === 'self'
+            ? subpoolOwners.map((owner) => ({
+                owner,
+                miss: lensOfOwner.get(owner)!.consumers.find((c) => c.remote === remote)!.miss,
+              }))
+            : [],
       };
     });
 
@@ -202,11 +222,56 @@ export function derivePoolFamilies(
         winner,
       ),
       consumers,
+      lenses,
       pending: externals.some((external) => external.dirty) || undecided,
       undecided,
       recorded: externals.some((external) => external.poolName !== null),
     };
   });
+}
+
+function lensOf(
+  owner: string,
+  tags: SpecifierTags,
+  remotes: readonly string[],
+  members: readonly string[],
+  rowsOf: (remote: string) => MemberRow[],
+): PoolLens {
+  const declared = new Map<string, string[]>();
+  const cells: Record<string, (PoolLensCell | null)[]> = {};
+  for (const remote of remotes) {
+    const rows = rowsOf(remote);
+    for (const row of rows)
+      for (const specifier of row.specifiers)
+        declared.set(specifier, [...new Set([...(declared.get(specifier) ?? []), remote])]);
+    cells[remote] = members.map((member) => {
+      const row = rows.find((r) => r.member === member);
+      if (row === undefined) return null;
+      const missing = row.specifiers.filter((specifier) => !tags.has(specifier));
+      const rejected = row.specifiers.some((specifier) => {
+        const tag = tags.get(specifier);
+        return tag !== undefined && acceptsTag(tag, row.tag, row.requiredVersion) === false;
+      });
+      return {
+        state: rejected ? 'rejected' : missing.length > 0 ? 'gap' : 'accepted',
+        tag: tags.pinnedTag(member) ?? null,
+        requiredVersion: row.requiredVersion,
+        strictVersion: row.strictVersion,
+        missing,
+      };
+    });
+  }
+  const missing = [...declared]
+    .filter(([specifier]) => !tags.has(specifier))
+    .map(([specifier, users]) => ({ specifier, remotes: users.sort(compareText) }))
+    .sort((a, b) => compareText(a.specifier, b.specifier));
+  return {
+    owner,
+    coverage: { declared: declared.size, served: declared.size - missing.length, missing },
+    // `serves` only: no unshipped check, a single build ships its own combination.
+    consumers: remotes.map((remote) => ({ remote, miss: missOf(rowsOf(remote), tags, []) })),
+    cells,
+  };
 }
 
 function placementOf(rows: readonly MemberRow[]): PoolPlacement {

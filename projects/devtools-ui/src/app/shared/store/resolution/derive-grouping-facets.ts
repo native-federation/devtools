@@ -19,6 +19,8 @@ interface PoolCandidate {
   tags: PoolTagDeclaration[];
   remotes: Set<string>;
   storedPoolNames: Set<string>;
+  /** Carries a stored `poolWinner`: elected by orchestrator v4.8+. */
+  elected48: boolean;
 }
 
 /** Tag pools per share scope, mirroring the orchestrator's `groupByMembership` with tag edges only. */
@@ -44,10 +46,12 @@ export function deriveTagPools(evidence: CanonicalRegistryEvidence): TagPoolDeri
       tags: [],
       remotes: new Set(),
       storedPoolNames: new Set(),
+      elected48: false,
     };
     scope.set(external.packageName, candidate);
     candidate.ids.push(external.id);
     if (external.poolName !== null) candidate.storedPoolNames.add(external.poolName);
+    if (external.poolWinner !== null) candidate.elected48 = true;
     for (const declaration of declarationsOf(external)) {
       candidate.remotes.add(declaration.participant);
       const tag = declaration.pool?.trim();
@@ -67,12 +71,18 @@ export function deriveTagPools(evidence: CanonicalRegistryEvidence): TagPoolDeri
   for (const [shareScope, candidates] of [...byScope].sort(([a], [b]) => compareText(a, b))) {
     const components = new UnionFind();
     const extNode = (name: string) => JSON.stringify(['ext', name]);
-    // Tag nodes are per remote: identical tag strings of two remotes meet only through a shared member.
-    const tagNode = (remote: string, tag: string) => JSON.stringify(['tag', remote, tag]);
+    // v4.8 (`membership.ts`): a label is one node across every remote. v4.7 (`pool-graph.ts`): one per
+    // remote, so identical labels of two remotes meet only through a shared member.
+    const perLabel = [...candidates.values()].some((candidate) => candidate.elected48);
+    const tagNode = (remote: string, tag: string) =>
+      JSON.stringify(perLabel ? ['label', tag] : ['tag', remote, tag]);
     for (const [name, candidate] of candidates) {
       components.add(extNode(name));
       for (const { remote, tag } of candidate.tags)
         components.union(extNode(name), tagNode(remote, tag));
+      // The pool the orchestrator stored is its own grouping (v4.7+); it outranks the rule above.
+      for (const pool of candidate.storedPoolNames)
+        components.union(extNode(name), JSON.stringify(['stored', pool]));
     }
     for (const name of candidates.keys()) {
       const owner = owningPackage(name);
