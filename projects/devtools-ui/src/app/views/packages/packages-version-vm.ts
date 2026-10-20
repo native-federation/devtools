@@ -14,6 +14,7 @@ import type {
   TagPool,
   VersionVerdict,
 } from '../../shared/store/resolution';
+import { placementReasonText } from '../../shared/placement-text';
 import { PackageDetailVm, buildDetail } from './packages-detail-vm';
 import type { PackageEntry } from './packages-row-vm';
 import {
@@ -40,7 +41,7 @@ export interface LabelNoteVm {
   note: string;
 }
 
-export type VersionNoteKind = 'out-of-range' | 'own-copy' | 'merged';
+export type VersionNoteKind = 'out-of-range' | 'subpool' | 'own-copy' | 'merged';
 
 export interface VersionNoteVm extends LabelNoteVm {
   kind: VersionNoteKind;
@@ -66,6 +67,8 @@ export interface RunnerVm {
 
 export interface EntrypointVm {
   specifier: string;
+  /** Set when the serving build or global map lacks it — why its shipper is off the map. */
+  missing: string | null;
 }
 
 export interface BuildGroupVm<Item> {
@@ -81,6 +84,8 @@ export interface FileVm {
 
 export interface DeepDiveVm {
   builtBy: RemoteRefVm[];
+  /** Why each shipper runs its own copy or a subpool, one line each. */
+  why: { remote: RemoteRefVm; text: string }[];
   merged: LabelNoteVm | null;
   mapped: string;
   runsIn: RunnerVm[];
@@ -167,6 +172,7 @@ const VERDICT_LABELS: Record<DeclarationVerdict, string> = {
   provides: 'provides',
   'same-version': 'same version',
   'reuses-shared': 'reuses shared',
+  subpool: 'subpool',
   'own-copy': 'own copy',
   'out-of-range': 'out of range',
   unknown: 'unknown',
@@ -198,8 +204,25 @@ function verdictNoteOf(
         : `same version as the shared copy${electedRemote ? ` · resolves to ${participantDisplay(electedRemote)}'s build` : ''}`;
     case 'reuses-shared':
       return `${range} accepts ${elected} · resolves to the shared copy`;
-    case 'own-copy':
-      return `${range} rejects ${elected} · strict · keeps its own ${record.tag}`;
+    case 'subpool': {
+      const owner =
+        record.subpoolOf === null ? 'another remote' : participantDisplay(record.subpoolOf);
+      const where =
+        record.subpoolOf === record.participant
+          ? `its build serves a subpool of its pool`
+          : `runs ${owner}'s build in a subpool of its pool`;
+      const why = record.reason === null ? null : placementReasonText(record.reason);
+      return why === null ? where : `${where} · ${why}`;
+    }
+    case 'own-copy': {
+      const why = record.reason === null ? null : placementReasonText(record.reason);
+      const whole = record.reason?.scope === 'pool' ? 'its whole pool' : `its own ${record.tag}`;
+      if (why !== null) return `${why} · runs ${whole} from its own build`;
+      // Before 4.8 nothing names the serving build; a strict rejection is the one reading the rows allow.
+      return record.strictVersion && record.acceptsElected === false
+        ? `${range} rejects ${elected} · strict · keeps its own ${record.tag}`
+        : `keeps its own ${record.tag} · the stored rows do not say why`;
+    }
     case 'out-of-range':
       return `${range} rejects ${elected} · not strict · resolves to ${elected} anyway — the orchestrator stores a plain skip`;
     case 'unknown':
@@ -220,6 +243,16 @@ function notesOf(
       kind: 'out-of-range',
       label: `${outOfRange.map((d) => participantDisplay(d.participant)).join(', ')} out of range`,
       note: outOfRange
+        .map((d) => `${participantDisplay(d.participant)}: ${verdictNoteOf(d, verdicts, null)}`)
+        .join('\n'),
+    });
+  }
+  const subpool = named('subpool');
+  if (subpool.length > 0) {
+    notes.push({
+      kind: 'subpool',
+      label: `${subpool.map((d) => participantDisplay(d.participant)).join(', ')} subpool`,
+      note: subpool
         .map((d) => `${participantDisplay(d.participant)}: ${verdictNoteOf(d, verdicts, null)}`)
         .join('\n'),
     });
@@ -290,6 +323,17 @@ function diveOf(
   const runners = verdicts.declarations.filter((d) => d.runsTag === version.tag);
   const builds = version.builds.filter((b) => b.specifiers.length > 0 || b.chunkFiles.length > 0);
   const multi = builds.length > 1;
+  const offMap = shippers.filter((d) => d.reason !== null);
+  const lacking = new Map<string, string>();
+  for (const d of offMap) {
+    const miss = d.reason!.miss;
+    if (miss?.kind !== 'coverage') continue;
+    const where =
+      d.reason!.scope === 'pool' || d.reason!.build === null
+        ? 'not on the global map'
+        : `not in ${participantDisplay(d.reason!.build)}'s build`;
+    for (const specifier of miss.missing) lacking.set(specifier, where);
+  }
 
   const mapped =
     version.status === 'shared'
@@ -312,7 +356,10 @@ function diveOf(
           count: builds.reduce((n, b) => n + b.specifiers.length, 0),
           groups: builds.map((b) => ({
             build: multi && b.sourceRemote ? remoteRef(b.sourceRemote) : null,
-            items: b.specifiers.map((specifier) => ({ specifier })),
+            items: b.specifiers.map((specifier) => ({
+              specifier,
+              missing: lacking.get(specifier) ?? null,
+            })),
           })),
         };
   const files =
@@ -335,6 +382,10 @@ function diveOf(
       builds.length > 0
         ? builds.flatMap((b) => (b.sourceRemote ? [remoteRef(b.sourceRemote)] : []))
         : shippers.map((d) => remoteRef(d.participant)),
+    why: offMap.map((d) => ({
+      remote: remoteRef(d.participant),
+      text: verdictNoteOf(d, verdicts, electedRemote),
+    })),
     merged: version.merged ? { label: 'merged', note: mergedNoteOf(version) } : null,
     mapped,
     runsIn: runners.map((d) => ({

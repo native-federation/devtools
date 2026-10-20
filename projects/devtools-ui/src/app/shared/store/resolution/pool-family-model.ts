@@ -73,12 +73,7 @@ export interface PoolSurfaceEntry {
  * another remote loads its build), `unchanged`.
  */
 export type PoolCellState =
-  | 'rejected'
-  | 'gap'
-  | 'isolated'
-  | 'not-shared'
-  | 'serves-others'
-  | 'unchanged';
+  'rejected' | 'gap' | 'isolated' | 'not-shared' | 'serves-others' | 'unchanged';
 
 export interface PoolStatusCell {
   state: PoolCellState;

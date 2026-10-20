@@ -1,7 +1,9 @@
 import { compareSemver } from '../semver-compare';
-import { satisfiesRange } from '../semver-range';
+import { acceptsTag } from '../semver-range';
 import type { BundleClaim, ChunkGroupProjection } from './bundle-claims-model';
 import type { DeclarationResolutionClaim } from './claims-model';
+import { owningPackage } from './derive-grouping-facets';
+import type { TagPool } from './grouping-model';
 import type { ResolvedDependencyCopy } from './copies-model';
 import { registryEvidenceId } from './ids';
 import type {
@@ -9,13 +11,16 @@ import type {
   EffectiveConsumerResolution,
   ParticipantDeclaration,
   SharedExternalId,
+  SharedExternalRecord,
   VersionRegistration,
 } from './model';
+import type { PoolFamily, PoolRangeRejection } from './pool-family-model';
 import type { RemoteProjection } from './projection-model';
 import type {
   BuildChunkFile,
   DeclarationVerdict,
   DeclarationVerdictRecord,
+  PlacementReason,
   PackageScopeVerdicts,
   VersionBuild,
   VersionStatus,
@@ -32,14 +37,26 @@ export interface PackageVerdictInputs {
   bundleClaims: readonly BundleClaim[];
   chunkGroups: readonly ChunkGroupProjection[];
   remotes: readonly RemoteProjection[];
+  tagPools?: readonly TagPool[];
+  poolFamilies?: readonly PoolFamily[];
 }
 
 export function derivePackageVerdicts(
   evidence: CanonicalRegistryEvidence,
-  { claims, copies, resolutions, bundleClaims, chunkGroups, remotes }: PackageVerdictInputs,
+  {
+    claims,
+    copies,
+    resolutions,
+    bundleClaims,
+    chunkGroups,
+    remotes,
+    tagPools = [],
+    poolFamilies = [],
+  }: PackageVerdictInputs,
 ): PackageScopeVerdicts[] {
   const registrationById = new Map(evidence.versionRegistrations.map((r) => [r.id, r]));
   const declarationById = new Map(evidence.participantDeclarations.map((d) => [d.id, d]));
+  const reasonOf = placementReasons(evidence, tagPools, poolFamilies);
   const copyById = new Map(copies.map((copy) => [copy.id, copy]));
   const buildOf = buildFactory(resolutions, bundleClaims, chunkGroups, remotes);
 
@@ -82,19 +99,27 @@ export function derivePackageVerdicts(
       registration.participantDeclarationIds.map((id, index) => {
         const declaration = declarationById.get(id)!;
         const acceptsElected =
-          electedTag === null ? null : satisfiesRange(electedTag, declaration.requiredVersion);
+          electedTag === null
+            ? null
+            : acceptsTag(electedTag, registration.tag, declaration.requiredVersion);
+        const verdict = verdictOf(registration, declaration, index, electedTag, acceptsElected);
         return {
           declarationId: declaration.id,
           participant: declaration.participant,
           tag: registration.tag,
-          verdict: verdictOf(registration, declaration, index, electedTag, acceptsElected),
+          verdict,
           acceptsElected,
+          reason:
+            verdict === 'own-copy' || verdict === 'subpool'
+              ? reasonOf(external, declaration.participant)
+              : null,
+          subpoolOf: declaration.servedBy,
           runsTag: runsTagOf(declaration),
           requiredVersion: declaration.requiredVersion,
           strictVersion: declaration.strictVersion,
           acceptance: tags.map((tag) => ({
             tag,
-            accepts: satisfiesRange(tag, declaration.requiredVersion),
+            accepts: acceptsTag(tag, registration.tag, declaration.requiredVersion),
           })),
         };
       }),
@@ -139,8 +164,123 @@ export function derivePackageVerdicts(
       electedDeclarationId: elected?.participantDeclarationIds[0] ?? null,
       versions,
       declarations,
+      servingBuild: external.servingBuild,
     };
   });
+}
+
+interface PlacedCopy {
+  member: string;
+  tag: string;
+  action: VersionRegistration['action'];
+  /** First participant of a `host` row: the host serves every tag it ships. */
+  hostLead: boolean;
+  requiredVersion: string;
+  strict: boolean;
+  specifiers: string[];
+}
+
+// Per (share scope, remote): why its copies are off the global map. Packages group a root and its
+// flat secondaries by name, as the orchestrator does (`packageOf`).
+function placementReasons(
+  evidence: CanonicalRegistryEvidence,
+  tagPools: readonly TagPool[],
+  poolFamilies: readonly PoolFamily[],
+): (external: SharedExternalRecord, remote: string) => PlacementReason {
+  const registrationById = new Map(evidence.versionRegistrations.map((r) => [r.id, r]));
+  const declarationById = new Map(evidence.participantDeclarations.map((d) => [d.id, d]));
+  const candidateById = new Map(evidence.entrypointCandidates.map((c) => [c.id, c]));
+  const packageOf = (external: SharedExternalRecord) =>
+    `${external.shareScope}\n${owningPackage(external.packageName) ?? external.packageName}`;
+  const packages = new Map<string, SharedExternalRecord[]>();
+  for (const external of evidence.sharedExternals)
+    packages.set(packageOf(external), [...(packages.get(packageOf(external)) ?? []), external]);
+
+  const placedOf = (externals: readonly SharedExternalRecord[], remote: string): PlacedCopy[] =>
+    externals.flatMap((external) =>
+      external.versionRegistrationIds.flatMap((id) => {
+        const registration = registrationById.get(id)!;
+        return registration.participantDeclarationIds.flatMap((declarationId, index) => {
+          const declaration = declarationById.get(declarationId)!;
+          if (declaration.participant !== remote) return [];
+          return [
+            {
+              member: external.packageName,
+              tag: registration.tag,
+              action: registration.action,
+              hostLead: registration.host && index === 0,
+              requiredVersion: declaration.requiredVersion,
+              strict: declaration.strictVersion,
+              specifiers: declaration.entrypointCandidateIds.map(
+                (c) => candidateById.get(c)!.specifier,
+              ),
+            },
+          ];
+        });
+      }),
+    );
+
+  return (external, remote) => {
+    const index = tagPools.findIndex((pool) => pool.sharedExternalIds.includes(external.id));
+    if (index !== -1) {
+      const family = poolFamilies[index];
+      const consumer = family?.consumers.find((c) => c.remote === remote);
+      return {
+        scope: 'pool',
+        build: family?.winner ?? null,
+        miss: consumer?.miss ?? null,
+        storedCause: consumer?.storedCause ?? null,
+      };
+    }
+    const externals = packages.get(packageOf(external))!;
+    const serving = externals.find((e) => e.servingBuild !== null)?.servingBuild ?? null;
+    if (serving === null) return { scope: 'package', build: null, miss: null, storedCause: null };
+
+    // `serving.ts` `surfaceOf`: the serving build's copies at its share tag, and every host-led row.
+    const servingCopies = placedOf(externals, serving).filter((p) => p.action === 'share');
+    const servingTag =
+      servingCopies.find((p) => p.member === external.packageName)?.tag ?? servingCopies[0]?.tag;
+    const surface = new Map<string, string>();
+    for (const e of externals)
+      for (const p of placedOf([e], serving))
+        if (p.action === 'share' && p.tag === servingTag)
+          for (const s of p.specifiers) if (!surface.has(s)) surface.set(s, p.tag);
+    for (const e of externals)
+      for (const id of e.versionRegistrationIds) {
+        const registration = registrationById.get(id)!;
+        const lead = declarationById.get(registration.participantDeclarationIds[0]);
+        if (registration.action !== 'share' || !registration.host || lead === undefined) continue;
+        for (const c of lead.entrypointCandidateIds) {
+          const specifier = candidateById.get(c)!.specifier;
+          if (!surface.has(specifier)) surface.set(specifier, registration.tag);
+        }
+      }
+
+    const placed = placedOf(externals, remote);
+    const rejections: PoolRangeRejection[] =
+      servingTag === undefined
+        ? []
+        : placed
+            .filter((p) => p.strict && acceptsTag(servingTag, p.tag, p.requiredVersion) === false)
+            .map((p) => ({
+              member: p.member,
+              specifier: p.specifiers[0] ?? p.member,
+              tag: servingTag,
+              requiredVersion: p.requiredVersion,
+              strict: true,
+            }));
+    const missing = placed.flatMap((p) => p.specifiers).filter((s) => !surface.has(s));
+    const tags = [...new Set(placed.map((p) => p.tag))];
+    const miss: PlacementReason['miss'] =
+      rejections.length > 0
+        ? { kind: 'range', rejections }
+        : missing.length > 0
+          ? { kind: 'coverage', missing }
+          : tags.length > 1 && !placed.some((p) => p.hostLead)
+            ? { kind: 'two-tags', tags: tags.sort(compareSemver) }
+            : null;
+    return { scope: 'package', build: serving, miss, storedCause: null };
+  };
 }
 
 function verdictOf(
@@ -157,6 +297,7 @@ function verdictOf(
     case 'scope':
       return 'own-copy';
     case 'skip':
+      if (declaration.servedBy !== null) return 'subpool';
       if (electedTag === null) return 'unknown';
       if (registration.tag === electedTag) return 'same-version';
       if (acceptsElected === true) return 'reuses-shared';

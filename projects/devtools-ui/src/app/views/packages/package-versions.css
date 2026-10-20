@@ -356,6 +356,14 @@ tbody.dive td {
   font-weight: 600;
 }
 
+.note-subpool,
+.verdict-subpool {
+  padding: 0 4px;
+  border: 1px dashed var(--nf-color-border);
+  border-radius: 3px;
+  color: var(--nf-color-text-muted);
+}
+
 .verdict-own-copy {
   padding: 0 4px;
   border-radius: 3px;
@@ -463,4 +471,23 @@ details[open] > summary {
 
 .range-matrix td.ships {
   box-shadow: inset 0 0 0 1px var(--nf-color-text-muted);
+}
+
+.why {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.why-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.missing-note {
+  margin-left: 6px;
+  color: var(--nf-color-warning-text);
+  font-size: 11px;
+  font-weight: 600;
 }
