@@ -1,5 +1,6 @@
 import type {
   BundleClaim,
+  ClaimMappingState,
   ConsumerCopyRelation,
   RemoteProjection,
   ResolvedDependencyCopy,
@@ -185,6 +186,15 @@ export function remoteOrder(a: RemoteProjection, b: RemoteProjection): number {
   return compareStrings(a.name, b.name);
 }
 
+const EDGE_STATE_TEXT: Record<ClaimMappingState, string> = {
+  'own-selected': 'its own copy',
+  'not-selected': "another remote's copy (its own is not selected)",
+  fallback: 'the shared copy (it skips its own)',
+  anchored: "a subpool's build",
+  blocked: 'blocked by the map',
+  unknown: 'not derivable from the capture',
+};
+
 export function edgeOf(
   relation: ConsumerCopyRelation,
   source: RemoteGraphNode,
@@ -196,7 +206,9 @@ export function edgeOf(
     sourceId: source.id,
     targetId: target.id,
     style: solid ? 'solid' : 'dotted',
-    tooltip: solid ? null : Array.from(new Set(relation.mappingStates)).join(', '),
+    tooltip: solid
+      ? null
+      : Array.from(new Set(relation.mappingStates), (state) => EDGE_STATE_TEXT[state]).join('; '),
     path: edgePath(
       source.x + source.width,
       source.y + source.height / 2,

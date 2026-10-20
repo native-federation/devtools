@@ -35,8 +35,8 @@ externals.
 tick remotes to include or exclude their consumers, hover to trace a
 resolution path, expand a dependency for its secondary entrypoints or a build
 for its files. The dependency column groups by provider (default), share
-scope, pool, or build; dashed nodes mark isolated copies, dotted edges mark
-borrowed dependencies.
+scope, pool, or build; dashed nodes mark isolated copies, dotted edges lead to
+another remote's copy; tooltips say why.
 
 **Import Map** — the raw evidence view: sectioned tables in map order with
 owner-consensus headers, each row attributed to its package, provider, and
