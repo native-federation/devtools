@@ -1,9 +1,9 @@
 {
   "schemaVersion": "lab-lossless-capture/1",
-  "capturedAt": "2026-09-30T11:30:48.031Z",
+  "capturedAt": "2026-10-20T08:38:58.458Z",
   "scenario": {
     "scenarioId": "pool-showcase",
-    "orchestratorCommit": "4.7.0",
+    "orchestratorCommit": "4.8.0",
     "ready": true,
     "readyError": null
   },
@@ -21,15 +21,20 @@
   "channels": {
     "nativeFederationGlobals": {
       "availability": "available",
-      "observedAt": "2026-09-30T11:30:48.030Z",
+      "observedAt": "2026-10-20T08:38:58.458Z",
       "data": {
         "present": true,
         "valueType": "object",
         "namespaceKeys": [
+          "cache-state",
           "remotes",
           "shared-externals"
         ],
         "namespace": {
+          "cache-state": {
+            "version": "4.8.0",
+            "undecidedScopes": []
+          },
           "remotes": {
             "catalog": {
               "scopeUrl": "./catalog/",
@@ -100,15 +105,25 @@
                     "action": "skip",
                     "remotes": [
                       {
-                        "name": "catalog",
+                        "name": "admin",
                         "strictVersion": true,
                         "cached": true,
+                        "requiredVersion": ">=1.0.0 <3.0.0",
+                        "entries": {
+                          "@nf-lab/ui-core": "_nf_lab_ui_core.FGCSlTph3q.js"
+                        },
+                        "servedBy": "admin"
+                      },
+                      {
+                        "name": "catalog",
+                        "strictVersion": true,
+                        "cached": false,
                         "requiredVersion": ">=1.0.0 <3.0.0",
                         "pool": "ui",
                         "entries": {
                           "@nf-lab/ui-core": "_nf_lab_ui_core.FGCSlTph3q.js"
                         },
-                        "servedBy": "catalog"
+                        "servedBy": "admin"
                       },
                       {
                         "name": "checkout",
@@ -119,21 +134,13 @@
                         "entries": {
                           "@nf-lab/ui-core": "_nf_lab_ui_core.FGCSlTph3q.js"
                         },
-                        "servedBy": "catalog"
-                      },
-                      {
-                        "name": "admin",
-                        "strictVersion": true,
-                        "cached": false,
-                        "requiredVersion": ">=1.0.0 <3.0.0",
-                        "entries": {
-                          "@nf-lab/ui-core": "_nf_lab_ui_core.FGCSlTph3q.js"
-                        },
-                        "servedBy": "catalog"
+                        "servedBy": "admin"
                       }
                     ]
                   }
-                ]
+                ],
+                "poolWinner": "__NF-HOST__",
+                "servingBuild": "__NF-HOST__"
               },
               "@nf-lab/ui-dom": {
                 "dirty": false,
@@ -142,17 +149,28 @@
                   {
                     "tag": "1.0.0",
                     "host": false,
-                    "action": "share",
+                    "action": "skip",
                     "remotes": [
+                      {
+                        "name": "admin",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": ">=1.0.0 <3.0.0",
+                        "entries": {
+                          "@nf-lab/ui-dom": "_nf_lab_ui_dom.LEdXNkv1m2.js"
+                        },
+                        "servedBy": "admin"
+                      },
                       {
                         "name": "catalog",
                         "strictVersion": true,
-                        "cached": true,
+                        "cached": false,
                         "requiredVersion": ">=1.0.0 <3.0.0",
                         "pool": "ui",
                         "entries": {
                           "@nf-lab/ui-dom": "_nf_lab_ui_dom.LEdXNkv1m2.js"
-                        }
+                        },
+                        "servedBy": "admin"
                       },
                       {
                         "name": "checkout",
@@ -162,20 +180,13 @@
                         "pool": "ui",
                         "entries": {
                           "@nf-lab/ui-dom": "_nf_lab_ui_dom.LEdXNkv1m2.js"
-                        }
-                      },
-                      {
-                        "name": "admin",
-                        "strictVersion": true,
-                        "cached": false,
-                        "requiredVersion": ">=1.0.0 <3.0.0",
-                        "entries": {
-                          "@nf-lab/ui-dom": "_nf_lab_ui_dom.LEdXNkv1m2.js"
-                        }
+                        },
+                        "servedBy": "admin"
                       }
                     ]
                   }
-                ]
+                ],
+                "poolWinner": "__NF-HOST__"
               },
               "@nf-lab/chart-core": {
                 "dirty": false,
@@ -184,7 +195,7 @@
                   {
                     "tag": "1.1.0",
                     "host": false,
-                    "action": "scope",
+                    "action": "share",
                     "remotes": [
                       {
                         "name": "catalog",
@@ -194,8 +205,7 @@
                         "pool": "charts",
                         "entries": {
                           "@nf-lab/chart-core": "_nf_lab_chart_core.QRSGk-3c7N.js"
-                        },
-                        "poolCause": "incompatible"
+                        }
                       }
                     ]
                   },
@@ -213,11 +223,13 @@
                         "entries": {
                           "@nf-lab/chart-core": "_nf_lab_chart_core.euTvcmIiPr.js"
                         },
-                        "poolCause": "unshared"
+                        "poolCause": "incompatible"
                       }
                     ]
                   }
-                ]
+                ],
+                "poolWinner": "catalog",
+                "servingBuild": "catalog"
               },
               "@nf-lab/chart-dom": {
                 "dirty": false,
@@ -226,7 +238,7 @@
                   {
                     "tag": "2.0.0",
                     "host": false,
-                    "action": "share",
+                    "action": "scope",
                     "remotes": [
                       {
                         "name": "dashboard",
@@ -236,14 +248,15 @@
                         "pool": "charts",
                         "entries": {
                           "@nf-lab/chart-dom": "_nf_lab_chart_dom.6_R0EKaJeR.js"
-                        }
+                        },
+                        "poolCause": "incompatible"
                       }
                     ]
                   },
                   {
                     "tag": "1.1.0",
                     "host": false,
-                    "action": "scope",
+                    "action": "share",
                     "remotes": [
                       {
                         "name": "catalog",
@@ -253,12 +266,13 @@
                         "pool": "charts",
                         "entries": {
                           "@nf-lab/chart-dom": "_nf_lab_chart_dom.SA3JviWrvM.js"
-                        },
-                        "poolCause": "incompatible"
+                        }
                       }
                     ]
                   }
-                ]
+                ],
+                "poolWinner": "catalog",
+                "servingBuild": "catalog"
               },
               "@nf-lab/icons": {
                 "dirty": false,
@@ -280,15 +294,17 @@
                       }
                     ]
                   }
-                ]
+                ],
+                "servingBuild": "catalog"
               },
               "@nf-lab/form-core": {
                 "dirty": false,
+                "poolName": "form-kit",
                 "versions": [
                   {
                     "tag": "1.1.0",
-                    "action": "share",
                     "host": false,
+                    "action": "share",
                     "remotes": [
                       {
                         "name": "checkout",
@@ -304,8 +320,8 @@
                   },
                   {
                     "tag": "1.0.0",
-                    "action": "skip",
                     "host": false,
+                    "action": "skip",
                     "remotes": [
                       {
                         "name": "dashboard",
@@ -320,15 +336,17 @@
                     ]
                   }
                 ],
-                "poolName": "form-kit"
+                "poolWinner": "checkout",
+                "servingBuild": "checkout"
               },
               "@nf-lab/form-dom": {
                 "dirty": false,
+                "poolName": "form-kit",
                 "versions": [
                   {
                     "tag": "1.1.0",
-                    "action": "share",
                     "host": false,
+                    "action": "share",
                     "remotes": [
                       {
                         "name": "checkout",
@@ -344,8 +362,8 @@
                   },
                   {
                     "tag": "1.0.0",
-                    "action": "skip",
                     "host": false,
+                    "action": "skip",
                     "remotes": [
                       {
                         "name": "dashboard",
@@ -360,7 +378,8 @@
                     ]
                   }
                 ],
-                "poolName": "form-kit"
+                "poolWinner": "checkout",
+                "servingBuild": "checkout"
               },
               "@nf-lab/utils": {
                 "dirty": false,
@@ -381,7 +400,8 @@
                       }
                     ]
                   }
-                ]
+                ],
+                "servingBuild": "__NF-HOST__"
               }
             }
           }
@@ -390,7 +410,7 @@
     },
     "orchestratorGlobal": {
       "availability": "available",
-      "observedAt": "2026-09-30T11:30:48.031Z",
+      "observedAt": "2026-10-20T08:38:58.458Z",
       "data": {
         "present": true,
         "valueType": "object",
@@ -399,14 +419,15 @@
         ],
         "storage": {
           "__NATIVE_FEDERATION__": {
-            "version": "4.7.0",
+            "version": "4.8.0",
             "type": "globalThis",
             "namespace": "__NATIVE_FEDERATION__",
             "keys": [
               "remotes",
               "shared-externals",
               "scoped-externals",
-              "shared-chunks"
+              "shared-chunks",
+              "cache-state"
             ],
             "hasGet": true
           }
@@ -415,20 +436,20 @@
     },
     "domImportMaps": {
       "availability": "available",
-      "observedAt": "2026-09-30T11:30:48.031Z",
+      "observedAt": "2026-10-20T08:38:58.458Z",
       "data": {
         "count": 1,
         "maps": [
           {
             "index": 0,
             "type": "importmap-shim",
-            "text": "{\"imports\":{\"@nf-lab/ui-core\":\"./_nf_lab_ui_core.jpfHqL1p12.js\",\"@nf-lab/ui-dom\":\"./catalog/_nf_lab_ui_dom.LEdXNkv1m2.js\",\"@nf-lab/chart-dom\":\"./dashboard/_nf_lab_chart_dom.6_R0EKaJeR.js\",\"@nf-lab/icons\":\"./catalog/_nf_lab_icons.uMxgeSlPRR.js\",\"@nf-lab/form-core\":\"./checkout/_nf_lab_form_core.1pzqm5CgNE.js\",\"@nf-lab/form-dom\":\"./checkout/_nf_lab_form_dom.inoBQwtA8E.js\",\"@nf-lab/utils\":\"./_nf_lab_utils.wMYw37SmBF.js\",\"catalog/./main\":\"./catalog/main-PQZ5SSMN.js\",\"checkout/./main\":\"./checkout/main-ZDNE25RO.js\",\"dashboard/./main\":\"./dashboard/main-TNGFKWTS.js\",\"admin/./main\":\"./admin/main-DXLIHA7T.js\"},\"scopes\":{\"./catalog/\":{\"@nf-lab/chart-core\":\"./catalog/_nf_lab_chart_core.QRSGk-3c7N.js\",\"@nf-lab/chart-dom\":\"./catalog/_nf_lab_chart_dom.SA3JviWrvM.js\",\"@nf-lab/ui-core\":\"./catalog/_nf_lab_ui_core.FGCSlTph3q.js\"},\"./dashboard/\":{\"@nf-lab/chart-core\":\"./dashboard/_nf_lab_chart_core.euTvcmIiPr.js\"},\"./checkout/\":{\"@nf-lab/ui-core\":\"./catalog/_nf_lab_ui_core.FGCSlTph3q.js\"},\"./admin/\":{\"@nf-lab/ui-core\":\"./catalog/_nf_lab_ui_core.FGCSlTph3q.js\"}}}",
+            "text": "{\"imports\":{\"@nf-lab/ui-core\":\"./_nf_lab_ui_core.jpfHqL1p12.js\",\"@nf-lab/chart-core\":\"./catalog/_nf_lab_chart_core.QRSGk-3c7N.js\",\"@nf-lab/chart-dom\":\"./catalog/_nf_lab_chart_dom.SA3JviWrvM.js\",\"@nf-lab/icons\":\"./catalog/_nf_lab_icons.uMxgeSlPRR.js\",\"@nf-lab/form-core\":\"./checkout/_nf_lab_form_core.1pzqm5CgNE.js\",\"@nf-lab/form-dom\":\"./checkout/_nf_lab_form_dom.inoBQwtA8E.js\",\"@nf-lab/utils\":\"./_nf_lab_utils.wMYw37SmBF.js\",\"catalog/./main\":\"./catalog/main-PQZ5SSMN.js\",\"checkout/./main\":\"./checkout/main-ZDNE25RO.js\",\"dashboard/./main\":\"./dashboard/main-TNGFKWTS.js\",\"admin/./main\":\"./admin/main-DXLIHA7T.js\"},\"scopes\":{\"./dashboard/\":{\"@nf-lab/chart-core\":\"./dashboard/_nf_lab_chart_core.euTvcmIiPr.js\",\"@nf-lab/chart-dom\":\"./dashboard/_nf_lab_chart_dom.6_R0EKaJeR.js\"},\"./admin/\":{\"@nf-lab/ui-core\":\"./admin/_nf_lab_ui_core.FGCSlTph3q.js\",\"@nf-lab/ui-dom\":\"./admin/_nf_lab_ui_dom.LEdXNkv1m2.js\"},\"./catalog/\":{\"@nf-lab/ui-core\":\"./admin/_nf_lab_ui_core.FGCSlTph3q.js\",\"@nf-lab/ui-dom\":\"./admin/_nf_lab_ui_dom.LEdXNkv1m2.js\"},\"./checkout/\":{\"@nf-lab/ui-core\":\"./admin/_nf_lab_ui_core.FGCSlTph3q.js\",\"@nf-lab/ui-dom\":\"./admin/_nf_lab_ui_dom.LEdXNkv1m2.js\"}}}",
             "parsed": true,
             "map": {
               "imports": {
                 "@nf-lab/ui-core": "./_nf_lab_ui_core.jpfHqL1p12.js",
-                "@nf-lab/ui-dom": "./catalog/_nf_lab_ui_dom.LEdXNkv1m2.js",
-                "@nf-lab/chart-dom": "./dashboard/_nf_lab_chart_dom.6_R0EKaJeR.js",
+                "@nf-lab/chart-core": "./catalog/_nf_lab_chart_core.QRSGk-3c7N.js",
+                "@nf-lab/chart-dom": "./catalog/_nf_lab_chart_dom.SA3JviWrvM.js",
                 "@nf-lab/icons": "./catalog/_nf_lab_icons.uMxgeSlPRR.js",
                 "@nf-lab/form-core": "./checkout/_nf_lab_form_core.1pzqm5CgNE.js",
                 "@nf-lab/form-dom": "./checkout/_nf_lab_form_dom.inoBQwtA8E.js",
@@ -439,19 +460,21 @@
                 "admin/./main": "./admin/main-DXLIHA7T.js"
               },
               "scopes": {
-                "./catalog/": {
-                  "@nf-lab/chart-core": "./catalog/_nf_lab_chart_core.QRSGk-3c7N.js",
-                  "@nf-lab/chart-dom": "./catalog/_nf_lab_chart_dom.SA3JviWrvM.js",
-                  "@nf-lab/ui-core": "./catalog/_nf_lab_ui_core.FGCSlTph3q.js"
-                },
                 "./dashboard/": {
-                  "@nf-lab/chart-core": "./dashboard/_nf_lab_chart_core.euTvcmIiPr.js"
-                },
-                "./checkout/": {
-                  "@nf-lab/ui-core": "./catalog/_nf_lab_ui_core.FGCSlTph3q.js"
+                  "@nf-lab/chart-core": "./dashboard/_nf_lab_chart_core.euTvcmIiPr.js",
+                  "@nf-lab/chart-dom": "./dashboard/_nf_lab_chart_dom.6_R0EKaJeR.js"
                 },
                 "./admin/": {
-                  "@nf-lab/ui-core": "./catalog/_nf_lab_ui_core.FGCSlTph3q.js"
+                  "@nf-lab/ui-core": "./admin/_nf_lab_ui_core.FGCSlTph3q.js",
+                  "@nf-lab/ui-dom": "./admin/_nf_lab_ui_dom.LEdXNkv1m2.js"
+                },
+                "./catalog/": {
+                  "@nf-lab/ui-core": "./admin/_nf_lab_ui_core.FGCSlTph3q.js",
+                  "@nf-lab/ui-dom": "./admin/_nf_lab_ui_dom.LEdXNkv1m2.js"
+                },
+                "./checkout/": {
+                  "@nf-lab/ui-core": "./admin/_nf_lab_ui_core.FGCSlTph3q.js",
+                  "@nf-lab/ui-dom": "./admin/_nf_lab_ui_dom.LEdXNkv1m2.js"
                 }
               }
             }
@@ -461,7 +484,7 @@
     },
     "importShim": {
       "availability": "available",
-      "observedAt": "2026-09-30T11:30:48.031Z",
+      "observedAt": "2026-10-20T08:38:58.458Z",
       "data": {
         "present": true,
         "valueType": "function",
@@ -469,8 +492,8 @@
         "map": {
           "imports": {
             "@nf-lab/ui-core": "http://localhost:4300/_nf_lab_ui_core.jpfHqL1p12.js",
-            "@nf-lab/ui-dom": "http://localhost:4300/catalog/_nf_lab_ui_dom.LEdXNkv1m2.js",
-            "@nf-lab/chart-dom": "http://localhost:4300/dashboard/_nf_lab_chart_dom.6_R0EKaJeR.js",
+            "@nf-lab/chart-core": "http://localhost:4300/catalog/_nf_lab_chart_core.QRSGk-3c7N.js",
+            "@nf-lab/chart-dom": "http://localhost:4300/catalog/_nf_lab_chart_dom.SA3JviWrvM.js",
             "@nf-lab/icons": "http://localhost:4300/catalog/_nf_lab_icons.uMxgeSlPRR.js",
             "@nf-lab/form-core": "http://localhost:4300/checkout/_nf_lab_form_core.1pzqm5CgNE.js",
             "@nf-lab/form-dom": "http://localhost:4300/checkout/_nf_lab_form_dom.inoBQwtA8E.js",
@@ -481,19 +504,21 @@
             "admin/./main": "http://localhost:4300/admin/main-DXLIHA7T.js"
           },
           "scopes": {
-            "http://localhost:4300/catalog/": {
-              "@nf-lab/chart-core": "http://localhost:4300/catalog/_nf_lab_chart_core.QRSGk-3c7N.js",
-              "@nf-lab/chart-dom": "http://localhost:4300/catalog/_nf_lab_chart_dom.SA3JviWrvM.js",
-              "@nf-lab/ui-core": "http://localhost:4300/catalog/_nf_lab_ui_core.FGCSlTph3q.js"
-            },
             "http://localhost:4300/dashboard/": {
-              "@nf-lab/chart-core": "http://localhost:4300/dashboard/_nf_lab_chart_core.euTvcmIiPr.js"
-            },
-            "http://localhost:4300/checkout/": {
-              "@nf-lab/ui-core": "http://localhost:4300/catalog/_nf_lab_ui_core.FGCSlTph3q.js"
+              "@nf-lab/chart-core": "http://localhost:4300/dashboard/_nf_lab_chart_core.euTvcmIiPr.js",
+              "@nf-lab/chart-dom": "http://localhost:4300/dashboard/_nf_lab_chart_dom.6_R0EKaJeR.js"
             },
             "http://localhost:4300/admin/": {
-              "@nf-lab/ui-core": "http://localhost:4300/catalog/_nf_lab_ui_core.FGCSlTph3q.js"
+              "@nf-lab/ui-core": "http://localhost:4300/admin/_nf_lab_ui_core.FGCSlTph3q.js",
+              "@nf-lab/ui-dom": "http://localhost:4300/admin/_nf_lab_ui_dom.LEdXNkv1m2.js"
+            },
+            "http://localhost:4300/catalog/": {
+              "@nf-lab/ui-core": "http://localhost:4300/admin/_nf_lab_ui_core.FGCSlTph3q.js",
+              "@nf-lab/ui-dom": "http://localhost:4300/admin/_nf_lab_ui_dom.LEdXNkv1m2.js"
+            },
+            "http://localhost:4300/checkout/": {
+              "@nf-lab/ui-core": "http://localhost:4300/admin/_nf_lab_ui_core.FGCSlTph3q.js",
+              "@nf-lab/ui-dom": "http://localhost:4300/admin/_nf_lab_ui_dom.LEdXNkv1m2.js"
             }
           },
           "integrity": {}

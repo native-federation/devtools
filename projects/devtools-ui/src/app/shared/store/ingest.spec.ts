@@ -776,34 +776,30 @@ describe('ingestSnapshot — provenance carry', () => {
     expect(model.channels).toEqual(FIXTURES['frankenstein-live'].channels);
   });
 
-  // No 4.8 capture exists yet (plan Task 2), so the 4.8 fields are grafted onto a 4.7 one.
-  it('carries the 4.8 cache state and serving fields, null when absent', () => {
-    const base = FIXTURES['pool-showcase'];
-    const scopes = structuredClone(base.runtime!.sharedExternals);
-    const [packageName, external] = Object.entries(scopes['__GLOBAL__'])[0];
-    scopes['__GLOBAL__'][packageName] = { ...external, poolWinner: 'host', servingBuild: 'mfe1' };
-    const model = ingestSnapshot({
-      ...base,
-      runtime: {
-        ...base.runtime!,
-        sharedExternals: scopes,
-        cacheState: { version: '4.8.0', undecidedScopes: ['__GLOBAL__'] },
-      },
+  // pool-unshipped (orchestrator 4.8): ui-dom is served from mfe1's build, the pool's winner is the host.
+  it('carries the 4.8 cache state and serving fields; null on older captures', () => {
+    const model = ingestSnapshot(FIXTURES['pool-unshipped']);
+
+    expect(model.provenance.cacheState).toEqual({ version: '4.8.0', undecidedScopes: [] });
+    const record = (packageName: string) =>
+      model.registryEvidence.sharedExternals.find(
+        (r) => r.shareScope === '__GLOBAL__' && r.packageName === packageName,
+      );
+    expect(record('@nf-lab/ui-dom')).toMatchObject({
+      poolWinner: '__NF-HOST__',
+      servingBuild: 'mfe1',
+    });
+    expect(record('@nf-lab/ui-core')).toMatchObject({
+      poolWinner: '__NF-HOST__',
+      servingBuild: '__NF-HOST__',
     });
 
-    expect(model.provenance.cacheState).toEqual({
-      version: '4.8.0',
-      undecidedScopes: ['__GLOBAL__'],
-    });
-    const records = model.registryEvidence.sharedExternals;
-    const record = records.find(
-      (r) => r.shareScope === '__GLOBAL__' && r.packageName === packageName,
-    );
-    expect(record).toMatchObject({ poolWinner: 'host', servingBuild: 'mfe1' });
+    const older = ingestSnapshot(FIXTURES['self-fill']);
+    expect(older.provenance.cacheState).toBeNull();
     expect(
-      records
-        .filter((r) => r !== record)
-        .every((r) => r.poolWinner === null && r.servingBuild === null),
+      older.registryEvidence.sharedExternals.every(
+        (r) => r.poolWinner === null && r.servingBuild === null,
+      ),
     ).toBe(true);
   });
 });

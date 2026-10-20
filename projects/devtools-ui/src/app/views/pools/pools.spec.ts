@@ -64,8 +64,8 @@ describe('PoolsView', () => {
       Array.from(charts.querySelectorAll('.pool-band th')).map((th) =>
         th.textContent?.replace(/\s+/g, ' ').trim(),
       ),
-    ).toEqual(['Build of dashboard', 'Build of catalog · isolated']);
-    expect(charts.querySelector('td[data-state="conflict"]')?.textContent?.trim()).toBe('1.1.0');
+    ).toEqual(['Build of catalog', 'Build of dashboard · isolated']);
+    expect(charts.querySelector('td[data-state="conflict"]')?.textContent?.trim()).toBe('2.0.0');
   });
 
   it('T11-AC-02: every coloured cell is focusable and exposes its tooltip', async () => {

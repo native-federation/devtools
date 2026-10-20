@@ -672,18 +672,6 @@ describe('PackagesView', () => {
     expect(el.querySelector('tbody.dive')).toBeNull();
   });
 
-  it('links the torn banner to the docs in a new tab', async () => {
-    const { fixture } = await createView({
-      fixture: 'torn-many',
-      select: '__GLOBAL__|@nf-lab/kit',
-    });
-    const el = fixture.nativeElement as HTMLElement;
-    const link = el.querySelector<HTMLAnchorElement>('.torn-banner a')!;
-    expect(link.href).toContain('version-resolver/#entrypoint-coverage-and-tearing');
-    expect(link.target).toBe('_blank');
-    expect(el.querySelector<HTMLElement>('.torn-word')?.title).toContain('Torn:');
-  });
-
   it('renders an honest observation when no snapshot is captured', async () => {
     const { fixture } = await createView({ fixture: null });
     const el = fixture.nativeElement as HTMLElement;

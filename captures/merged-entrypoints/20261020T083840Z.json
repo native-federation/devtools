@@ -1,9 +1,9 @@
 {
   "schemaVersion": "lab-lossless-capture/1",
-  "capturedAt": "2026-10-01T16:45:32.807Z",
+  "capturedAt": "2026-10-20T08:38:45.191Z",
   "scenario": {
     "scenarioId": "merged-entrypoints",
-    "orchestratorCommit": "4.7.0",
+    "orchestratorCommit": "4.8.0",
     "ready": true,
     "readyError": null
   },
@@ -21,15 +21,20 @@
   "channels": {
     "nativeFederationGlobals": {
       "availability": "available",
-      "observedAt": "2026-10-01T16:45:32.807Z",
+      "observedAt": "2026-10-20T08:38:45.191Z",
       "data": {
         "present": true,
         "valueType": "object",
         "namespaceKeys": [
+          "cache-state",
           "remotes",
           "shared-externals"
         ],
         "namespace": {
+          "cache-state": {
+            "version": "4.8.0",
+            "undecidedScopes": []
+          },
           "remotes": {
             "mfe1": {
               "scopeUrl": "./mfe1/",
@@ -63,7 +68,14 @@
                         "entries": {
                           "@nf-lab/kit": "_nf_lab_kit.DSYCipaGyy.js"
                         }
-                      },
+                      }
+                    ]
+                  },
+                  {
+                    "tag": "1.2.0",
+                    "host": false,
+                    "action": "scope",
+                    "remotes": [
                       {
                         "name": "mfe1",
                         "strictVersion": true,
@@ -77,7 +89,8 @@
                       }
                     ]
                   }
-                ]
+                ],
+                "servingBuild": "__NF-HOST__"
               }
             }
           }
@@ -86,7 +99,7 @@
     },
     "orchestratorGlobal": {
       "availability": "available",
-      "observedAt": "2026-10-01T16:45:32.807Z",
+      "observedAt": "2026-10-20T08:38:45.191Z",
       "data": {
         "present": true,
         "valueType": "object",
@@ -95,14 +108,15 @@
         ],
         "storage": {
           "__NATIVE_FEDERATION__": {
-            "version": "4.7.0",
+            "version": "4.8.0",
             "type": "globalThis",
             "namespace": "__NATIVE_FEDERATION__",
             "keys": [
               "remotes",
               "shared-externals",
               "scoped-externals",
-              "shared-chunks"
+              "shared-chunks",
+              "cache-state"
             ],
             "hasGet": true
           }
@@ -111,21 +125,26 @@
     },
     "domImportMaps": {
       "availability": "available",
-      "observedAt": "2026-10-01T16:45:32.807Z",
+      "observedAt": "2026-10-20T08:38:45.191Z",
       "data": {
         "count": 1,
         "maps": [
           {
             "index": 0,
             "type": "importmap-shim",
-            "text": "{\"imports\":{\"@nf-lab/kit\":\"./_nf_lab_kit.DSYCipaGyy.js\",\"@nf-lab/kit/table\":\"./mfe1/_nf_lab_kit_table.B_lIn12dNZ.js\",\"@nf-lab/kit/dialog\":\"./mfe1/_nf_lab_kit_dialog.P5E_5ASKB7.js\",\"mfe1/./main\":\"./mfe1/main-374BJDUE.js\"}}",
+            "text": "{\"imports\":{\"@nf-lab/kit\":\"./_nf_lab_kit.DSYCipaGyy.js\",\"mfe1/./main\":\"./mfe1/main-374BJDUE.js\"},\"scopes\":{\"./mfe1/\":{\"@nf-lab/kit\":\"./mfe1/_nf_lab_kit.DSYCipaGyy.js\",\"@nf-lab/kit/table\":\"./mfe1/_nf_lab_kit_table.B_lIn12dNZ.js\",\"@nf-lab/kit/dialog\":\"./mfe1/_nf_lab_kit_dialog.P5E_5ASKB7.js\"}}}",
             "parsed": true,
             "map": {
               "imports": {
                 "@nf-lab/kit": "./_nf_lab_kit.DSYCipaGyy.js",
-                "@nf-lab/kit/table": "./mfe1/_nf_lab_kit_table.B_lIn12dNZ.js",
-                "@nf-lab/kit/dialog": "./mfe1/_nf_lab_kit_dialog.P5E_5ASKB7.js",
                 "mfe1/./main": "./mfe1/main-374BJDUE.js"
+              },
+              "scopes": {
+                "./mfe1/": {
+                  "@nf-lab/kit": "./mfe1/_nf_lab_kit.DSYCipaGyy.js",
+                  "@nf-lab/kit/table": "./mfe1/_nf_lab_kit_table.B_lIn12dNZ.js",
+                  "@nf-lab/kit/dialog": "./mfe1/_nf_lab_kit_dialog.P5E_5ASKB7.js"
+                }
               }
             }
           }
@@ -134,7 +153,7 @@
     },
     "importShim": {
       "availability": "available",
-      "observedAt": "2026-10-01T16:45:32.807Z",
+      "observedAt": "2026-10-20T08:38:45.191Z",
       "data": {
         "present": true,
         "valueType": "function",
@@ -142,11 +161,15 @@
         "map": {
           "imports": {
             "@nf-lab/kit": "http://localhost:4300/_nf_lab_kit.DSYCipaGyy.js",
-            "@nf-lab/kit/table": "http://localhost:4300/mfe1/_nf_lab_kit_table.B_lIn12dNZ.js",
-            "@nf-lab/kit/dialog": "http://localhost:4300/mfe1/_nf_lab_kit_dialog.P5E_5ASKB7.js",
             "mfe1/./main": "http://localhost:4300/mfe1/main-374BJDUE.js"
           },
-          "scopes": {},
+          "scopes": {
+            "http://localhost:4300/mfe1/": {
+              "@nf-lab/kit": "http://localhost:4300/mfe1/_nf_lab_kit.DSYCipaGyy.js",
+              "@nf-lab/kit/table": "http://localhost:4300/mfe1/_nf_lab_kit_table.B_lIn12dNZ.js",
+              "@nf-lab/kit/dialog": "http://localhost:4300/mfe1/_nf_lab_kit_dialog.P5E_5ASKB7.js"
+            }
+          },
           "integrity": {}
         }
       }

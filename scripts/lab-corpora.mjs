@@ -59,6 +59,22 @@ export const LAB_CORPORA = [
       "out-of-range-nonstrict",
       "torn-many"
     ]
+  },
+  {
+    // Orchestrator 4.8 pool placement reasons; recorded with the 4.8 re-record of nf-lab and nf-lab-verdicts.
+    id: "nf-lab-placements",
+    manifest: "manifest-nf-lab-placements.json",
+    repository: "native-federation/playground",
+    runner: "lab/run-scenario.mjs",
+    probe: "scripts/lab-capture-dump.js",
+    collector: { kind: "playwright-cdp", interface: "headless-chromium", webMcpUsed: false },
+    live: false,
+    scenarios: [
+      "own-tag-out-of-range",
+      "pool-incompatible-nonstrict",
+      "pool-uncovered-gap",
+      "pool-unshipped"
+    ]
   }
 ];
 
