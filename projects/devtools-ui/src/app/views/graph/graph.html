@@ -52,7 +52,7 @@
         } @else {
           <span class="graph-toolbar-line graph-toolbar-hint">
             click remotes to {{ filterMode() }} · click a dependency or build to expand · hover to
-            trace · dashed node = isolated copy · dotted edge = borrowed
+            trace · dashed node = isolated copy · dotted edge = served by another remote
           </span>
         }
         @if (vm.cappedEdges > 0) {
@@ -224,7 +224,9 @@
                   (mouseenter)="setHovered(node.key)"
                   (mouseleave)="setHovered(null)"
                 >
-                  @if (node.labelTooltip) {
+                  @if (node.note) {
+                    <title>{{ node.labelTooltip ?? node.label }}&#10;{{ node.note }}</title>
+                  } @else if (node.labelTooltip) {
                     <title>{{ node.labelTooltip }}</title>
                   }
                   <rect

@@ -232,11 +232,11 @@ function nodeByLabel(el: HTMLElement, kind: 'remote' | 'dependency', label: stri
 }
 
 const TOOLBAR_HINT =
-  'click remotes to include · click a dependency or build to expand · hover to trace · dashed node = isolated copy · dotted edge = borrowed';
+  'click remotes to include · click a dependency or build to expand · hover to trace · dashed node = isolated copy · dotted edge = served by another remote';
 
 describe('GraphView', () => {
   // T1-AC-01: one dependency node with a solid and a dotted consume edge;
-  // the dotted tooltip lists `not-selected`; the resolved tag is the
+  // the dotted tooltip names the state in words; the resolved tag is the
   // right-aligned sub-label.
   it('renders co-declared-share with one copy, a solid and a dotted edge', async () => {
     const el = await createView('co-declared-share');
@@ -248,7 +248,7 @@ describe('GraphView', () => {
     const edges = el.querySelectorAll<SVGPathElement>('path.graph-edge');
     expect(edges.length).toBe(2);
     expect(el.querySelectorAll('path.graph-edge.dotted').length).toBe(1);
-    expect(edgeTitles(el, true)).toEqual(['not-selected']);
+    expect(edgeTitles(el, true)).toEqual(['served by mfe1']);
     expect(edgeTitles(el, false)).toEqual(['']);
 
     // Review follow-up: every edge carries an invisible wide hit path with
@@ -280,12 +280,13 @@ describe('GraphView', () => {
     expect(el.querySelectorAll('path.graph-edge').length).toBe(projection.consumerRelations.length);
   });
 
-  // T1-AC-03: the anchored relation renders dotted with `anchored` listed;
-  // private copies render with the isolated (dashed) metadata.
+  // T1-AC-03: the anchored relations render dotted and name whose build they
+  // run (graph-v48 T2); private copies render with the isolated (dashed) metadata.
   it('renders pooling-anchor anchored edges dotted and scoped copies isolated', async () => {
     const anchorEl = await createView('pooling-anchor');
     const dottedTitles = edgeTitles(anchorEl, true);
-    expect(dottedTitles.filter((title) => title === 'anchored').length).toBe(2);
+    // Two anchored edges (owner and member) plus mfe2's not-selected `extra` edge.
+    expect(dottedTitles.sort()).toEqual(['its own copy', 'served by mfe1', 'served by mfe1']);
 
     TestBed.resetTestingModule();
     const scopedEl = await createView('scoped');
@@ -293,6 +294,17 @@ describe('GraphView', () => {
     expect(dependencies.length).toBe(2);
     expect(dependencies.every((node) => node.classList.contains('isolated'))).toBe(true);
     expect(scopedEl.querySelectorAll('.graph-node.remote.isolated').length).toBe(0);
+  });
+
+  // graph-v48 T2-AC-01: the dashed node's tooltip says why it runs its own build.
+  it('titles a falling-back copy with the label and its reason', async () => {
+    const el = await createView('fallback-uncovered');
+    const titles = Array.from(el.querySelectorAll('.graph-node.dependency.isolated')).map(
+      (node) => node.querySelector('title')?.textContent ?? '',
+    );
+    expect(titles).toContain(
+      '@nf-lab/kit\nruns its own build — not covered: the serving build of host lacks @nf-lab/kit/charts, @nf-lab/kit/charts/legend, @nf-lab/kit/date-picker',
+    );
   });
 
   // T1-AC-05: forbidden delivery vocabulary never reaches the rendered DOM.

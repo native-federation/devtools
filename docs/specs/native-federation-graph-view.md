@@ -173,7 +173,7 @@ ships one axis; the toggle is a follow-up.
 | cluster box | active grouping axis |
 | hue | cluster identity |
 | solid vs dashed node border | shared copy vs isolated/private copy (`sourceDisposition`) |
-| solid vs dotted consume edge | own-selected vs borrowed (`fallback` / `not-selected` / `anchored` / `self-filled`; tooltip names the states) |
+| solid vs dotted consume edge | own-selected vs served by another remote (`fallback` / `not-selected` / `anchored`; tooltip: `served by <remote>`) |
 | fill + heavier stroke | remote selected in the filter |
 | heaviest stroke | inspected node |
 | opacity | hover emphasis only — never data |

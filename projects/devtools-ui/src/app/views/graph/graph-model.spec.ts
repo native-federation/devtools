@@ -31,6 +31,7 @@ import type {
 import { buildPackagesVm } from '../packages/packages-view-model';
 import { buildGraphModel, graphAdjacencyOf } from './graph-model';
 import {
+  CHUNK_W,
   CLUSTER_HEADER,
   CLUSTER_PAD,
   COL_GAP,
@@ -246,7 +247,10 @@ describe('buildGraphModel', () => {
       expect.objectContaining({ style: 'solid', tooltip: null }),
     );
     expect(bySource.get('mfe2')).toEqual(
-      expect.objectContaining({ style: 'dotted', tooltip: 'not-selected' }),
+      expect.objectContaining({
+        style: 'dotted',
+        tooltip: 'served by mfe1',
+      }),
     );
   });
 
@@ -285,10 +289,18 @@ describe('buildGraphModel', () => {
   // listed; since T2, cluster order (host first, then mfe1) precedes the
   // label/copy-ID order within a cluster.
   it('renders pooling-anchor anchored relations dotted and orders equal labels by copy ID', () => {
-    const model = modelOf('pooling-anchor');
+    const projection = projectionOf('pooling-anchor');
+    const model = buildGraphModel(projection);
 
-    const anchored = model.edges.filter((e) => e.tooltip === 'anchored');
+    const anchoredIds = new Set(
+      projection.consumerRelations
+        .filter((r) => r.mappingStates.includes('anchored'))
+        .map((r): string => r.id),
+    );
+    const anchored = model.edges.filter((e) => anchoredIds.has(e.id));
     expect(anchored.length).toBe(2);
+    // The subpool owner's edge is its own copy; the member's names the owner.
+    expect(anchored.map((e) => e.tooltip).sort()).toEqual(['its own copy', 'served by mfe1']);
     expect(anchored.every((e) => e.style === 'dotted')).toBe(true);
     expect(anchored.map((e) => e.sourceId).sort()).toEqual(['mfe1', 'mfe2']);
 
@@ -374,9 +386,9 @@ describe('buildGraphModel', () => {
   });
 
   // T1-AC-04: labels above the budget truncate with `…`, full text as tooltip.
-  // Dependency nodes give two chars of LABEL_MAX (44) to the expand arrow → 41 + `…`.
+  // Dependency nodes give two chars of LABEL_MAX (49) to the expand arrow → 46 + `…`.
   it('truncates long labels and keeps the full text as tooltip', () => {
-    const long = '@nf-lab/a-very-long-package-name-that-overflows';
+    const long = '@nf-lab/a-very-long-package-name-that-overflows-the-node';
     const short = 'fits-within-the-limit';
     const model = buildGraphModel(
       syntheticProjection({
@@ -406,9 +418,9 @@ describe('buildGraphModel', () => {
       }),
     );
     const [node] = dependencyNodesOf(model);
-    // Budget = LABEL_MAX - 2 (arrow) - 7 (tag) - 2 (gap) = 33 → 32 chars + `…`.
-    expect(node.label).toBe(`${long.slice(0, 32)}…`);
-    expect(node.label.length).toBe(33);
+    // Budget = LABEL_MAX - 2 (arrow) - 7 (tag) - 2 (gap) = 38 → 37 chars + `…`.
+    expect(node.label).toBe(`${long.slice(0, 37)}…`);
+    expect(node.label.length).toBe(38);
     expect(node.labelTooltip).toBe(long);
     expect(node.subLabel).toBe('21.2.12');
     expect(node.subLabelTooltip).toBeNull();
@@ -434,8 +446,8 @@ describe('buildGraphModel', () => {
     expect(node.subLabel).toBe(`${tag.slice(0, SUB_LABEL_MAX - 1)}…`);
     expect(node.subLabel!.length).toBe(SUB_LABEL_MAX);
     expect(node.subLabelTooltip).toBe(tag);
-    // Label budget from the displayed tag: 44 - 2 (arrow) - 16 - 2 = 24 chars.
-    expect(node.label.length).toBe(24);
+    // Label budget from the displayed tag: 49 - 2 (arrow) - 16 - 2 = 29 chars.
+    expect(node.label.length).toBe(29);
     expect(node.label.length + 2 + node.subLabel!.length + 2).toBeLessThanOrEqual(LABEL_MAX);
   });
 
@@ -452,7 +464,7 @@ describe('buildGraphModel', () => {
     expect(model.edges).toEqual([expect.objectContaining({ style: 'solid', tooltip: null })]);
   });
 
-  it('lists all distinct mapping states verbatim on a mixed dotted edge', () => {
+  it('names every distinct mapping state in words on a mixed dotted edge', () => {
     const model = buildGraphModel(
       syntheticProjection({
         remotes: [remoteOf('host', true)],
@@ -463,7 +475,7 @@ describe('buildGraphModel', () => {
       }),
     );
     expect(model.edges[0].style).toBe('dotted');
-    expect(model.edges[0].tooltip).toBe('fallback, not-selected, own-selected');
+    expect(model.edges[0].tooltip).toBe("the shared copy; another remote's copy; its own copy");
   });
 
   // Review regression: remote names are arbitrary capture strings — one that
@@ -482,9 +494,9 @@ describe('buildGraphModel', () => {
     expect(model.droppedRelationIds).toEqual([]);
     expect(model.edges.length).toBe(1);
     // The edge must anchor at the remote node (column 0), not the same-ID
-    // copy: right-mid (364, 67) → left-mid inside the `unknown` cluster
-    // (514, 54 + CLUSTER_HEADER + CLUSTER_PAD + 13 = 99), dx = max(24, 75).
-    expect(model.edges[0].path).toBe('M 364,67 C 439,67 439,99 514,99');
+    // copy: right-mid (404, 67) → left-mid inside the `unknown` cluster
+    // (554, 54 + CLUSTER_HEADER + CLUSTER_PAD + 13 = 99), dx = max(24, 75).
+    expect(model.edges[0].path).toBe('M 404,67 C 479,67 479,99 554,99');
   });
 
   // Review regression: a relation without a rendered endpoint is never a
@@ -535,14 +547,14 @@ describe('buildGraphModel', () => {
     const dependency = dependencyNodesOf(model)[0];
     expect(dependency.y).toBe(firstY + CLUSTER_HEADER + CLUSTER_PAD);
 
-    expect(model.width).toBe(MARGIN + 2 * (NODE_W + COL_GAP) + NODE_W + CLUSTER_PAD + MARGIN);
+    expect(model.width).toBe(MARGIN + 2 * (NODE_W + COL_GAP) + CHUNK_W + CLUSTER_PAD + MARGIN);
     // Remotes column (3 flat rows) is the tallest of the three columns.
     expect(model.height).toBe(MARGIN + HEADER_H + 3 * (NODE_H + NODE_VGAP) - NODE_VGAP + MARGIN);
 
     // mfe1 (row 1, column 0) → the single copy (cluster row 0, column 1):
-    // right-mid (364, 99) → left-mid (514, 86 + 13 = 99), dx = max(24, 75).
+    // right-mid (404, 99) → left-mid (554, 86 + 13 = 99), dx = max(24, 75).
     const mfe1Edge = model.edges.find((e) => e.sourceId === 'mfe1');
-    expect(mfe1Edge?.path).toBe('M 364,99 C 439,99 439,99 514,99');
+    expect(mfe1Edge?.path).toBe('M 404,99 C 479,99 479,99 554,99');
   });
 
   // T1-AC-06 (model level): a projection with no nodes flags empty.
@@ -790,7 +802,11 @@ describe('buildGraphModel', () => {
     // The copy's evidenced source cluster is untouched by the filter.
     expect(clusterLabelsOf(model, 'dependencies')).toEqual([['mfe1', 1]]);
     expect(model.edges).toEqual([
-      expect.objectContaining({ sourceId: 'mfe2', style: 'dotted', tooltip: 'not-selected' }),
+      expect.objectContaining({
+        sourceId: 'mfe2',
+        style: 'dotted',
+        tooltip: 'served by mfe1',
+      }),
     ]);
   });
 
@@ -945,6 +961,62 @@ describe('buildGraphModel', () => {
     const byDependency = new Map(model.bundleEdgeRefs.map((r) => [r.dependencyKey, r.colorIndex]));
     expect(byDependency.get('dependency:copy-colored')).toBe(3);
     expect(byDependency.get('dependency:copy-host')).toBeNull();
+  });
+});
+
+// graph-v48 T2: isolated nodes and subpool edges carry the placement reason
+// the Packages verdicts derive, worded by `shared/placement-text.ts`.
+describe('buildGraphModel — placement notes (orchestrator 4.8)', () => {
+  const notesOf = (model: GraphModel) =>
+    dependencyNodesOf(model)
+      .filter((node) => node.note !== null)
+      .map((node) => [node.label, node.subLabel, node.note]);
+
+  // T2-AC-01: an unpooled fallback names the entrypoints the serving build lacks.
+  it('fallback-uncovered: each falling-back copy names its missing entrypoints', () => {
+    expect(notesOf(modelOf('fallback-uncovered'))).toEqual([
+      [
+        '@nf-lab/kit',
+        '1.2.0',
+        'runs its own build — not covered: the serving build of host lacks @nf-lab/kit/table, @nf-lab/kit/table/sort, @nf-lab/kit/table/paginator, @nf-lab/kit/dialog, @nf-lab/kit/forms',
+      ],
+      [
+        '@nf-lab/kit',
+        '1.3.0',
+        'runs its own build — not covered: the serving build of host lacks @nf-lab/kit/charts, @nf-lab/kit/charts/legend, @nf-lab/kit/date-picker',
+      ],
+    ]);
+  });
+
+  // T2-AC-02: a pooled isolation names range, tag and strictness.
+  it('pool-incompatible-nonstrict: the isolated pool members name the rejecting range', () => {
+    const reason =
+      'runs its own build — version conflict: its range ^1.0.0 (not strict) rejects the global 2.0.0 of @nf-lab/ui-core, @nf-lab/ui-dom';
+    expect(notesOf(modelOf('pool-incompatible-nonstrict'))).toEqual([
+      ['@nf-lab/ui-core', '1.1.0', reason],
+      ['@nf-lab/ui-dom', '1.1.0', reason],
+    ]);
+  });
+
+  // T2-AC-03: an anchored edge names the remote serving it (the subpool owner), no pool wording;
+  // the owner's own edge reads as its own copy.
+  it('pool-showcase: anchored edges name the serving owner', () => {
+    const model = modelOf('pool-showcase');
+    const labelById = new Map(model.nodes.map((node) => [node.id, node.label]));
+    const tooltipOf = (remote: string, label: string) =>
+      model.edges.find((e) => e.sourceId === remote && labelById.get(e.targetId) === label)
+        ?.tooltip;
+    expect(tooltipOf('catalog', '@nf-lab/ui-dom')).toBe('served by admin');
+    expect(tooltipOf('admin', '@nf-lab/ui-dom')).toBe('its own copy');
+    expect(model.edges.some((e) => e.tooltip?.includes('pool'))).toBe(false);
+  });
+
+  it('leaves shared copies without a note and marks private copies as such', () => {
+    expect(notesOf(modelOf('co-declared-share'))).toEqual([]);
+    expect(notesOf(modelOf('scoped')).map(([, , note]) => note)).toEqual([
+      'private registration — a scoped external, not shared',
+      'private registration — a scoped external, not shared',
+    ]);
   });
 });
 
