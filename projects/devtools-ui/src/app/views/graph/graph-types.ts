@@ -7,13 +7,16 @@ import type { CompletenessCounts } from '../../shared/store/resolution';
  * ID, relation ID, bundle-claim ID, chunk-group ID + recorded file).
  */
 
-export const NODE_W = 340;
+export const NODE_W = 380;
+/** The build-files column is wider: file names are long and carry hashes. */
+export const CHUNK_W = 460;
+export const CHUNK_LABEL_MAX = 60;
 export const NODE_H = 26;
 export const NODE_VGAP = 6;
 export const COL_GAP = 150;
 export const MARGIN = 24;
 export const HEADER_H = 30;
-export const LABEL_MAX = 44;
+export const LABEL_MAX = 49;
 /** Display budget of the right-aligned tag sub-label; overflow gets a tooltip. */
 export const SUB_LABEL_MAX = 16;
 

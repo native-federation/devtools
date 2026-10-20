@@ -31,6 +31,7 @@ import type {
 import { buildPackagesVm } from '../packages/packages-view-model';
 import { buildGraphModel, graphAdjacencyOf } from './graph-model';
 import {
+  CHUNK_W,
   CLUSTER_HEADER,
   CLUSTER_PAD,
   COL_GAP,
@@ -248,7 +249,7 @@ describe('buildGraphModel', () => {
     expect(bySource.get('mfe2')).toEqual(
       expect.objectContaining({
         style: 'dotted',
-        tooltip: "another remote's copy (its own is not selected)",
+        tooltip: 'served by mfe1 (its own is not selected)',
       }),
     );
   });
@@ -290,7 +291,7 @@ describe('buildGraphModel', () => {
   it('renders pooling-anchor anchored relations dotted and orders equal labels by copy ID', () => {
     const model = modelOf('pooling-anchor');
 
-    const anchored = model.edges.filter((e) => e.tooltip?.includes('subpool of its pool'));
+    const anchored = model.edges.filter((e) => e.tooltip?.match(/^(its own copy|served by mfe1)$/));
     expect(anchored.length).toBe(2);
     expect(anchored.every((e) => e.style === 'dotted')).toBe(true);
     expect(anchored.map((e) => e.sourceId).sort()).toEqual(['mfe1', 'mfe2']);
@@ -377,9 +378,9 @@ describe('buildGraphModel', () => {
   });
 
   // T1-AC-04: labels above the budget truncate with `…`, full text as tooltip.
-  // Dependency nodes give two chars of LABEL_MAX (44) to the expand arrow → 41 + `…`.
+  // Dependency nodes give two chars of LABEL_MAX (49) to the expand arrow → 46 + `…`.
   it('truncates long labels and keeps the full text as tooltip', () => {
-    const long = '@nf-lab/a-very-long-package-name-that-overflows';
+    const long = '@nf-lab/a-very-long-package-name-that-overflows-the-node';
     const short = 'fits-within-the-limit';
     const model = buildGraphModel(
       syntheticProjection({
@@ -409,9 +410,9 @@ describe('buildGraphModel', () => {
       }),
     );
     const [node] = dependencyNodesOf(model);
-    // Budget = LABEL_MAX - 2 (arrow) - 7 (tag) - 2 (gap) = 33 → 32 chars + `…`.
-    expect(node.label).toBe(`${long.slice(0, 32)}…`);
-    expect(node.label.length).toBe(33);
+    // Budget = LABEL_MAX - 2 (arrow) - 7 (tag) - 2 (gap) = 38 → 37 chars + `…`.
+    expect(node.label).toBe(`${long.slice(0, 37)}…`);
+    expect(node.label.length).toBe(38);
     expect(node.labelTooltip).toBe(long);
     expect(node.subLabel).toBe('21.2.12');
     expect(node.subLabelTooltip).toBeNull();
@@ -437,8 +438,8 @@ describe('buildGraphModel', () => {
     expect(node.subLabel).toBe(`${tag.slice(0, SUB_LABEL_MAX - 1)}…`);
     expect(node.subLabel!.length).toBe(SUB_LABEL_MAX);
     expect(node.subLabelTooltip).toBe(tag);
-    // Label budget from the displayed tag: 44 - 2 (arrow) - 16 - 2 = 24 chars.
-    expect(node.label.length).toBe(24);
+    // Label budget from the displayed tag: 49 - 2 (arrow) - 16 - 2 = 29 chars.
+    expect(node.label.length).toBe(29);
     expect(node.label.length + 2 + node.subLabel!.length + 2).toBeLessThanOrEqual(LABEL_MAX);
   });
 
@@ -487,9 +488,9 @@ describe('buildGraphModel', () => {
     expect(model.droppedRelationIds).toEqual([]);
     expect(model.edges.length).toBe(1);
     // The edge must anchor at the remote node (column 0), not the same-ID
-    // copy: right-mid (364, 67) → left-mid inside the `unknown` cluster
-    // (514, 54 + CLUSTER_HEADER + CLUSTER_PAD + 13 = 99), dx = max(24, 75).
-    expect(model.edges[0].path).toBe('M 364,67 C 439,67 439,99 514,99');
+    // copy: right-mid (404, 67) → left-mid inside the `unknown` cluster
+    // (554, 54 + CLUSTER_HEADER + CLUSTER_PAD + 13 = 99), dx = max(24, 75).
+    expect(model.edges[0].path).toBe('M 404,67 C 479,67 479,99 554,99');
   });
 
   // Review regression: a relation without a rendered endpoint is never a
@@ -540,14 +541,14 @@ describe('buildGraphModel', () => {
     const dependency = dependencyNodesOf(model)[0];
     expect(dependency.y).toBe(firstY + CLUSTER_HEADER + CLUSTER_PAD);
 
-    expect(model.width).toBe(MARGIN + 2 * (NODE_W + COL_GAP) + NODE_W + CLUSTER_PAD + MARGIN);
+    expect(model.width).toBe(MARGIN + 2 * (NODE_W + COL_GAP) + CHUNK_W + CLUSTER_PAD + MARGIN);
     // Remotes column (3 flat rows) is the tallest of the three columns.
     expect(model.height).toBe(MARGIN + HEADER_H + 3 * (NODE_H + NODE_VGAP) - NODE_VGAP + MARGIN);
 
     // mfe1 (row 1, column 0) → the single copy (cluster row 0, column 1):
-    // right-mid (364, 99) → left-mid (514, 86 + 13 = 99), dx = max(24, 75).
+    // right-mid (404, 99) → left-mid (554, 86 + 13 = 99), dx = max(24, 75).
     const mfe1Edge = model.edges.find((e) => e.sourceId === 'mfe1');
-    expect(mfe1Edge?.path).toBe('M 364,99 C 439,99 439,99 514,99');
+    expect(mfe1Edge?.path).toBe('M 404,99 C 479,99 479,99 554,99');
   });
 
   // T1-AC-06 (model level): a projection with no nodes flags empty.
@@ -798,7 +799,7 @@ describe('buildGraphModel', () => {
       expect.objectContaining({
         sourceId: 'mfe2',
         style: 'dotted',
-        tooltip: "another remote's copy (its own is not selected)",
+        tooltip: 'served by mfe1 (its own is not selected)',
       }),
     ]);
   });
@@ -991,21 +992,17 @@ describe('buildGraphModel — placement notes (orchestrator 4.8)', () => {
     ]);
   });
 
-  // T2-AC-03: a subpool member's edge names the owner's build and the pool's reason;
-  // the owner's own edge says its build serves the subpool.
-  it('pool-showcase: subpool edges name the owner and the reason', () => {
+  // T2-AC-03: an anchored edge names the remote serving it (the subpool owner), no pool wording;
+  // the owner's own edge reads as its own copy.
+  it('pool-showcase: anchored edges name the serving owner', () => {
     const model = modelOf('pool-showcase');
     const labelById = new Map(model.nodes.map((node) => [node.id, node.label]));
     const tooltipOf = (remote: string, label: string) =>
       model.edges.find((e) => e.sourceId === remote && labelById.get(e.targetId) === label)
         ?.tooltip;
-    const reason = 'not covered: the global map lacks @nf-lab/ui-dom';
-    expect(tooltipOf('catalog', '@nf-lab/ui-dom')).toBe(
-      `runs admin's build in a subpool of its pool — ${reason}`,
-    );
-    expect(tooltipOf('admin', '@nf-lab/ui-dom')).toBe(
-      `its build serves a subpool of its pool — ${reason}`,
-    );
+    expect(tooltipOf('catalog', '@nf-lab/ui-dom')).toBe('served by admin');
+    expect(tooltipOf('admin', '@nf-lab/ui-dom')).toBe('its own copy');
+    expect(model.edges.some((e) => e.tooltip?.includes('pool'))).toBe(false);
   });
 
   it('leaves shared copies without a note and marks private copies as such', () => {

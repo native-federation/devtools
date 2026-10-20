@@ -25,7 +25,7 @@ Import Map's labels are single words for a claim row.
 
 ### Instructions
 
-- Toolbar hint (`graph.html`): `dotted edge = borrowed` → `dotted edge = another remote's copy`.
+- Toolbar hint (`graph.html`): `dotted edge = borrowed` → `dotted edge = served by another remote`; edge tooltips `served by <remote>`.
 - Edge tooltip (`edgeOf`): the distinct mapping states in words, not raw values — reuse one label
   table shared with Import Map's `STATE_LABELS` if it fits, else a graph-local one.
 - Docs: `README.md` and `docs/DEVELOPMENT.md` Graph paragraphs; the spec legend table
@@ -38,8 +38,10 @@ Import Map's labels are single words for a claim row.
 
 ## Task 2: Isolated nodes and subpool edges say why
 
-Status: DONE. Amendment: T2-AC-04 is covered by the existing all-tabs render spec over the
-pre-4.8 corpus; no new pin.
+Status: DONE. Amendments: T2-AC-04 is covered by the existing all-tabs render spec over the
+pre-4.8 corpus; no new pin. Anchored edges carry no pool wording and no reason (`served by
+<owner>`, the owner `its own copy`): pooling detail stays on the Pools tab, and `subpoolWhereText`
+was not moved.
 
 ### Instructions
 
@@ -59,7 +61,7 @@ pre-4.8 corpus; no new pin.
 
 - **T2-AC-01** — `fallback-uncovered`: the falling-back remote's dashed node names the missing entrypoints.
 - **T2-AC-02** — `pool-incompatible-nonstrict`: the isolated node names the range, tag and strictness.
-- **T2-AC-03** — `pool-showcase`: the `ui-dom` edge of a subpool member names `admin`'s build and its reason.
+- **T2-AC-03** — `pool-showcase`: the `ui-dom` edge of a subpool member reads `served by admin`; no edge tooltip mentions a pool.
 - **T2-AC-04** — a pre-4.8 capture renders without a reason and without throwing; full UI suite green.
 
 ### Key Locations

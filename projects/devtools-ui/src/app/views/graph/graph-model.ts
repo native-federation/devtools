@@ -1,11 +1,9 @@
-import { placementReasonText, subpoolWhereText } from '../../shared/placement-text';
+import { placementReasonText } from '../../shared/placement-text';
 import type {
   BundleClaim,
   CanonicalResolutionProjection,
   ChunkGroupProjection,
-  ConsumerCopyRelation,
   CopyGroupingFacets,
-  DeclarationResolutionClaim,
   DeclarationVerdictRecord,
   ParticipantDeclarationId,
   ResolvedDependencyCopy,
@@ -34,6 +32,8 @@ import {
 import { groupDependencies } from './graph-grouping';
 import {
   BundleEdgeRef,
+  CHUNK_LABEL_MAX,
+  CHUNK_W,
   CLUSTER_HEADER,
   CLUSTER_LABEL_BASELINE,
   CLUSTER_PAD,
@@ -434,6 +434,7 @@ export function buildGraphModel(
       const id = `summary\n${clusterKey}`;
       const node: ChunkGraphNode = {
         ...nodeBaseAt('chunk', id, countClaim(collector.seeds.length, 'file'), x, nodeY),
+        width: CHUNK_W,
         labelTooltip: 'click the group to list its files',
         kind: 'chunk',
         href: null,
@@ -450,7 +451,10 @@ export function buildGraphModel(
     }
     for (const seed of expanded ? collector.seeds : []) {
       const height = seed.kind === 'stub' ? STUB_NODE_H : NODE_H;
-      const base = nodeBaseAt('chunk', seed.id, seed.label, x, nodeY);
+      const base = {
+        ...nodeBaseAt('chunk', seed.id, seed.label, x, nodeY, CHUNK_LABEL_MAX),
+        width: CHUNK_W,
+      };
       const node: ChunkGraphNode = {
         ...base,
         labelTooltip: seed.tooltip ?? base.labelTooltip,
@@ -493,7 +497,7 @@ export function buildGraphModel(
       colorIndex: clusterHueOf(collector.emitter),
       x: boxX,
       y: boxY,
-      width: NODE_W + 2 * CLUSTER_PAD,
+      width: CHUNK_W + 2 * CLUSTER_PAD,
       height: boxHeight,
       labelX: boxX + CLUSTER_PAD,
       labelY: boxY + CLUSTER_LABEL_BASELINE,
@@ -509,7 +513,7 @@ export function buildGraphModel(
   // consumer is merely filtered, never "dropped". Nodes come only from the
   // projection's remotes and copies, never invented for an edge.
   const projectionCopyIds = new Set(projection.copies.map((copy) => copy.id));
-  const resolutionClaimById = new Map(projection.declarationResolutionClaims.map((c) => [c.id, c]));
+  const copyById = new Map(projection.copies.map((copy) => [copy.id, copy]));
   const edges: GraphEdge[] = [];
   const droppedRelationIds: string[] = [];
   for (const relation of projection.consumerRelations) {
@@ -528,7 +532,7 @@ export function buildGraphModel(
         relation,
         source,
         dependencyNodeById.get(relation.copyId)!,
-        subpoolNoteOf(relation, resolutionClaimById, verdictByDeclaration),
+        copySourceRemote(copyById.get(relation.copyId)!),
       ),
     );
   }
@@ -611,7 +615,7 @@ export function buildGraphModel(
       completeness.unmappedResolutions > 0 ||
       completeness.blockedResolutions > 0 ||
       completeness.ambiguousSourceClaims > 0,
-    width: columnX(2) + NODE_W + CLUSTER_PAD + MARGIN,
+    width: columnX(2) + CHUNK_W + CLUSTER_PAD + MARGIN,
     height: Math.max(remotesBottom, dependenciesBottom, chunksBottom) + MARGIN,
     empty: nodes.length === 0,
   };
@@ -673,27 +677,6 @@ function isolationNoteOf(copy: ResolvedDependencyCopy, verdicts: VerdictLookup):
   return reason === null
     ? 'the evidenced source is registered with action scope — an isolated copy'
     : `runs its own build — ${reason}`;
-}
-
-function subpoolNoteOf(
-  relation: ConsumerCopyRelation,
-  claimById: ReadonlyMap<string, DeclarationResolutionClaim>,
-  verdicts: VerdictLookup,
-): string | null {
-  for (const claimId of relation.claimIds) {
-    const claim = claimById.get(claimId);
-    if (claim?.mappingState !== 'anchored' || claim.subject.kind !== 'shared') {
-      continue;
-    }
-    const verdict = verdicts.get(claim.subject.participantDeclarationId);
-    if (verdict === undefined) {
-      continue;
-    }
-    const where = subpoolWhereText(verdict.subpoolOf, verdict.participant);
-    const reason = reasonTextOf(verdict.declarationId, verdicts);
-    return reason === null ? where : `${where} — ${reason}`;
-  }
-  return null;
 }
 
 /** Last path segment of a target URL — the file name a build emitted. */

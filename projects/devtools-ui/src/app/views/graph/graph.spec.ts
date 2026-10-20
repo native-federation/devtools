@@ -232,7 +232,7 @@ function nodeByLabel(el: HTMLElement, kind: 'remote' | 'dependency', label: stri
 }
 
 const TOOLBAR_HINT =
-  "click remotes to include · click a dependency or build to expand · hover to trace · dashed node = isolated copy · dotted edge = another remote's copy";
+  'click remotes to include · click a dependency or build to expand · hover to trace · dashed node = isolated copy · dotted edge = served by another remote';
 
 describe('GraphView', () => {
   // T1-AC-01: one dependency node with a solid and a dotted consume edge;
@@ -248,7 +248,7 @@ describe('GraphView', () => {
     const edges = el.querySelectorAll<SVGPathElement>('path.graph-edge');
     expect(edges.length).toBe(2);
     expect(el.querySelectorAll('path.graph-edge.dotted').length).toBe(1);
-    expect(edgeTitles(el, true)).toEqual(["another remote's copy (its own is not selected)"]);
+    expect(edgeTitles(el, true)).toEqual(['served by mfe1 (its own is not selected)']);
     expect(edgeTitles(el, false)).toEqual(['']);
 
     // Review follow-up: every edge carries an invisible wide hit path with
@@ -280,12 +280,14 @@ describe('GraphView', () => {
     expect(el.querySelectorAll('path.graph-edge').length).toBe(projection.consumerRelations.length);
   });
 
-  // T1-AC-03: the anchored relations render dotted and name the subpool
-  // (graph-v48 T2); private copies render with the isolated (dashed) metadata.
+  // T1-AC-03: the anchored relations render dotted and name whose build they
+  // run (graph-v48 T2); private copies render with the isolated (dashed) metadata.
   it('renders pooling-anchor anchored edges dotted and scoped copies isolated', async () => {
     const anchorEl = await createView('pooling-anchor');
     const dottedTitles = edgeTitles(anchorEl, true);
-    expect(dottedTitles.filter((title) => title.includes('subpool of its pool')).length).toBe(2);
+    expect(
+      dottedTitles.filter((title) => /^(its own copy|served by mfe1)$/.test(title)).length,
+    ).toBe(2);
 
     TestBed.resetTestingModule();
     const scopedEl = await createView('scoped');

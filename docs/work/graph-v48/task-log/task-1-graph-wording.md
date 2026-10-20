@@ -2,7 +2,9 @@
 
 Status: DONE.
 
-- Toolbar hint: `dotted edge = another remote's copy`.
+- Toolbar hint: `dotted edge = served by another remote`; a dotted edge's tooltip names the
+  remote: `served by <source remote of the copy>` (+ `(it skips its own)` / `(its own is not
+  selected)`), falling back to `EDGE_STATE_TEXT` when the copy has no evidenced source.
 - Edge tooltip names each distinct mapping state in words (`EDGE_STATE_TEXT` in
   `graph-element-factories.ts`), joined with `; `. A graph-local table: Import Map's
   `STATE_LABELS` are single words for a claim row, not sentences about an edge.
