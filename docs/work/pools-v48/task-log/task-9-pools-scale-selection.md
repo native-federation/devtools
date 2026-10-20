@@ -77,8 +77,10 @@ and on `pool-portfolio` temporarily inflated to 40 remotes (not committed).
 
 ### Context for Next Task
 
-- README Pools screenshots predate this task; `docs/resolution-data-model.md`
-  lacks `PoolLens` / `subpoolMisses` and the grouping rule.
+- Docs follow-up (separate commit): README Pools section and screenshots
+  (`pool-portfolio`, global map selected, 1180 CSS px at 2×, headless Chrome
+  via the orchestrator repo's Playwright), DEVELOPMENT Pools paragraph, data
+  model (grouping rule, `lenses`, `subpoolMisses`).
 - The parity harness lives only in the session scratchpad; committing a
   trimmed corpus (~40 portfolios) would keep it in CI.
 
