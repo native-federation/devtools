@@ -44,18 +44,26 @@ chunk bundle — with honest outcomes where attribution cannot be proven.
 
 **Pools** — one card per explicit pool tag (`pool` on a shared external): how
 much of what the remotes import the global map serves, then a matrix of every
-remote's copy of every member, banded by where it runs — the global map (the
-stored winner, plus packages it takes from other builds), a subpool on another
-remote's build, or its own build — and one verdict per pool. Every remote off
-the global map gets its reason: every range rejection (strict or not, own
-version exempt), every entrypoint the global map lacks, or a combination no
-single build ships; `rejected` and `gap` cells mark where. Membership is
-rebuilt from the stored tags exactly as the orchestrator forms it; placement
-is read off the rows pooling wrote back (`servedBy`, `scope`), the reason is
-recomputed with the orchestrator 4.8 rules and checked against the stored
-`poolCause`; a contradiction reads as unexplained, never guessed. A pool is
-pending while a member is `dirty` or a runtime load left its scope undecided
-(`cache-state`). The tab appears only when the capture carries a pool tag.
+remote's copy of every member, banded by the pool it runs in — the global map
+(the stored winner, plus packages it takes from other builds), a subpool on
+another remote's build, or its own build — and one verdict per card. Each
+remote off the global map carries a cause chip (`version conflict`, `not
+covered`, `unexplained`) whose tooltip lists every reason: every range
+rejection (strict or not, own version exempt), every entrypoint the global map
+lacks, a combination no single build ships, and for an own build why no
+subpool's build serves it either. Nothing is selected by default; a band label
+or a row selects that pool. Then a warning under the matrix lists one line per
+problem, remotes first, a subpool collapsed to its owner — and selecting a
+subpool or own build judges every remote against that build (the
+orchestrator's `serves` check, never a re-run of the election), next to where
+each actually runs. Membership is rebuilt from the stored tags as the
+orchestrator that stored them forms it; placement is read off the rows pooling
+wrote back (`servedBy`, `scope`), the reason is recomputed with the
+orchestrator 4.8 rules and checked against the stored `poolCause`; a
+contradiction reads as unexplained, never guessed. A pool is pending while a
+member is `dirty` or a runtime load left its scope undecided (`cache-state`).
+Pool chips in Packages and Remotes open the card on that remote's row. The tab
+appears only when the capture carries a pool tag.
 
 Any snapshot can be exported as JSON, which doubles as a reproducible bug
 report.

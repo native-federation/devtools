@@ -93,15 +93,18 @@ consumes from whom, and which own version lost the negotiation.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/pools-dark.png">
-  <img src="docs/assets/readme/pools-light.png" alt="The Pools tab: pool acme with the host's build on the global map, five remotes in a subpool on contacts' build because the global map lacks acme-animations and acme-forms, and legacy on its own build because its range rejects three global versions">
+  <img src="docs/assets/readme/pools-light.png" alt="The Pools tab: pool acme with the global map selected. Six remotes run the host's build, five share a subpool on contacts' build, and legacy runs its own build. The warning under the matrix lists legacy's version conflicts with the global 18.2.0 and the two packages the global map lacks, for contacts' subpool and legacy">
 </picture>
 
 The host's build serves the global map, but it ships neither `acme-animations`
 nor `acme-forms`, so five remotes share a subpool on contacts' build instead.
-`legacy` runs the whole family from its own build: its ranges reject three of
-the global versions, each one listed. Reasons are recomputed from the stored
-records with the orchestrator's own rules and checked against the cause it
-stored.
+`legacy` runs the whole family from its own build: its ranges reject the global
+versions. Select a pool — click its label or any of its remotes — and the
+warning lists what keeps remotes off it, one line per problem, a subpool shown
+once as its owner; hover a remote's cause for all its reasons. Select a subpool
+or own build to see which remotes would fit that build instead. Reasons are
+recomputed from the stored records with the orchestrator's own rules and
+checked against the cause it stored.
 
 ## Requirements
 

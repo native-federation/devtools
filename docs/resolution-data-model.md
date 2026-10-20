@@ -600,7 +600,14 @@ classDiagram
     +PoolFamilyMember[] members
     +PoolStatusMatrix statusMatrix
     +PoolConsumer[] consumers
+    +PoolLens[] lenses
     +boolean pending
+  }
+  class PoolLens {
+    +string owner
+    +PoolCoverage coverage
+    +PoolLensConsumer[] consumers
+    +PoolLensCell[][] cells
   }
   class CopyGroupingFacets {
     +ResolvedDependencyCopyId copyId
@@ -655,6 +662,7 @@ classDiagram
   CanonicalResolutionProjection "1" *-- "0..*" PoolFamily
   CanonicalResolutionProjection "1" *-- "0..*" CopyGroupingFacets
   PoolFamily "1" --> "1" TagPool : poolId, same order
+  PoolFamily "1" *-- "0..*" PoolLens
   CopyGroupingFacets "1" --> "1" ResolvedDependencyCopy : copyId, same order
   CanonicalResolutionProjection "1" *-- "0..*" PackageScopeVerdicts
   PackageScopeVerdicts "1" *-- "1..*" VersionVerdict : semver descending
@@ -693,11 +701,15 @@ nothing, and legacy `@nf-internal/...` carriers keep their raw provenance as
 pseudo-external chunk groups outside dependency attribution.
 
 Pooling facts are three sibling lists. `tagPools` rebuilds the explicit-tag
-pools from the registry exactly as the orchestrator forms them
-(`pool-graph.ts` `groupByMembership`, tag edges only): per share scope, a
-connected component of `package — (remote, tag)` and `entrypoint — owning
-package` edges with at least two members, never in the `strict` scope; a
-tagged package that joins nothing is an `orphanPoolTag`. The pool name is the
+pools from the registry the way the orchestrator that stored them forms them:
+per share scope, a connected component of label and `entrypoint — owning
+package` edges with at least two members, never in the `strict` scope. The
+stored `poolName` (orchestrator 4.7+) is the orchestrator's own grouping and
+joins its members first. A label then links packages as 4.8 does
+(`membership.ts`: one node per label across every remote) when the scope
+carries a stored `poolWinner`, else as 4.6/4.7 did (`pool-graph.ts`: one node
+per remote and label, so two remotes' labels meet only through a shared
+package). A tagged package that joins nothing is an `orphanPoolTag`. The pool name is the
 stored `poolName` (orchestrator 4.7+), else the alphabetically first member;
 the ID always keys on the latter. `poolFamilies` (one per pool, same order)
 read where pooling put each remote off the stored rows (orchestrator 4.8
@@ -713,7 +725,20 @@ tag always accepted (`createAcceptsTag`); else every specifier the surface
 lacks (`coverage`); else the first specifier no single build ships with the
 rest (`unshipped`). `consistent` checks the placement against that reason and
 the stored `poolCause`, which is published as is, never overridden: a
-contradiction reads as unexplained, not as a guess. The status matrix folds
+contradiction reads as unexplained, not as a guess.
+
+`lenses` (one per remote that ships a member) judge every remote against that
+remote's build instead of the global surface, with the orchestrator's `serves`
+rule only (`rules.ts`: each specifier the build ships at a tag the copy's
+range accepts, own tag exempt; range first, then coverage): a per-copy cell
+(`accepted`, `rejected`, `gap`), a coverage of what the build ships, and a miss
+per remote, null when it fits. A lens is what-if evidence, never a placement:
+the election itself (round-1 ranking, subpool order, extensions, promotion,
+host precedence — `election.ts` `elect`) is deliberately not re-run, so "fits"
+does not mean the orchestrator would put the remote there. A remote on its own
+build also carries `subpoolMisses`: per subpool owner, its miss on that
+lens — why that subpool's build does not serve it either (a null miss: it
+fits, and the stored rows do not say why). The status matrix folds
 consumers into bands (global, subpool, isolated, unknown) with one verdict
 (`isolated > redirected > one-build`); the verdict's isolation cause is the
 stored one only when every isolated remote stores it, the subpool cause the
