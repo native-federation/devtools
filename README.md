@@ -64,7 +64,7 @@ One hover answers *"who shares this — and which files does it load?"*
   <img src="docs/assets/readme/hover-trace-light.gif" alt="Hovering nodes in the Graph tab: the trace lights up the hovered node's remotes, dependency copies, and chunk files while everything else dims">
 </picture>
 
-Dashed nodes are isolated copies, dotted edges lead to another remote's copy —
+Dashed nodes are isolated copies, dotted edges are served by another remote —
 the sharing story is visible at a glance.
 
 ## Every negotiation, explained

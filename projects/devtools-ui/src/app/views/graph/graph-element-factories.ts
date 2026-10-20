@@ -191,27 +191,43 @@ const EDGE_STATE_TEXT: Record<ClaimMappingState, string> = {
   'own-selected': 'its own copy',
   'not-selected': "another remote's copy (its own is not selected)",
   fallback: 'the shared copy (it skips its own)',
-  anchored: "a subpool's build",
+  anchored: "another remote's build",
   blocked: 'blocked by the map',
   unknown: 'not derivable from the capture',
 };
 
-// `subpool` replaces the generic `anchored` text when the consumer's declaration names its subpool.
+// The remote whose copy the edge lands on; an anchored copy is its subpool owner's build.
+function servedByText(state: ClaimMappingState, consumer: string, server: string | null): string {
+  if (server === null || !['not-selected', 'fallback', 'anchored'].includes(state)) {
+    return EDGE_STATE_TEXT[state];
+  }
+  if (server === consumer) {
+    return 'its own copy';
+  }
+  const servedBy = `served by ${participantDisplay(server)}`;
+  return state === 'fallback'
+    ? `${servedBy} (it skips its own)`
+    : state === 'not-selected'
+      ? `${servedBy} (its own is not selected)`
+      : servedBy;
+}
+
 export function edgeOf(
   relation: ConsumerCopyRelation,
   source: RemoteGraphNode,
   target: DependencyGraphNode,
-  subpool: string | null = null,
+  server: string | null = null,
 ): GraphEdge {
   const solid = relation.mappingStates.every((state) => state === 'own-selected');
-  const textOf = (state: ClaimMappingState) =>
-    state === 'anchored' && subpool !== null ? subpool : EDGE_STATE_TEXT[state];
+  const texts = relation.mappingStates.map((state) =>
+    servedByText(state, relation.consumerRemote, server),
+  );
   return {
     id: relation.id,
     sourceId: source.id,
     targetId: target.id,
     style: solid ? 'solid' : 'dotted',
-    tooltip: solid ? null : Array.from(new Set(relation.mappingStates), textOf).join('; '),
+    tooltip: solid ? null : [...new Set(texts)].join('; '),
     path: edgePath(
       source.x + source.width,
       source.y + source.height / 2,

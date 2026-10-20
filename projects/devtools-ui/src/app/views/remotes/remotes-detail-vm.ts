@@ -24,7 +24,7 @@
  * `model.effectiveConsumerResolutions`, `model.registryEvidence` — by ID
  * only. Nothing re-derives elections, share counts, or source semantics.
  */
-import { placementReasonText, subpoolWhereText } from '../../shared/placement-text';
+import { placementReasonText } from '../../shared/placement-text';
 import { PoolChipVm, poolChipOf } from '../../shared/pool-chip';
 import type { FederationModel, RemoteEntity } from '../../shared/store/federation-model';
 import type {
@@ -509,11 +509,17 @@ function reasonTextOf(row: DeclarationRow, indexes: CanonicalIndexes): string | 
   return reason === null ? null : placementReasonText(reason);
 }
 
+// A stored `servedBy` (orchestrator 4.8): the subpool whose build the declaration runs; its owner names itself.
 function subpoolChipOf(row: DeclarationRow, indexes: CanonicalIndexes): AnnotationVm {
   const owner = row.declaration.servedBy;
   const reason = reasonTextOf(row, indexes);
   const own = owner === row.declaration.participant;
-  const where = subpoolWhereText(owner, row.declaration.participant);
+  const where =
+    owner === null
+      ? 'runs another build in a subpool'
+      : own
+        ? 'its build serves a subpool of its pool'
+        : `runs ${participantDisplay(owner)}'s build in a subpool of its pool`;
   return {
     label: own
       ? 'subpool owner'
