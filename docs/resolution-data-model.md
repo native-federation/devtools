@@ -392,9 +392,6 @@ separately:
 - `anchored` — `servedBy` is present and the target matches an anchor
   candidate of that remote within the share scope, across external records;
   `servedBy === consumerRemote` is a valid self-anchor.
-- `self-filled` — a `skip` claim resolves to the unique matching `skip`
-  candidate of the same shared external (its own declaration or the first
-  filler of the entry).
 - `own-selected` — the target exactly equals the claim's own candidate URL.
 - `fallback` — a `skip` claim resolves to the unique matching `share` source
   of the same shared external; the raw action is retained.
@@ -512,8 +509,7 @@ Source provenance and effective behavior stay separate axes:
 - `effectiveRoles` (sorted, coexisting) derive from the attached claim and
   action evidence, never from consumer counts: a selected `share` surface
   contributes `ordinary-shared` even with a single consumer, a `scope`
-  declaration's own mapping contributes `isolated-own`, a selected skip
-  self-fill source `self-filled-source`, selection through an explicit
+  declaration's own mapping contributes `isolated-own`, selection through an explicit
   `servedBy` `anchor-source`, a private registration's own mapping
   `private-own`, and a copy no closed rule explains stays `unclassified`.
 - `sourceActions` lists evidenced source actions only, never every consumer
@@ -575,7 +571,7 @@ classDiagram
     +string? electedTag
     +VersionVerdict[] versions
     +DeclarationVerdictRecord[] declarations
-    +TornEntrypoint[] torn
+    +string? servingBuild
   }
   class VersionVerdict {
     +string tag
@@ -588,6 +584,8 @@ classDiagram
     +ParticipantDeclarationId declarationId
     +DeclarationVerdict verdict
     +boolean? acceptsElected
+    +PlacementReason? reason
+    +string? subpoolOf
     +string? runsTag
   }
   class TagPool {
@@ -602,7 +600,14 @@ classDiagram
     +PoolFamilyMember[] members
     +PoolStatusMatrix statusMatrix
     +PoolConsumer[] consumers
+    +PoolLens[] lenses
     +boolean pending
+  }
+  class PoolLens {
+    +string owner
+    +PoolCoverage coverage
+    +PoolLensConsumer[] consumers
+    +PoolLensCell[][] cells
   }
   class CopyGroupingFacets {
     +ResolvedDependencyCopyId copyId
@@ -657,6 +662,7 @@ classDiagram
   CanonicalResolutionProjection "1" *-- "0..*" PoolFamily
   CanonicalResolutionProjection "1" *-- "0..*" CopyGroupingFacets
   PoolFamily "1" --> "1" TagPool : poolId, same order
+  PoolFamily "1" *-- "0..*" PoolLens
   CopyGroupingFacets "1" --> "1" ResolvedDependencyCopy : copyId, same order
   CanonicalResolutionProjection "1" *-- "0..*" PackageScopeVerdicts
   PackageScopeVerdicts "1" *-- "1..*" VersionVerdict : semver descending
@@ -686,8 +692,8 @@ identifiable `servedBy` anchor is that copy's source already, and a
 non-selected bundle-bearing declaration donates nothing. A claim is
 `mapped-source` only when registered `shared-chunks` evidence of
 `(sourceRemote, bundle)` backs it; a declared bundle without registered
-chunks stays `source-only` (named-share-scope and dynamic self-fill map the
-file without registering its bundle — absence there is qualified evidence,
+chunks stays `source-only` (a named share scope maps the file without
+registering its bundle — absence there is qualified evidence,
 never "missing" or "downloaded"); an ambiguous-source copy surfaces every
 candidate `(sourceRemote, bundle)` pair as `ambiguous` without attributing
 chunks. Structural zero-entry bundle lists (`mapping-or-exposed`) contribute
@@ -695,23 +701,50 @@ nothing, and legacy `@nf-internal/...` carriers keep their raw provenance as
 pseudo-external chunk groups outside dependency attribution.
 
 Pooling facts are three sibling lists. `tagPools` rebuilds the explicit-tag
-pools from the registry exactly as the orchestrator forms them
-(`pool-graph.ts` `groupByMembership`, tag edges only): per share scope, a
-connected component of `package — (remote, tag)` and `entrypoint — owning
-package` edges with at least two members, never in the `strict` scope; a
-tagged package that joins nothing is an `orphanPoolTag`. The pool name is the
+pools from the registry the way the orchestrator that stored them forms them:
+per share scope, a connected component of label and `entrypoint — owning
+package` edges with at least two members, never in the `strict` scope. The
+stored `poolName` (orchestrator 4.7+) is the orchestrator's own grouping and
+joins its members first. A label then links packages as 4.8 does
+(`membership.ts`: one node per label across every remote) when the scope
+carries a stored `poolWinner`, else as 4.6/4.7 did (`pool-graph.ts`: one node
+per remote and label, so two remotes' labels meet only through a shared
+package). A tagged package that joins nothing is an `orphanPoolTag`. The pool name is the
 stored `poolName` (orchestrator 4.7+), else the alphabetically first member;
 the ID always keys on the latter. `poolFamilies` (one per pool, same order)
-re-runs nothing the orchestrator decided: the serving build per
-`(remote, member)` is read off the stored row — `scope` is the remote's own
-build, `servedBy` names the build, otherwise the first participant of the
-`share` row — and the status matrix folds those into bands per build with
-one verdict (`torn > isolated > redirected > one-build`). The model makes two
-computations of its own, both consistency checks on stored facts: a strict
-range that rejects the shared tag (npm `semver`, the orchestrator's own
-`satisfies` call) marks a `conflict` cell, and a resolved combination no
-single build ships marks a torn consumer. A stored `poolCause` is published
-as is, never inferred. `copyGroupingFacets` (one per copy, same order) names
+read where pooling put each remote off the stored rows (orchestrator 4.8
+`pooling/records.ts`): every member row `scope` is its own build (`self`), a
+`servedBy` is that remote's subpool (an owner names itself), otherwise the
+global map; a mix 4.8 never writes is `unknown`. The global surface is what the
+global map serves per member: the copy of the stored `servingBuild` (else the
+first participant) at the `share` tag, extensions from other builds included;
+`poolWinner` is published as the family's winner. Why a remote is off that
+surface is recomputed in the orchestrator's own precedence (`election.ts`
+`missOf`, `rules.ts`): every range rejection, strict first, with the copy's own
+tag always accepted (`createAcceptsTag`); else every specifier the surface
+lacks (`coverage`); else the first specifier no single build ships with the
+rest (`unshipped`). `consistent` checks the placement against that reason and
+the stored `poolCause`, which is published as is, never overridden: a
+contradiction reads as unexplained, not as a guess.
+
+`lenses` (one per remote that ships a member) judge every remote against that
+remote's build instead of the global surface, with the orchestrator's `serves`
+rule only (`rules.ts`: each specifier the build ships at a tag the copy's
+range accepts, own tag exempt; range first, then coverage): a per-copy cell
+(`accepted`, `rejected`, `gap`), a coverage of what the build ships, and a miss
+per remote, null when it fits. A lens is what-if evidence, never a placement:
+the election itself (round-1 ranking, subpool order, extensions, promotion,
+host precedence — `election.ts` `elect`) is deliberately not re-run, so "fits"
+does not mean the orchestrator would put the remote there. A remote on its own
+build also carries `subpoolMisses`: per subpool owner, its miss on that
+lens — why that subpool's build does not serve it either (a null miss: it
+fits, and the stored rows do not say why). The status matrix folds
+consumers into bands (global, subpool, isolated, unknown) with one verdict
+(`isolated > redirected > one-build`); the verdict's isolation cause is the
+stored one only when every isolated remote stores it, the subpool cause the
+recomputed one only when every redirected remote shares it. A pool is pending
+while a member is `dirty` or its scope is in `cache-state.undecidedScopes`.
+`copyGroupingFacets` (one per copy, same order) names
 each copy's share scope, tag pool, and build outputs; the Graph's share-scope,
 pool, and build groupings read nothing else.
 
@@ -719,16 +752,26 @@ Package verdicts restate the resolver's own decisions per registry key
 (share scope, package), the Packages tab's read surface. The elected tag is
 the `share` row (none in the `strict` scope); each declaration's verdict is
 read off its row action — first participant of the `share` row `provides`,
-a `scope` row is an `own-copy`, a `skip` row `reuses-shared` — and the one
-computation is again the `semver` range check, which tells `reuses-shared`
-from `out-of-range` (a non-strict declaration the orchestrator left on a
-plain `skip` although its range rejects the elected tag). Each registered
+a `scope` row is an `own-copy`, a `skip` row with a `servedBy` runs a
+`subpool`, any other `skip` row `reuses-shared` — and the one computation is
+again the `semver` range check (a copy's own tag always passes, as in
+`createAcceptsTag`), which tells `reuses-shared` from `out-of-range` (a
+non-strict declaration the orchestrator left on a plain `skip` although its
+range rejects the elected tag). An `own-copy` or `subpool` declaration
+carries a `reason`: in a tag pool, its pool family consumer's recomputed miss
+and stored cause; otherwise recomputed against the package's stored
+`servingBuild` as `serving.ts` `fallsBack` judges it — a strict range that
+rejects the serving tag, entrypoints the serving build does not publish, or
+the package shipped at two tags (a root and its flat secondaries form one
+package). A placement the stored rows do not explain has no miss. Each registered
 version carries its status (`shared`, `scoped`, `partly-mapped`,
 `not-mapped`) and its builds, the copies that materialize it with their
-entry and chunk files; `merged` marks a version assembled from several
-builds, observed from the map. `torn` lists specifiers the elected version's
-copies lack and another version self-fills. An unreadable range or a
-missing election yields `unknown`, never a guess.
+entry and chunk files; `merged` marks a shared version the map assembles from
+more than one `share`-row build, which orchestrator 4.8 does only without a
+serving build. Orchestrator 4.8 never fills an entrypoint from another build
+(no tear): a copy the serving build does not cover runs from its own build as
+a `scope` row. An unreadable range or a missing election yields `unknown`,
+never a guess.
 
 Completeness counts each unique binding once: `total` reports unknown,
 unmapped, and blocked bindings plus ambiguous source claims without double

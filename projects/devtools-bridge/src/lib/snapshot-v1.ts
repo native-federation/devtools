@@ -124,6 +124,10 @@ export interface ExternalV1 {
   dirty: boolean;
   /** The pool this external resolves in, as the orchestrator (v4.7+) stored it. */
   poolName?: string;
+  /** The build its pool's last election made global (orchestrator v4.8+). */
+  poolWinner?: string;
+  /** The remote every specifier of this package is served from in this scope (orchestrator v4.8+). */
+  servingBuild?: string;
   versions: ExternalVersionV1[];
 }
 
@@ -172,6 +176,15 @@ export interface RuntimeRepositoriesV1 {
   sharedChunks: Record<string, Record<string, string[]>>;
   /** Aggregate of the participant generation discriminators. */
   generation: SnapshotGenerationV1;
+  /** The orchestrator's `cache-state` key (v4.8+); absent before. */
+  cacheState?: CacheStateV1;
+}
+
+export interface CacheStateV1 {
+  /** Orchestrator version that last wrote the cache; another version clears it on init. */
+  version: string;
+  /** Share scopes a runtime load wrote since their serving builds were last decided. */
+  undecidedScopes: string[];
 }
 
 export interface ImportMapEntryV1 {
@@ -220,11 +233,7 @@ export interface ImportMapsV1 {
 }
 
 export type CollectionErrorDetailV1 =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: CollectionErrorDetailV1 };
+  string | number | boolean | null | { [key: string]: CollectionErrorDetailV1 };
 
 export interface CollectionErrorV1 {
   stage: string;

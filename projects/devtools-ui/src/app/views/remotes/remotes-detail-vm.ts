@@ -24,6 +24,7 @@
  * `model.effectiveConsumerResolutions`, `model.registryEvidence` — by ID
  * only. Nothing re-derives elections, share counts, or source semantics.
  */
+import { placementReasonText } from '../../shared/placement-text';
 import { PoolChipVm, poolChipOf } from '../../shared/pool-chip';
 import type { FederationModel, RemoteEntity } from '../../shared/store/federation-model';
 import type {
@@ -123,7 +124,7 @@ export interface ProvidesBlockVm {
   unknownTagNote: string | null;
   declared: DeclaredDisplayVm;
   strict: boolean;
-  /** `isolated` (+ audience), `anchored`, `self-filled` — the norm renders none. */
+  /** `isolated` (+ audience), `anchored` — the norm renders none. */
   deviations: AnnotationVm[];
   files: ZoneFileVm[];
   /** Display suffix under the parent block; null on top-level blocks. */
@@ -481,9 +482,13 @@ function providesDeviationsOf(
 ): AnnotationVm[] {
   const deviations: AnnotationVm[] = [];
   if (copy.sourceDisposition === 'scope-registration') {
+    const reason = reasonTextOf(row, indexes);
     deviations.push({
       label: 'isolated',
-      note: 'the evidenced source is registered with action scope — an isolated copy',
+      note:
+        reason === null
+          ? 'the evidenced source is registered with action scope — an isolated copy'
+          : `runs its own build — ${reason}`,
     });
     deviations.push(audienceOf(copy, row.registration, model, indexes));
   }
@@ -491,27 +496,36 @@ function providesDeviationsOf(
     copy.effectiveRoles.includes('anchor-source') ||
     ownClaims.some((claim) => claim.mappingState === 'anchored')
   ) {
-    const anchor = row.declaration.servedBy;
-    deviations.push({
-      label: 'anchored',
-      note: `explicit servedBy anchor: ${
-        anchor === null ? 'unknown' : participantDisplay(anchor)
-      } — the binding resolves through the anchor's copy`,
-    });
-  }
-  if (
-    copy.effectiveRoles.includes('self-filled-source') ||
-    ownClaims.some((claim) => claim.mappingState === 'self-filled')
-  ) {
-    deviations.push({
-      label: 'self-filled',
-      note: 'no applicable shared source — the consumer’s own copy fills the binding',
-    });
+    deviations.push(subpoolChipOf(row, indexes));
   }
   if (copy.effectiveRoles.includes('unclassified')) {
     deviations.push({ label: 'unclassified', note: 'no closed rule explains this copy' });
   }
   return deviations;
+}
+
+function reasonTextOf(row: DeclarationRow, indexes: CanonicalIndexes): string | null {
+  const reason = indexes.verdictByDeclaration.get(row.declaration.id)?.reason ?? null;
+  return reason === null ? null : placementReasonText(reason);
+}
+
+// A stored `servedBy` (orchestrator 4.8): the subpool whose build the declaration runs; its owner names itself.
+function subpoolChipOf(row: DeclarationRow, indexes: CanonicalIndexes): AnnotationVm {
+  const owner = row.declaration.servedBy;
+  const reason = reasonTextOf(row, indexes);
+  const own = owner === row.declaration.participant;
+  const where =
+    owner === null
+      ? 'runs another build in a subpool'
+      : own
+        ? 'its build serves a subpool of its pool'
+        : `runs ${participantDisplay(owner)}'s build in a subpool of its pool`;
+  return {
+    label: own
+      ? 'subpool owner'
+      : `subpool of ${owner === null ? 'unknown' : participantDisplay(owner)}`,
+    note: reason === null ? where : `${where} — ${reason}`,
+  };
 }
 
 /**
@@ -530,19 +544,7 @@ function consumesDeviationsOf(
   const deviations: AnnotationVm[] = [];
   const ownFile = indexes.candidateById.get(claim.candidateId)?.file ?? null;
   if (claim.mappingState === 'anchored') {
-    const anchor = row.declaration.servedBy;
-    deviations.push({
-      label: 'anchored',
-      note: `explicit servedBy anchor: ${
-        anchor === null ? 'unknown' : participantDisplay(anchor)
-      } — the binding resolves through the anchor's copy`,
-    });
-  }
-  if (claim.mappingState === 'self-filled') {
-    deviations.push({
-      label: 'self-filled',
-      note: 'no applicable shared source — the consumer’s own copy fills the binding',
-    });
+    deviations.push(subpoolChipOf(row, indexes));
   }
   const skipped =
     row.registration.action === 'skip' &&

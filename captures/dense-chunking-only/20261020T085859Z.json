@@ -1,9 +1,9 @@
 {
   "schemaVersion": "lab-lossless-capture/1",
-  "capturedAt": "2026-09-30T11:30:58.396Z",
+  "capturedAt": "2026-10-20T08:59:01.584Z",
   "scenario": {
-    "scenarioId": "pool-tag-coherent",
-    "orchestratorCommit": "4.7.0",
+    "scenarioId": "dense-chunking-only",
+    "orchestratorCommit": "4.8.0",
     "ready": true,
     "readyError": null
   },
@@ -11,7 +11,7 @@
     "url": "http://localhost:4300/",
     "origin": "http://localhost:4300",
     "path": "/",
-    "title": "nf-lab pool-tag-coherent",
+    "title": "nf-lab dense-chunking-only",
     "readyState": "complete"
   },
   "collector": {
@@ -21,31 +21,28 @@
   "channels": {
     "nativeFederationGlobals": {
       "availability": "available",
-      "observedAt": "2026-09-30T11:30:58.395Z",
+      "observedAt": "2026-10-20T08:59:01.583Z",
       "data": {
         "present": true,
         "valueType": "object",
         "namespaceKeys": [
+          "cache-state",
           "remotes",
-          "shared-externals"
+          "shared-externals",
+          "shared-chunks"
         ],
         "namespace": {
+          "cache-state": {
+            "version": "4.8.0",
+            "undecidedScopes": []
+          },
           "remotes": {
             "mfe1": {
               "scopeUrl": "./mfe1/",
               "exposes": [
                 {
                   "moduleName": "./main",
-                  "file": "main-DXLIHA7T.js"
-                }
-              ]
-            },
-            "mfe2": {
-              "scopeUrl": "./mfe2/",
-              "exposes": [
-                {
-                  "moduleName": "./main",
-                  "file": "main-DXLIHA7T.js"
+                  "file": "main-SAHOAPKP.js"
                 }
               ]
             },
@@ -56,85 +53,51 @@
           },
           "shared-externals": {
             "__GLOBAL__": {
-              "@nf-lab/ui-core": {
+              "@nf-lab/dense-lib": {
                 "dirty": false,
                 "versions": [
                   {
-                    "tag": "1.1.0",
+                    "tag": "1.0.0",
                     "action": "share",
                     "host": false,
                     "remotes": [
                       {
                         "name": "mfe1",
-                        "strictVersion": true,
+                        "bundle": "browser-shared",
+                        "strictVersion": false,
                         "cached": true,
                         "requiredVersion": "^1.0.0",
-                        "pool": "ui",
                         "entries": {
-                          "@nf-lab/ui-core": "_nf_lab_ui_core.omKXFDLfPd.js"
-                        }
-                      }
-                    ]
-                  },
-                  {
-                    "tag": "1.0.0",
-                    "action": "skip",
-                    "host": false,
-                    "remotes": [
-                      {
-                        "name": "mfe2",
-                        "strictVersion": true,
-                        "cached": false,
-                        "requiredVersion": "^1.0.0",
-                        "pool": "ui",
-                        "entries": {
-                          "@nf-lab/ui-core": "_nf_lab_ui_core.FGCSlTph3q.js"
+                          "@nf-lab/dense-lib": "_nf_lab_dense_lib.fJdoGqXTjq.js"
                         }
                       }
                     ]
                   }
                 ],
-                "poolName": "ui"
+                "servingBuild": "mfe1"
               },
-              "@nf-lab/ui-dom": {
+              "@nf-lab/dense-lib/extra": {
                 "dirty": false,
                 "versions": [
                   {
-                    "tag": "1.1.0",
+                    "tag": "1.0.0",
                     "action": "share",
                     "host": false,
                     "remotes": [
                       {
                         "name": "mfe1",
-                        "strictVersion": true,
+                        "bundle": "browser-shared",
+                        "strictVersion": false,
                         "cached": true,
                         "requiredVersion": "^1.0.0",
-                        "pool": "ui",
                         "entries": {
-                          "@nf-lab/ui-dom": "_nf_lab_ui_dom.dFB1zhKPhR.js"
-                        }
-                      }
-                    ]
-                  },
-                  {
-                    "tag": "1.0.0",
-                    "action": "skip",
-                    "host": false,
-                    "remotes": [
-                      {
-                        "name": "mfe2",
-                        "strictVersion": true,
-                        "cached": false,
-                        "requiredVersion": "^1.0.0",
-                        "pool": "ui",
-                        "entries": {
-                          "@nf-lab/ui-dom": "_nf_lab_ui_dom.LEdXNkv1m2.js"
+                          "@nf-lab/dense-lib/extra": "_nf_lab_dense_lib_extra.IKoP9vbCZc.js"
                         }
                       }
                     ]
                   }
                 ],
-                "poolName": "ui"
+                "servingBuild": "mfe1"
               },
               "@nf-lab/utils": {
                 "dirty": false,
@@ -152,11 +115,30 @@
                         "entries": {
                           "@nf-lab/utils": "_nf_lab_utils.wMYw37SmBF.js"
                         }
+                      },
+                      {
+                        "name": "mfe1",
+                        "bundle": "browser-shared",
+                        "strictVersion": false,
+                        "cached": false,
+                        "requiredVersion": "^1.0.0",
+                        "entries": {
+                          "@nf-lab/utils": "_nf_lab_utils.wMYw37SmBF.js"
+                        }
                       }
                     ]
                   }
-                ]
+                ],
+                "servingBuild": "__NF-HOST__"
               }
+            }
+          },
+          "shared-chunks": {
+            "mfe1": {
+              "browser-shared": [
+                "chunk-Y6UYBMA7.js"
+              ],
+              "mapping-or-exposed": []
             }
           }
         }
@@ -164,7 +146,7 @@
     },
     "orchestratorGlobal": {
       "availability": "available",
-      "observedAt": "2026-09-30T11:30:58.395Z",
+      "observedAt": "2026-10-20T08:59:01.584Z",
       "data": {
         "present": true,
         "valueType": "object",
@@ -173,14 +155,15 @@
         ],
         "storage": {
           "__NATIVE_FEDERATION__": {
-            "version": "4.7.0",
+            "version": "4.8.0",
             "type": "globalThis",
             "namespace": "__NATIVE_FEDERATION__",
             "keys": [
               "remotes",
               "shared-externals",
               "scoped-externals",
-              "shared-chunks"
+              "shared-chunks",
+              "cache-state"
             ],
             "hasGet": true
           }
@@ -189,22 +172,26 @@
     },
     "domImportMaps": {
       "availability": "available",
-      "observedAt": "2026-09-30T11:30:58.395Z",
+      "observedAt": "2026-10-20T08:59:01.584Z",
       "data": {
         "count": 1,
         "maps": [
           {
             "index": 0,
             "type": "importmap-shim",
-            "text": "{\"imports\":{\"@nf-lab/ui-core\":\"./mfe1/_nf_lab_ui_core.omKXFDLfPd.js\",\"@nf-lab/ui-dom\":\"./mfe1/_nf_lab_ui_dom.dFB1zhKPhR.js\",\"@nf-lab/utils\":\"./_nf_lab_utils.wMYw37SmBF.js\",\"mfe1/./main\":\"./mfe1/main-DXLIHA7T.js\",\"mfe2/./main\":\"./mfe2/main-DXLIHA7T.js\"}}",
+            "text": "{\"imports\":{\"@nf-lab/dense-lib\":\"./mfe1/_nf_lab_dense_lib.fJdoGqXTjq.js\",\"@nf-lab/dense-lib/extra\":\"./mfe1/_nf_lab_dense_lib_extra.IKoP9vbCZc.js\",\"@nf-lab/utils\":\"./_nf_lab_utils.wMYw37SmBF.js\",\"mfe1/./main\":\"./mfe1/main-SAHOAPKP.js\"},\"scopes\":{\"./mfe1/\":{\"@nf-internal/chunk-Y6UYBMA7\":\"./mfe1/chunk-Y6UYBMA7.js\"}}}",
             "parsed": true,
             "map": {
               "imports": {
-                "@nf-lab/ui-core": "./mfe1/_nf_lab_ui_core.omKXFDLfPd.js",
-                "@nf-lab/ui-dom": "./mfe1/_nf_lab_ui_dom.dFB1zhKPhR.js",
+                "@nf-lab/dense-lib": "./mfe1/_nf_lab_dense_lib.fJdoGqXTjq.js",
+                "@nf-lab/dense-lib/extra": "./mfe1/_nf_lab_dense_lib_extra.IKoP9vbCZc.js",
                 "@nf-lab/utils": "./_nf_lab_utils.wMYw37SmBF.js",
-                "mfe1/./main": "./mfe1/main-DXLIHA7T.js",
-                "mfe2/./main": "./mfe2/main-DXLIHA7T.js"
+                "mfe1/./main": "./mfe1/main-SAHOAPKP.js"
+              },
+              "scopes": {
+                "./mfe1/": {
+                  "@nf-internal/chunk-Y6UYBMA7": "./mfe1/chunk-Y6UYBMA7.js"
+                }
               }
             }
           }
@@ -213,20 +200,23 @@
     },
     "importShim": {
       "availability": "available",
-      "observedAt": "2026-09-30T11:30:58.396Z",
+      "observedAt": "2026-10-20T08:59:01.584Z",
       "data": {
         "present": true,
         "valueType": "function",
         "version": "2.8.4",
         "map": {
           "imports": {
-            "@nf-lab/ui-core": "http://localhost:4300/mfe1/_nf_lab_ui_core.omKXFDLfPd.js",
-            "@nf-lab/ui-dom": "http://localhost:4300/mfe1/_nf_lab_ui_dom.dFB1zhKPhR.js",
+            "@nf-lab/dense-lib": "http://localhost:4300/mfe1/_nf_lab_dense_lib.fJdoGqXTjq.js",
+            "@nf-lab/dense-lib/extra": "http://localhost:4300/mfe1/_nf_lab_dense_lib_extra.IKoP9vbCZc.js",
             "@nf-lab/utils": "http://localhost:4300/_nf_lab_utils.wMYw37SmBF.js",
-            "mfe1/./main": "http://localhost:4300/mfe1/main-DXLIHA7T.js",
-            "mfe2/./main": "http://localhost:4300/mfe2/main-DXLIHA7T.js"
+            "mfe1/./main": "http://localhost:4300/mfe1/main-SAHOAPKP.js"
           },
-          "scopes": {},
+          "scopes": {
+            "http://localhost:4300/mfe1/": {
+              "@nf-internal/chunk-Y6UYBMA7": "http://localhost:4300/mfe1/chunk-Y6UYBMA7.js"
+            }
+          },
           "integrity": {}
         }
       }

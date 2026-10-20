@@ -427,9 +427,7 @@ describe('ingestSnapshot — SPA-navigated capture (resolution base recovery)', 
 
     const host = model.remotes.find((remote) => remote.isHost)!;
     expect(host.resolvedScopeUrl).toBe('https://seeded.example/playground/');
-    expect(model.effectiveMap.imports['pkg']).toBe(
-      'https://seeded.example/playground/pkg.hash.js',
-    );
+    expect(model.effectiveMap.imports['pkg']).toBe('https://seeded.example/playground/pkg.hash.js');
 
     const projection = model.resolutionProjection;
     expect(projection.copies).toHaveLength(1);
@@ -764,7 +762,7 @@ describe('ingestSnapshot — provenance carry', () => {
       schemaVersion: 1,
       pageUrl: 'https://lutzleonhardt.de/frankenstein-meeting-room/',
       capturedAt: '2026-08-11T11:56:25.504Z',
-      collectorVersion: 'nf-devtools-collector/4',
+      collectorVersion: 'nf-devtools-collector/5',
       generation: 'v4',
       runtimeSource: {
         storage: 'globalThis',
@@ -773,8 +771,36 @@ describe('ingestSnapshot — provenance carry', () => {
         orchestratorVersion: null,
         otherNamespaces: [],
       },
+      cacheState: null,
     });
     expect(model.channels).toEqual(FIXTURES['frankenstein-live'].channels);
+  });
+
+  // pool-unshipped (orchestrator 4.8): ui-dom is served from mfe1's build, the pool's winner is the host.
+  it('carries the 4.8 cache state and serving fields; null on older captures', () => {
+    const model = ingestSnapshot(FIXTURES['pool-unshipped']);
+
+    expect(model.provenance.cacheState).toEqual({ version: '4.8.0', undecidedScopes: [] });
+    const record = (packageName: string) =>
+      model.registryEvidence.sharedExternals.find(
+        (r) => r.shareScope === '__GLOBAL__' && r.packageName === packageName,
+      );
+    expect(record('@nf-lab/ui-dom')).toMatchObject({
+      poolWinner: '__NF-HOST__',
+      servingBuild: 'mfe1',
+    });
+    expect(record('@nf-lab/ui-core')).toMatchObject({
+      poolWinner: '__NF-HOST__',
+      servingBuild: '__NF-HOST__',
+    });
+
+    const older = ingestSnapshot(FIXTURES['pooling-anchor']);
+    expect(older.provenance.cacheState).toBeNull();
+    expect(
+      older.registryEvidence.sharedExternals.every(
+        (r) => r.poolWinner === null && r.servingBuild === null,
+      ),
+    ).toBe(true);
   });
 });
 

@@ -1,9 +1,9 @@
 {
   "schemaVersion": "lab-lossless-capture/1",
-  "capturedAt": "2026-10-01T16:45:43.635Z",
+  "capturedAt": "2026-10-20T08:59:09.308Z",
   "scenario": {
     "scenarioId": "out-of-range-nonstrict",
-    "orchestratorCommit": "4.7.0",
+    "orchestratorCommit": "4.8.0",
     "ready": true,
     "readyError": null
   },
@@ -21,15 +21,20 @@
   "channels": {
     "nativeFederationGlobals": {
       "availability": "available",
-      "observedAt": "2026-10-01T16:45:43.634Z",
+      "observedAt": "2026-10-20T08:59:09.307Z",
       "data": {
         "present": true,
         "valueType": "object",
         "namespaceKeys": [
+          "cache-state",
           "remotes",
           "shared-externals"
         ],
         "namespace": {
+          "cache-state": {
+            "version": "4.8.0",
+            "undecidedScopes": []
+          },
           "remotes": {
             "mfe1": {
               "scopeUrl": "./mfe1/",
@@ -125,7 +130,8 @@
                       }
                     ]
                   }
-                ]
+                ],
+                "servingBuild": "__NF-HOST__"
               }
             }
           }
@@ -134,7 +140,7 @@
     },
     "orchestratorGlobal": {
       "availability": "available",
-      "observedAt": "2026-10-01T16:45:43.635Z",
+      "observedAt": "2026-10-20T08:59:09.308Z",
       "data": {
         "present": true,
         "valueType": "object",
@@ -143,14 +149,15 @@
         ],
         "storage": {
           "__NATIVE_FEDERATION__": {
-            "version": "4.7.0",
+            "version": "4.8.0",
             "type": "globalThis",
             "namespace": "__NATIVE_FEDERATION__",
             "keys": [
               "remotes",
               "shared-externals",
               "scoped-externals",
-              "shared-chunks"
+              "shared-chunks",
+              "cache-state"
             ],
             "hasGet": true
           }
@@ -159,7 +166,7 @@
     },
     "domImportMaps": {
       "availability": "available",
-      "observedAt": "2026-10-01T16:45:43.635Z",
+      "observedAt": "2026-10-20T08:59:09.308Z",
       "data": {
         "count": 1,
         "maps": [
@@ -187,7 +194,7 @@
     },
     "importShim": {
       "availability": "available",
-      "observedAt": "2026-10-01T16:45:43.635Z",
+      "observedAt": "2026-10-20T08:59:09.308Z",
       "data": {
         "present": true,
         "valueType": "function",

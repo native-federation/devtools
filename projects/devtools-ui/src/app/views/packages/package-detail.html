@@ -151,13 +151,13 @@
                   >{{ consumer.declared.text }}</span
                 >
                 @if (consumer.pool; as pool) {
-                  @if (pool.poolSelect !== null || pool.orphan) {
+                  @if (pool.poolQuery !== null || pool.orphan) {
                     <a
                       class="pool-chip tip"
                       [class.pool-chip-orphan]="pool.orphan"
                       [title]="pool.note"
                       [routerLink]="['/pools']"
-                      [queryParams]="pool.poolSelect === null ? {} : { select: pool.poolSelect }"
+                      [queryParams]="pool.poolQuery ?? {}"
                       >pool: {{ pool.tag }}</a
                     >
                   } @else {
@@ -250,13 +250,13 @@
             >{{ row.declared.text }}</span
           >
           @if (row.pool; as pool) {
-            @if (pool.poolSelect !== null || pool.orphan) {
+            @if (pool.poolQuery !== null || pool.orphan) {
               <a
                 class="pool-chip tip"
                 [class.pool-chip-orphan]="pool.orphan"
                 [title]="pool.note"
                 [routerLink]="['/pools']"
-                [queryParams]="pool.poolSelect === null ? {} : { select: pool.poolSelect }"
+                [queryParams]="pool.poolQuery ?? {}"
                 >pool: {{ pool.tag }}</a
               >
             } @else {

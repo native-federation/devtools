@@ -46,6 +46,16 @@
   border-color: var(--nf-color-accent);
 }
 
+.pool-row.selected {
+  background: var(--nf-color-surface);
+}
+
+.pool-row.selected th[scope='row'] {
+  background: var(--nf-color-surface);
+  box-shadow: inset 3px 0 0 var(--nf-color-accent);
+  padding-left: 8px;
+}
+
 .pool-head {
   display: flex;
   align-items: baseline;
@@ -75,13 +85,40 @@
 
 /* A wide family scrolls inside its card, never the page. */
 .pool-matrix-wrap {
+  container-type: inline-size;
   margin: 16px 0 4px;
   overflow-x: auto;
 }
 
 .pool-matrix {
+  --pool-remote-width: 240px;
+  --pool-column-width: 8em;
+  /* Widths come from the columns, never from a long reason; a wide pool scrolls in its wrap. */
+  table-layout: fixed;
+  width: calc(
+    var(--pool-remote-width) + var(--pool-columns) * (var(--pool-column-width) + 2px) + 4px
+  );
   border-collapse: separate;
   border-spacing: 2px;
+}
+
+/* Fixed layout takes widths from the columns, whichever header row comes first. */
+.pool-col-remote {
+  width: var(--pool-remote-width);
+}
+
+.pool-col {
+  width: var(--pool-column-width);
+}
+
+.pool-matrix thead th:not(:first-child) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Scope runs: a rule under each so the columns it covers read as one group. */
+.pool-scope-row th:not(:first-child, .pool-scope-none) {
+  border-bottom: 1px solid var(--nf-color-border);
 }
 
 .pool-matrix th {
@@ -99,8 +136,8 @@
 .pool-matrix thead th:first-child,
 .pool-matrix th[scope='row'] {
   box-sizing: border-box;
-  width: 240px;
-  min-width: 240px;
+  width: var(--pool-remote-width);
+  min-width: var(--pool-remote-width);
   padding-right: 12px;
 }
 
@@ -111,6 +148,7 @@
 }
 
 .pool-band-note {
+  margin-left: 4px;
   font-weight: normal;
 }
 
@@ -118,6 +156,22 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  width: max-content;
+}
+
+/* The remote column and band labels stay put while the version columns scroll. */
+.pool-matrix thead th:first-child,
+.pool-matrix th[scope='row'] {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  overflow: hidden;
+  background: var(--nf-color-bg);
+}
+
+.pool-band-head {
+  position: sticky;
+  left: 0;
 }
 
 .pool-redirected {
@@ -126,7 +180,9 @@
 }
 
 .pool-matrix td {
-  min-width: 4.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   /* Digits have no descenders: a tight line box nudged down centres them optically. */
   padding: 4px 6px 2px;
   line-height: 1;
@@ -136,19 +192,14 @@
   color: var(--nf-color-text-muted);
 }
 
-.pool-matrix td[tabindex]:focus-visible {
-  outline: 2px solid var(--nf-color-focus-ring);
-  outline-offset: 1px;
-}
-
 /* Scoped to the cell (and the legend swatch) so the states outrank the muted cell text above. */
 .pool-matrix td[data-state='unchanged'],
 .pools-swatch[data-state='unchanged'] {
   background: var(--nf-color-surface);
 }
 
-.pool-matrix td[data-state='conflict'],
-.pools-swatch[data-state='conflict'] {
+.pool-matrix td[data-state='rejected'],
+.pools-swatch[data-state='rejected'] {
   background: var(--nf-color-conflict);
   color: var(--nf-color-conflict-contrast);
   font-weight: 700;
@@ -162,6 +213,14 @@
   font-weight: 600;
 }
 
+.pool-matrix td[data-state='gap'],
+.pools-swatch[data-state='gap'] {
+  background: var(--nf-color-warning-bg);
+  color: var(--nf-color-warning-text);
+  outline: 1px dashed var(--nf-color-warning-border);
+  outline-offset: -2px;
+}
+
 .pool-matrix td[data-state='serves-others'],
 .pools-swatch[data-state='serves-others'] {
   background: var(--nf-color-serves-bg);
@@ -173,7 +232,7 @@
   cursor: help;
 }
 
-/* Quiet by design: only the type carries colour, and only for isolation or a torn combination. */
+/* Quiet by design: only the type carries colour, and only for isolation. */
 .pool-verdict {
   display: flex;
   flex-wrap: wrap;
@@ -189,10 +248,6 @@
 
 .pool-verdict[data-tone='isolated'] .pool-verdict-type {
   color: var(--nf-color-isolated-text);
-}
-
-.pool-verdict[data-tone='torn'] .pool-verdict-type {
-  color: var(--nf-color-conflict-text);
 }
 
 .pool-note {
@@ -229,4 +284,235 @@
 .pool-orphan {
   width: fit-content;
   margin: 2px 0;
+}
+
+/* The cause next to a remote; its tooltip carries every reason. */
+.pool-cause {
+  padding: 0 4px;
+  border: 1px solid var(--nf-color-border);
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--nf-color-text-muted);
+  cursor: help;
+}
+
+.pool-cause[data-unexplained] {
+  border-color: var(--nf-color-warning-text);
+  color: var(--nf-color-warning-text);
+}
+
+/* A band label that judges the pool against its build. */
+.pool-lens-button {
+  padding: 0 4px;
+  margin-left: -4px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.pool-lens-button:hover {
+  border-color: var(--nf-color-border);
+}
+
+.pool-lens-button[aria-pressed='true'] {
+  border-color: var(--nf-color-accent);
+  color: var(--nf-color-text);
+  text-decoration: none;
+}
+
+.pool-coverage {
+  margin: 2px 0 6px;
+  font-size: 12px;
+}
+
+.pool-coverage-line {
+  margin: 0;
+  color: var(--nf-color-text-muted);
+}
+
+.pool-coverage[data-complete='false'] .pool-coverage-line {
+  color: var(--nf-color-warning-text);
+}
+
+/* One line per problem, remotes first in their own column: twenty remotes still read as a few lines. */
+.pool-issues {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 10px 0 0;
+  padding: 6px 10px;
+  list-style: none;
+  border: 1px solid var(--nf-color-warning-border);
+  border-radius: 4px;
+  background: var(--nf-color-warning-bg);
+  font-size: 12px;
+}
+
+.pool-issues li {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  margin: 0 -4px;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.pool-issue-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--nf-color-warning-text);
+}
+
+.pool-issue-subject {
+  color: var(--nf-color-text);
+}
+
+.pool-issue-detail {
+  color: var(--nf-color-text-muted);
+}
+
+.pool-remote-list {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.pool-remote-more {
+  font-size: 11px;
+  color: var(--nf-color-text-muted);
+  text-decoration: underline dotted;
+  cursor: help;
+}
+
+/* The selected build's band: a light accent tint behind its labels and empty cells. */
+.pool-band-lens > tr > th,
+.pool-band-lens > tr > td:not([data-state]) {
+  background: color-mix(in srgb, var(--nf-color-accent) 12%, var(--nf-color-bg));
+}
+
+/* Verdict and reasons as one card under the matrix. */
+.pool-explainer {
+  container-type: inline-size;
+  margin: 10px 0 4px;
+  border: 1px solid var(--nf-color-border);
+  border-radius: 6px;
+  background: var(--nf-color-surface);
+}
+
+.pool-explainer[data-tone='isolated'] {
+  border-left: 3px solid var(--nf-color-isolated-text);
+}
+
+.pool-explainer-lens,
+.pool-explainer-lens[data-tone] {
+  border-left: 3px solid var(--nf-color-accent);
+}
+
+.pool-explainer .pool-verdict {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.pool-lens-reset {
+  margin-left: auto;
+  padding: 0 6px;
+  border: 1px solid var(--nf-color-border);
+  border-radius: 3px;
+  background: var(--nf-color-bg);
+  font: inherit;
+  font-size: 12px;
+  color: var(--nf-color-text);
+  cursor: pointer;
+}
+
+.pool-matrix td[tabindex]:focus-visible,
+.pool-cause:focus-visible,
+.pool-lens-button:focus-visible,
+.pool-lens-reset:focus-visible {
+  outline: 2px solid var(--nf-color-focus-ring);
+  outline-offset: 1px;
+}
+
+/* Rows and card lines of the remotes under the pointer. */
+.pool-row.hovered > th,
+.pool-row.hovered > td:not([data-state]),
+.pool-issues li.hovered,
+.pool-issues li.selected {
+  background: color-mix(in srgb, var(--nf-color-accent) 8%, var(--nf-color-surface));
+}
+
+.pool-tip {
+  position: fixed;
+  z-index: 10;
+  max-width: 360px;
+  padding: 6px 8px;
+  border: 1px solid var(--nf-color-border);
+  border-radius: 4px;
+  background: var(--nf-color-bg);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 20%);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--nf-color-text);
+  pointer-events: none;
+}
+
+.pool-tip-above {
+  transform: translateY(-100%);
+}
+
+.pool-tip-head {
+  margin-bottom: 2px;
+  font-family: var(--nf-font-mono);
+  font-weight: 700;
+}
+
+.pool-tip-line + .pool-tip-line {
+  margin-top: 2px;
+}
+
+.pool-tip-label {
+  font-weight: 600;
+}
+
+/* A long `+N more` list reads in columns. */
+.pool-tip-list {
+  columns: 3 8em;
+  font-family: var(--nf-font-mono);
+  font-size: 11px;
+}
+
+.pool-issues li[data-kind='conflict'] .pool-issue-label {
+  color: var(--nf-color-conflict-text);
+}
+
+.pool-row-selectable {
+  cursor: pointer;
+}
+
+.pool-issues .pool-remote-list {
+  max-width: 420px;
+}
+
+.pool-issue-problem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+}
+
+.pool-remote-subpool {
+  font-size: 11px;
+  color: var(--nf-color-text-muted);
+  cursor: help;
 }

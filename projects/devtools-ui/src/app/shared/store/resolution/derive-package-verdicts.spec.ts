@@ -88,7 +88,7 @@ describe('derivePackageVerdicts — verdicts from stored rows', () => {
             )!;
             const record = verdicts.declarations.find((d) => d.participant === row.remote)!;
             expect(record.acceptsElected, `${id} ${row.remote}`).toBe(cell.acceptsShared);
-            if (cell.state === 'conflict') expect(record.verdict).not.toBe('reuses-shared');
+            if (cell.state === 'rejected') expect(record.verdict).not.toBe('reuses-shared');
             compared += 1;
           });
         }
@@ -99,27 +99,28 @@ describe('derivePackageVerdicts — verdicts from stored rows', () => {
 });
 
 describe('derivePackageVerdicts — version statuses', () => {
-  it('torn-many: versions that only fill torn entrypoints are partly loaded', () => {
-    const kit = entry('torn-many', '__GLOBAL__', KIT);
+  // Orchestrator 4.8 borrows no entrypoint: a remote the shared build does not cover runs its own copy.
+  it('fallback-uncovered: remotes whose secondaries the shared version lacks keep their own copies', () => {
+    const kit = entry('fallback-uncovered', '__GLOBAL__', KIT);
     expect(kit.versions.map((v) => `${v.tag}:${v.status}`)).toEqual([
       '1.4.0:shared',
-      '1.3.0:partly-mapped',
-      '1.2.0:partly-mapped',
+      '1.3.0:scoped',
+      '1.2.0:scoped',
     ]);
     expect(byRemote(kit)).toMatchObject({
-      mfe1: { verdict: 'reuses-shared', runsTag: '1.4.0' },
-      mfe2: { verdict: 'reuses-shared', runsTag: '1.4.0' },
+      mfe1: { verdict: 'own-copy', runsTag: '1.2.0' },
+      mfe2: { verdict: 'own-copy', runsTag: '1.3.0' },
     });
   });
 
-  it('merged-entrypoints: one shared version, two copies, the host provides it', () => {
+  it('merged-entrypoints: same version, but mfe1 adds secondaries, so it keeps its own copy', () => {
     const kit = entry('merged-entrypoints', '__GLOBAL__', KIT);
     expect(kit.versions).toHaveLength(1);
     expect(kit.versions[0]).toMatchObject({ tag: '1.2.0', status: 'shared' });
     expect(kit.versions[0].copyIds).toHaveLength(2);
     expect(byRemote(kit)).toMatchObject({
       [NF_HOST]: { verdict: 'provides' },
-      mfe1: { verdict: 'same-version' },
+      mfe1: { verdict: 'own-copy' },
     });
   });
 
@@ -148,44 +149,22 @@ describe('derivePackageVerdicts — version statuses', () => {
 });
 
 describe('derivePackageVerdicts — build surface', () => {
-  it('T3-AC-01 merged-entrypoints: two builds, each listing only its own specifiers', () => {
+  it('T3-AC-01 merged-entrypoints: two builds of 1.2.0, mfe1 keeping its secondaries', () => {
     const [version] = entry('merged-entrypoints', '__GLOBAL__', KIT).versions;
-    expect(version.merged).toBe(true);
     expect(version.builds.map((b) => [b.sourceRemote, [...b.specifiers].sort()])).toEqual([
+      ['mfe1', [KIT, `${KIT}/dialog`, `${KIT}/table`]],
       [NF_HOST, [KIT]],
-      ['mfe1', [`${KIT}/dialog`, `${KIT}/table`]],
     ]);
   });
 
-  it('T3-AC-02 torn-many: every self-filled specifier once, with its filling version', () => {
-    const kit = entry('torn-many', '__GLOBAL__', KIT);
-    expect(
-      kit.torn.map(
-        (t) => `${t.specifier.slice(KIT.length + 1)}@${t.fillingTag}:${t.fillingRemote}`,
-      ),
-    ).toEqual([
-      'charts@1.3.0:mfe2',
-      'charts/legend@1.3.0:mfe2',
-      'date-picker@1.3.0:mfe2',
-      'dialog@1.2.0:mfe1',
-      'forms@1.2.0:mfe1',
-      'table@1.2.0:mfe1',
-      'table/paginator@1.2.0:mfe1',
-      'table/sort@1.2.0:mfe1',
+  // 4.8 records a serving build, so the host's copy alone serves the shared 1.2.0.
+  it('T3-AC-02 merged-entrypoints: a scoped copy of the shared tag is no merge', () => {
+    const [version] = entry('merged-entrypoints', '__GLOBAL__', KIT).versions;
+    expect(version.merged).toBe(false);
+    expect(version.builds.map((b) => [b.sourceRemote, b.fromShareRow])).toEqual([
+      ['mfe1', false],
+      [NF_HOST, true],
     ]);
-    // A tear is never a merge: each filling version is one build of its own tag.
-    expect(kit.versions.every((v) => !v.merged)).toBe(true);
-  });
-
-  it('T3-AC-03 self-fill: a flat secondary is its own registry key, so nothing is torn', () => {
-    // The V2 capture predates `entries` maps: `/extra` registers as its own package and
-    // resolves on its own, which is not a tear of `@nf-lab/conflict-lib`.
-    const all = verdictsOf(FIXTURES['self-fill']);
-    expect(all.map((v) => v.packageName).sort()).toEqual([
-      '@nf-lab/conflict-lib',
-      '@nf-lab/conflict-lib/extra',
-    ]);
-    expect(all.flatMap((v) => v.torn)).toEqual([]);
   });
 
   it('T3-AC-04 SRI per entry file follows the effective map', () => {
@@ -209,5 +188,66 @@ describe('derivePackageVerdicts — build surface', () => {
     const chunks = builds.flatMap((b) => b.chunkFiles);
     expect(chunks.length).toBeGreaterThan(0);
     expect(chunks.every((c) => c.url?.startsWith('http://localhost:4300/'))).toBe(true);
+  });
+});
+
+// pools-v48 Task 6: why a declaration is off the global map, against orchestrator 4.8 records.
+describe('derivePackageVerdicts — placement reasons (pools-v48 T6)', () => {
+  it('T6-AC-01 fallback-uncovered: the serving build lacks every secondary the remote ships', () => {
+    const kit = entry('fallback-uncovered', '__GLOBAL__', KIT);
+    expect(kit.servingBuild).toBe(NF_HOST);
+    expect(byRemote(kit)['mfe2'].reason).toEqual({
+      scope: 'package',
+      build: NF_HOST,
+      miss: {
+        kind: 'coverage',
+        missing: [`${KIT}/charts`, `${KIT}/charts/legend`, `${KIT}/date-picker`],
+      },
+      storedCause: null,
+    });
+  });
+
+  it('out-of-range-nonstrict: a strict range that rejects the serving tag', () => {
+    expect(
+      byRemote(entry('out-of-range-nonstrict', '__GLOBAL__', KIT))['mfe2'].reason,
+    ).toMatchObject({
+      scope: 'package',
+      miss: {
+        kind: 'range',
+        rejections: [{ tag: '2.0.0', requiredVersion: '^1.0.0', strict: true }],
+      },
+    });
+  });
+
+  it('T6-AC-02 a pooled own copy carries the pool reason, not a strict-range guess', () => {
+    const core = entry('pool-uncovered-gap', '__GLOBAL__', '@nf-lab/ui-core');
+    expect(byRemote(core)['mfe1']).toMatchObject({
+      verdict: 'own-copy',
+      acceptsElected: true,
+      reason: {
+        scope: 'pool',
+        build: NF_HOST,
+        miss: { kind: 'coverage', missing: ['@nf-lab/ui-core/testing'] },
+        storedCause: 'uncovered',
+      },
+    });
+  });
+
+  it('a subpool member runs its owner build, with the pool reason', () => {
+    const dom = entry('pool-showcase', '__GLOBAL__', '@nf-lab/ui-dom');
+    expect(byRemote(dom)['catalog']).toMatchObject({
+      verdict: 'subpool',
+      subpoolOf: 'admin',
+      reason: { scope: 'pool', miss: { kind: 'coverage', missing: ['@nf-lab/ui-dom'] } },
+    });
+  });
+
+  it('own-tag-out-of-range: a range that excludes its own version still accepts it', () => {
+    const kit = entry('own-tag-out-of-range', '__GLOBAL__', KIT);
+    expect(byRemote(kit)[NF_HOST]).toMatchObject({
+      requiredVersion: '^2.0.0',
+      acceptsElected: true,
+    });
+    expect(kit.declarations.every((d) => d.verdict !== 'out-of-range')).toBe(true);
   });
 });

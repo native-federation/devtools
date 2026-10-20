@@ -61,6 +61,18 @@ describe('descriptor path', () => {
     expect(snapshot.runtime?.remotes['host'].scopeUrl).toBe('https://global.example/');
   });
 
+  it('reads the 4.8 cache state from the global', () => {
+    const { snapshot } = capture({
+      __NF_ORCHESTRATOR__: descriptor('__NATIVE_FEDERATION__', 'globalThis'),
+      __NATIVE_FEDERATION__: {
+        remotes: remotes('https://global.example/'),
+        'cache-state': { version: '4.8.0', undecidedScopes: [] },
+      },
+    });
+
+    expect(snapshot.runtime?.cacheState).toEqual({ version: '4.8.0', undecidedScopes: [] });
+  });
+
   it.each(['localStorage', 'sessionStorage'] as const)('reads %s state', (type) => {
     const { indicated, snapshot } = capture({
       __NF_ORCHESTRATOR__: descriptor('__MY_NF__', type),
@@ -88,6 +100,57 @@ describe('descriptor path', () => {
       otherNamespaces: [],
     });
     expect(snapshot.errors).toEqual([]);
+  });
+
+  // Orchestrator 4.8 adds `cache-state` and the per-external `poolWinner` / `servingBuild`.
+  it('reads the 4.8 cache state and serving fields from web storage', () => {
+    const external = {
+      dirty: false,
+      poolName: 'ng',
+      poolWinner: 'host',
+      servingBuild: 'host',
+      versions: [],
+    };
+    const { snapshot } = capture({
+      __NF_ORCHESTRATOR__: descriptor('__NATIVE_FEDERATION__', 'sessionStorage'),
+      session: {
+        ...webItems('__NATIVE_FEDERATION__', 'https://web.example/'),
+        '__NATIVE_FEDERATION__.shared-externals': JSON.stringify({
+          __GLOBAL__: { '@angular/core': external },
+        }),
+        '__NATIVE_FEDERATION__.cache-state': JSON.stringify({
+          version: '4.8.0',
+          undecidedScopes: ['__GLOBAL__', 'https://scope.example/app/?token=secret'],
+        }),
+      },
+    });
+
+    expect(snapshot.runtime?.sharedExternals['__GLOBAL__']['@angular/core']).toEqual({
+      dirty: false,
+      poolName: 'ng',
+      poolWinner: 'host',
+      servingBuild: 'host',
+      versions: [],
+    });
+    // A URL-shaped scope name is sanitized like scope keys are.
+    expect(snapshot.runtime?.cacheState).toEqual({
+      version: '4.8.0',
+      undecidedScopes: ['__GLOBAL__', 'https://scope.example/app/'],
+    });
+    expect(snapshot.errors).toEqual([]);
+  });
+
+  it('keeps a page recognized when only cache-state is unreadable', () => {
+    const { snapshot } = capture({
+      __NF_ORCHESTRATOR__: descriptor('__NATIVE_FEDERATION__', 'localStorage'),
+      local: {
+        ...webItems('__NATIVE_FEDERATION__', 'https://web.example/'),
+        '__NATIVE_FEDERATION__.cache-state': JSON.stringify({ undecidedScopes: 'nope' }),
+      },
+    });
+
+    expect(snapshot.channels.nativeFederationGlobals).toEqual({ state: 'available' });
+    expect(snapshot.runtime && 'cacheState' in snapshot.runtime).toBe(false);
   });
 
   it('reports an empty web storage as unavailable, not unrecognized', () => {

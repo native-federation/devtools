@@ -2,6 +2,11 @@
 
 Status: **approved for implementation** (2026-08-14)
 
+> **Orchestrator 4.8 (2026-10-20, branch `pools-v48`):** 4.8 never borrows an entrypoint from
+> another build, so the `self-filled` mapping state and the `self-filled-source` role described
+> below were removed; a pre-4.8 self-fill now reads as `own-selected` / `not-selected`. See
+> `docs/resolution-data-model.md` for the current model.
+
 Branch: `feature/resolution-model`
 
 Evidence baseline:

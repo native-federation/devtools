@@ -26,6 +26,7 @@ import type {
   ConsumerCopyRelation,
   DeclarationResolutionClaim,
   DeclarationResolutionClaimId,
+  DeclarationVerdictRecord,
   EffectiveConsumerResolution,
   EffectiveConsumerResolutionId,
   EntrypointCandidate,
@@ -106,6 +107,8 @@ export interface CanonicalIndexes {
   relationsByCopy: Map<ResolvedDependencyCopyId, ConsumerCopyRelation[]>;
   bundleClaimById: Map<BundleClaimId, BundleClaim>;
   chunkGroupById: Map<ChunkGroupId, ChunkGroupProjection>;
+  /** The resolver's verdict on each shared declaration (package verdicts). */
+  verdictByDeclaration: Map<ParticipantDeclarationId, DeclarationVerdictRecord>;
   projection: CanonicalResolutionProjection;
 }
 
@@ -155,6 +158,11 @@ export function buildCanonicalIndexes(model: FederationModel): CanonicalIndexes 
     relationsByCopy,
     bundleClaimById: new Map(projection.bundleClaims.map((claim) => [claim.id, claim])),
     chunkGroupById: new Map(projection.chunkGroups.map((group) => [group.id, group])),
+    verdictByDeclaration: new Map(
+      projection.packageScopeVerdicts.flatMap((verdicts) =>
+        verdicts.declarations.map((record) => [record.declarationId, record] as const),
+      ),
+    ),
   };
 }
 

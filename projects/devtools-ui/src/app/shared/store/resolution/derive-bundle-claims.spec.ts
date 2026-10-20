@@ -2,7 +2,7 @@
  * Bundle-claim specs (Task 6): attribution only through the copy's selected
  * source — a non-selected bundle-bearing declaration donates nothing, a
  * selected secondary declaration and an identifiable anchor contribute only
- * their own emitter-aware bundles (T6-AC-01); skip self-fill distinguishes
+ * their own emitter-aware bundles (T6-AC-01); a skip copy's own mapping distinguishes
  * `mapped-source` from `source-only` (T6-AC-02); equal filenames from
  * different emitters never merge (T6-AC-03); ambiguity surfaces candidates
  * without choosing; `@nf-internal/...` carriers stay outside dependency
@@ -324,8 +324,9 @@ describe('deriveBundleClaims — selected-source attribution (T6-AC-01)', () => 
   });
 });
 
-describe('deriveBundleClaims — self-fill chunk evidence (T6-AC-02)', () => {
-  const selfFillSeed = (options: { shareScope: string; registerChunks: boolean }): Seed => ({
+// Pre-4.8 records: a skip copy mapped in its own scope (4.8 would store it as `scope`).
+describe('deriveBundleClaims — own-mapped skip chunk evidence (T6-AC-02)', () => {
+  const ownSkipSeed = (options: { shareScope: string; registerChunks: boolean }): Seed => ({
     remotes: { mfe1: './mfe1/', mfe2: './mfe2/' },
     shared: {
       [options.shareScope]: {
@@ -347,32 +348,31 @@ describe('deriveBundleClaims — self-fill chunk evidence (T6-AC-02)', () => {
         ],
       },
     },
-    sharedChunks: options.registerChunks ? { mfe1: { 'bundle-skip': ['chunk-selffill.js'] } } : {},
+    sharedChunks: options.registerChunks ? { mfe1: { 'bundle-skip': ['chunk-own.js'] } } : {},
     imports: { pkg: './mfe2/pkg.mfe2.js' },
     scopes: { './mfe1/': { pkg: './mfe1/pkg.mfe1.js' } },
   });
 
-  it('reports cold-global skip self-fill with registered chunks as mapped-source', () => {
+  it('reports a global own-mapped skip copy with registered chunks as mapped-source', () => {
     const harness = derive(
-      seedSnapshot(selfFillSeed({ shareScope: '__GLOBAL__', registerChunks: true })),
+      seedSnapshot(ownSkipSeed({ shareScope: '__GLOBAL__', registerChunks: true })),
     );
-    const selfFilled = copyForTarget(harness.copies, `${PAGE_URL}mfe1/pkg.mfe1.js`);
+    const ownCopy = copyForTarget(harness.copies, `${PAGE_URL}mfe1/pkg.mfe1.js`);
 
-    expect(selfFilled.effectiveRoles).toContain('self-filled-source');
-    const claims = claimsOfCopy(harness, selfFilled);
+    const claims = claimsOfCopy(harness, ownCopy);
     expect(claims).toHaveLength(1);
     expect(claims[0].bundle).toBe('bundle-skip');
     expect(claims[0].status).toBe('mapped-source');
     expect(claims[0].chunkGroupIds).toHaveLength(1);
   });
 
-  it('keeps named-scope self-fill without registered bundle evidence qualified as source-only', () => {
+  it('keeps a named-scope own-mapped skip copy without registered bundles qualified as source-only', () => {
     const harness = derive(
-      seedSnapshot(selfFillSeed({ shareScope: 'family', registerChunks: false })),
+      seedSnapshot(ownSkipSeed({ shareScope: 'family', registerChunks: false })),
     );
-    const selfFilled = copyForTarget(harness.copies, `${PAGE_URL}mfe1/pkg.mfe1.js`);
+    const ownCopy = copyForTarget(harness.copies, `${PAGE_URL}mfe1/pkg.mfe1.js`);
 
-    const claims = claimsOfCopy(harness, selfFilled);
+    const claims = claimsOfCopy(harness, ownCopy);
     expect(claims).toHaveLength(1);
     expect(claims[0].bundle).toBe('bundle-skip');
     expect(claims[0].status).toBe('source-only');

@@ -1,6 +1,8 @@
 # Native Federation DevTools — Graph View Specification
 
 Status: draft for the `graph-view` branch scope (2026-08-23).
+Note (2026-10-20, `pools-v48`): the `self-filled` mapping state below no longer exists; orchestrator
+4.8 borrows no entrypoint from another build.
 Consumes: the canonical resolution projection delivered by the
 `resolution-model` scope (Tasks 1–6, migrated views 7–9.5).
 External challenger: `/home/lutz/Downloads/DEPENDENCY-GRAPH.md`,

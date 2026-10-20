@@ -443,10 +443,10 @@ describe('PackagesView', () => {
     expect(el.querySelectorAll('.linked-glyph').length).toBeGreaterThan(0);
   });
 
-  it('narrows the clean self-fill capture to the empty note under Multiple versions', async () => {
-    const { fixture } = await createView({ fixture: 'self-fill' });
+  it('narrows a single-version capture to the empty note under Multiple versions', async () => {
+    const { fixture } = await createView({ fixture: 'dense-chunking-only' });
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelectorAll('.tree-row')).toHaveLength(2);
+    expect(el.querySelectorAll('.tree-row')).toHaveLength(3);
 
     const multiButton = Array.from(el.querySelectorAll<HTMLButtonElement>('.filter-button')).find(
       (button) => button.textContent?.includes('Multiple versions'),
@@ -461,16 +461,18 @@ describe('PackagesView', () => {
 
   // Linked sibling carries its association as a tooltip on the name.
   it('renders the linked sibling with a name tooltip instead of a chip', async () => {
-    const { fixture } = await createView({ fixture: 'self-fill' });
+    const { fixture } = await createView({ fixture: 'dense-chunking-only' });
     const el = fixture.nativeElement as HTMLElement;
 
     const names = Array.from(el.querySelectorAll<HTMLElement>('.pkg-name'));
-    expect(names.map((name) => name.textContent)).toEqual(['@nf-lab/conflict-lib', '/extra']);
-    expect(names[1].title).toBe(
-      '@nf-lab/conflict-lib/extra — secondary entry of @nf-lab/conflict-lib',
-    );
+    expect(names.map((name) => name.textContent)).toEqual([
+      '@nf-lab/dense-lib',
+      '/extra',
+      '@nf-lab/utils',
+    ]);
+    expect(names[1].title).toBe('@nf-lab/dense-lib/extra — secondary entry of @nf-lab/dense-lib');
     // Every name carries its full form, so an ellipsis never hides it.
-    expect(names[0].title).toBe('@nf-lab/conflict-lib');
+    expect(names[0].title).toBe('@nf-lab/dense-lib');
   });
 
   // Cross-link convention: the select query param seeds the selection;
@@ -557,15 +559,15 @@ describe('PackagesView', () => {
   // query-param emissions, not only the creation snapshot.
   it('follows later select query-param emissions (parent link within /packages)', async () => {
     const { fixture, queryParams } = await createView({
-      fixture: 'self-fill',
-      select: '__GLOBAL__|@nf-lab/conflict-lib/extra',
+      fixture: 'dense-chunking-only',
+      select: '__GLOBAL__|@nf-lab/dense-lib/extra',
     });
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('.detail-name-text')?.textContent).toContain('/extra');
 
-    queryParams.next(convertToParamMap({ select: CONFLICT_LIB }));
+    queryParams.next(convertToParamMap({ select: '__GLOBAL__|@nf-lab/dense-lib' }));
     fixture.detectChanges();
-    expect(el.querySelector('.detail-name-text')?.textContent?.trim()).toBe('@nf-lab/conflict-lib');
+    expect(el.querySelector('.detail-name-text')?.textContent?.trim()).toBe('@nf-lab/dense-lib');
   });
 
   // Wording rules (T7): resolution-honest vocabulary only — "mapped",
@@ -670,18 +672,6 @@ describe('PackagesView', () => {
     rows()[2].click();
     fixture.detectChanges();
     expect(el.querySelector('tbody.dive')).toBeNull();
-  });
-
-  it('links the torn banner to the docs in a new tab', async () => {
-    const { fixture } = await createView({
-      fixture: 'torn-many',
-      select: '__GLOBAL__|@nf-lab/kit',
-    });
-    const el = fixture.nativeElement as HTMLElement;
-    const link = el.querySelector<HTMLAnchorElement>('.torn-banner a')!;
-    expect(link.href).toContain('version-resolver/#entrypoint-coverage-and-tearing');
-    expect(link.target).toBe('_blank');
-    expect(el.querySelector<HTMLElement>('.torn-word')?.title).toContain('Torn:');
   });
 
   it('renders an honest observation when no snapshot is captured', async () => {

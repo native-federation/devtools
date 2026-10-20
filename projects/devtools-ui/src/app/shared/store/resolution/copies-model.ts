@@ -52,19 +52,13 @@ export type ResolvedCopySourceDisposition =
 /**
  * How consumers effectively relate to the copy, derived from the attached
  * claim and mapping evidence: a selected `share` surface contributes
- * `ordinary-shared`, a `scope` declaration's own mapping `isolated-own`, a
- * selected skip self-fill source `self-filled-source`, selection through an
- * explicit `servedBy` `anchor-source`, and a private registration's own
+ * `ordinary-shared`, a `scope` declaration's own mapping `isolated-own`,
+ * selection through an explicit `servedBy` `anchor-source`, and a private registration's own
  * mapping `private-own`. Roles coexist; a copy no closed rule explains stays
  * `unclassified`.
  */
 export type ResolvedCopyEffectiveRole =
-  | 'ordinary-shared'
-  | 'isolated-own'
-  | 'self-filled-source'
-  | 'anchor-source'
-  | 'private-own'
-  | 'unclassified';
+  'ordinary-shared' | 'isolated-own' | 'anchor-source' | 'private-own' | 'unclassified';
 
 /** One consumer-side context using the copy; claims, not copies, own the details. */
 export interface ResolvedCopyResolutionContext {

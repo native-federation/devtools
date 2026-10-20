@@ -10,8 +10,8 @@ export interface PoolChipVm {
   tag: string;
   note: string;
   orphan: boolean;
-  /** `select` payload for the /pools cross-link: the pool ID, or null for an orphan or strict tag. */
-  poolSelect: string | null;
+  /** /pools cross-link query: the pool ID and the declaring remote; null for an orphan or strict tag. */
+  poolQuery: { select: string; remote: string } | null;
 }
 
 const TAG_NOTE = 'explicit pool tag declared by this remote (config: pool on the shared external)';
@@ -54,7 +54,7 @@ export function poolChipOf(
       tag,
       note: `${TAG_NOTE} — member of pool ${outcome.pool.name}${single}`,
       orphan: false,
-      poolSelect: outcome.pool.id,
+      poolQuery: { select: outcome.pool.id, remote: declaration.participant },
     };
   }
   if (outcome?.kind === 'orphan') {
@@ -62,13 +62,13 @@ export function poolChipOf(
       tag,
       note: `${TAG_NOTE} — no other external joined this pool: likely a typo or a missing sibling`,
       orphan: true,
-      poolSelect: null,
+      poolQuery: null,
     };
   }
   return {
     tag,
     note: `${TAG_NOTE} — the strict share scope is never pooled`,
     orphan: false,
-    poolSelect: null,
+    poolQuery: null,
   };
 }

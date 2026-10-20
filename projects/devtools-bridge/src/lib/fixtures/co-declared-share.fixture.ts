@@ -13,7 +13,7 @@ export const coDeclaredShareFixture: SnapshotV1 = {
     "pageUrl": "http://localhost:4300/",
     "capturedAt": "2026-08-13T15:12:11.486Z",
     "mode": "passive",
-    "collectorVersion": "nf-devtools-collector/4"
+    "collectorVersion": "nf-devtools-collector/5"
   },
   "channels": {
     "nativeFederationGlobals": {

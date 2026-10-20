@@ -1019,7 +1019,7 @@ describe('buildPackagesVm — participant filter (T7.5-AC-05)', () => {
     expect(countOf(combined, 'multi')).toBe(1);
     expect(packageRows(combined).map((row) => row.packageName)).toEqual(['@nf-lab/conflict-lib']);
 
-    const empty = vmOf('self-fill', { filter: 'multi', selectedParticipant: 'mfe1' });
+    const empty = vmOf('dense-chunking-only', { filter: 'multi', selectedParticipant: 'mfe1' });
     expect(empty.rows).toEqual([]);
     expect(empty.emptyNote).toBe('no packages with multiple versions involve mfe1 in this capture');
   });
@@ -1035,19 +1035,19 @@ describe('buildPackagesVm — flat list, links, filter, scopes (structure preser
   });
 
   it('renders /extra as a linked sibling directly under its parent', () => {
-    const vm = vmOf('self-fill');
-    const extraRow = vm.rows.find((row) => row.id === '@nf-lab/conflict-lib/extra')!;
+    const vm = vmOf('dense-chunking-only');
+    const extraRow = vm.rows.find((row) => row.id === '@nf-lab/dense-lib/extra')!;
     expect(extraRow.depth).toBe(1);
     expect(vm.rows.indexOf(extraRow)).toBe(1);
     expect(extraRow.payload).toMatchObject({
       kind: 'package',
       displayName: '/extra',
-      linked: { parentPackage: '@nf-lab/conflict-lib', rule: 'name-derived' },
+      linked: { parentPackage: '@nf-lab/dense-lib', rule: 'name-derived' },
     });
   });
 
   it('narrows Multiple versions to resolved-tag multiplicity only', () => {
-    const clean = vmOf('self-fill', { filter: 'multi' });
+    const clean = vmOf('dense-chunking-only', { filter: 'multi' });
     expect(countOf(clean, 'multi')).toBe(0);
     expect(clean.rows).toEqual([]);
     expect(clean.emptyNote).toBe('no packages with multiple versions in this capture');
@@ -1143,12 +1143,12 @@ describe('buildPackagesVm — grounded annotations and purity (T7.5-AC-06)', () 
   });
 
   it('is pure: identical inputs produce identical output and stay unmodified', () => {
-    const model = modelOf('self-fill');
+    const model = modelOf('dense-chunking-only');
     const modelBefore = JSON.stringify(model);
     const ui: PackagesUiState = {
       filter: 'all',
       selectedParticipant: 'mfe1',
-      selectedId: CONFLICT_LIB,
+      selectedId: packageId('__GLOBAL__', '@nf-lab/dense-lib'),
     };
 
     const first = buildPackagesVm(model, ui);
@@ -1174,12 +1174,12 @@ describe('buildPackageDetail — pool chips (share-pools T5)', () => {
     for (const pkg of ['@nf-lab/ui-core', '@nf-lab/ui-dom']) {
       const chips = chipsOf('pool-tag-coherent', pkg);
       expect(chips.map((chip) => chip.name)).toEqual(['mfe1', 'mfe2']);
-      for (const { pool } of chips) {
+      for (const { name, pool } of chips) {
         expect(pool).toEqual({
           tag: 'ui',
           note: 'explicit pool tag declared by this remote (config: pool on the shared external) — member of pool ui',
           orphan: false,
-          poolSelect: 'tag-pool:["__GLOBAL__","@nf-lab/ui-core",0]',
+          poolQuery: { select: 'tag-pool:["__GLOBAL__","@nf-lab/ui-core",0]', remote: name },
         });
       }
     }
@@ -1190,7 +1190,7 @@ describe('buildPackageDetail — pool chips (share-pools T5)', () => {
     expect(chips.find((chip) => chip.name === 'mfe1')!.pool).toMatchObject({
       tag: 'ui',
       orphan: true,
-      poolSelect: null,
+      poolQuery: null,
     });
     expect(chips.find((chip) => chip.name === 'mfe1')!.pool!.note).toContain(
       'likely a typo or a missing sibling',
@@ -1216,16 +1216,12 @@ describe('buildPackagesVm — one row per package (packages-verdicts T4)', () =>
   it('T4-AC-02 each status filter counts the packages the projection flags', () => {
     const counts = (id: Parameters<typeof vmOf>[0]) => {
       const vm = vmOf(id);
-      return ['multi', 'out-of-range', 'isolated', 'torn'].map((f) =>
-        countOf(vm, f as PackagesFilter),
-      );
+      return ['multi', 'out-of-range', 'isolated'].map((f) => countOf(vm, f as PackagesFilter));
     };
-    expect(counts('out-of-range-nonstrict')).toEqual([1, 1, 1, 0]);
-    expect(counts('torn-many')).toEqual([1, 0, 0, 1]);
-    // One version from two builds is merged, never torn.
-    expect(counts('merged-entrypoints')).toEqual([0, 0, 0, 0]);
-    const torn = vmOf('torn-many', { filter: 'torn' });
-    expect(packageRows(torn).map((row) => row.marks.map((m) => m.kind))).toEqual([['torn']]);
+    expect(counts('out-of-range-nonstrict')).toEqual([1, 1, 1]);
+    // 4.8: the remotes the shared version does not cover keep their own copies.
+    expect(counts('fallback-uncovered')).toEqual([1, 0, 1]);
+    expect(counts('merged-entrypoints')).toEqual([0, 0, 1]);
   });
 
   it('T4-AC-03 every <scope>|<pkg> link lands on its package and scope', () => {

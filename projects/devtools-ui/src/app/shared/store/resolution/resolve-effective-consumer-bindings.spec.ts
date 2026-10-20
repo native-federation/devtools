@@ -86,6 +86,8 @@ function evidenceFor(claims: readonly Claim[]): CanonicalRegistryEvidence {
       packageName: specifier,
       dirty: false,
       poolName: null,
+      poolWinner: null,
+      servingBuild: null,
       versionRegistrationIds: [versionId],
       provenance: EMPTY_PROVENANCE,
     });

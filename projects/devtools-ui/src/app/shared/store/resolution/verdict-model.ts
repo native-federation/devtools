@@ -1,4 +1,5 @@
 import type { ResolvedDependencyCopyId } from './copies-model';
+import type { PoolMiss } from './pool-family-model';
 import type {
   ParticipantDeclarationId,
   RegistryEvidenceId,
@@ -14,20 +15,42 @@ export type PackageScopeVerdictsId = RegistryEvidenceId<'package-scope-verdicts'
  * - `provides`: first participant of a `share` row, whose file the mapping publishes
  * - `same-version`: another participant of a `share` row, or a `skip` row of the elected tag
  * - `reuses-shared`: `skip`, and the range accepts the elected tag
+ * - `subpool`: `skip` with a `servedBy` — pooling runs it on that remote's build (orchestrator 4.8)
  * - `own-copy`: `scope`
  * - `out-of-range`: `skip`, not strict, and the range rejects the elected tag
  * - `unknown`: no elected tag, an unreadable range or version, or a row the rules cannot explain
  */
 export type DeclarationVerdict =
-  'provides' | 'same-version' | 'reuses-shared' | 'own-copy' | 'out-of-range' | 'unknown';
+  | 'provides'
+  | 'same-version'
+  | 'reuses-shared'
+  | 'subpool'
+  | 'own-copy'
+  | 'out-of-range'
+  | 'unknown';
 
 /**
  * - `shared` / `scoped`: some row of the tag carries action `share` / `scope`
- * - `partly-mapped`: neither, yet a copy of the tag materializes (it fills another version's
- *   entrypoints)
+ * - `partly-mapped`: neither, yet a copy of the tag materializes (a subpool's build)
  * - `not-mapped`: no copy of the tag materializes
  */
 export type VersionStatus = 'shared' | 'scoped' | 'partly-mapped' | 'not-mapped';
+
+/**
+ * Why a declaration is off the global map (orchestrator 4.8): its `own-copy` or `subpool` verdict.
+ * `pool`: pooling placed the remote's whole family — the reason is the pool's (Pools tab). `package`: the package's
+ * stored `servingBuild` does not serve it, recomputed as `serving.ts` `fallsBack` judges it: its
+ * strict range rejects the serving tag, it ships entrypoints the serving build does not publish, or
+ * it ships the package at two tags. A null `miss` is a placement the stored rows do not reproduce.
+ */
+export interface PlacementReason {
+  scope: 'pool' | 'package';
+  /** The pool's winner or the package's serving build; null when none is stored. */
+  build: string | null;
+  miss: PoolMiss | { kind: 'two-tags'; tags: string[] } | null;
+  /** The stored `poolCause` (pooled copies only). */
+  storedCause: string | null;
+}
 
 export interface DeclarationVerdictRecord {
   declarationId: ParticipantDeclarationId;
@@ -35,8 +58,12 @@ export interface DeclarationVerdictRecord {
   /** The tag this declaration ships. */
   tag: string;
   verdict: DeclarationVerdict;
-  /** Whether `requiredVersion` accepts the elected tag per `semver`; null when either is unreadable or none is elected. */
+  /** Whether the declaration accepts the elected tag (its own tag always passes); null when unreadable or none is elected. */
   acceptsElected: boolean | null;
+  /** Set on `own-copy` and `subpool` verdicts. */
+  reason: PlacementReason | null;
+  /** The stored `servedBy`: the subpool whose build the declaration runs (its owner names itself). */
+  subpoolOf: string | null;
   /** Tag of the copy the package's own specifier resolves to; null when it resolves nowhere. */
   runsTag: string | null;
   requiredVersion: string;
@@ -64,20 +91,12 @@ export interface VersionBuild {
   copyId: ResolvedDependencyCopyId;
   /** The remote whose build the copy is; null for a target-only copy. */
   sourceRemote: string | null;
+  /** The copy comes from a `share` row, so the map may publish its files for the version. */
+  fromShareRow: boolean;
   specifiers: string[];
   entryFiles: BuildEntryFile[];
   /** Chunks of the copy's `mapped-source` bundle claims, registry order. */
   chunkFiles: BuildChunkFile[];
-}
-
-/** A specifier the elected version's copies lack, served from another version's build (a tear). */
-export interface TornEntrypoint {
-  specifier: string;
-  fillingTag: string;
-  fillingRemote: string | null;
-  copyId: ResolvedDependencyCopyId;
-  /** Consumers whose claim for the specifier is self-filled, sorted. */
-  consumerRemotes: string[];
 }
 
 export interface VersionVerdict {
@@ -90,7 +109,10 @@ export interface VersionVerdict {
   copyIds: ResolvedDependencyCopyId[];
   /** The copies as builds: the one serving the package's own specifier first, then copy order. */
   builds: VersionBuild[];
-  /** A shared version assembled from more than one build (docs: "Copies of one version always merge"). */
+  /**
+   * A shared version the map assembles from more than one `share`-row build: only without a
+   * serving build, each specifier from the first copy declaring it (docs: "Copies of one version").
+   */
   merged: boolean;
 }
 
@@ -108,6 +130,6 @@ export interface PackageScopeVerdicts {
   versions: VersionVerdict[];
   /** Every declaration, registry order. */
   declarations: DeclarationVerdictRecord[];
-  /** Torn specifiers, sorted; empty without an election. */
-  torn: TornEntrypoint[];
+  /** The stored build serving the package in this scope (orchestrator 4.8); null when none is stored. */
+  servingBuild: string | null;
 }
