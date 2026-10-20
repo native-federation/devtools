@@ -172,18 +172,30 @@ export function derivePoolFamilies(
       };
     });
 
+    const declared = new Map<string, string[]>();
+    for (const remote of pool.remotes)
+      for (const row of rowsOf(remote))
+        for (const specifier of row.specifiers)
+          declared.set(specifier, [...new Set([...(declared.get(specifier) ?? []), remote])]);
+    const missing = [...declared]
+      .filter(([specifier]) => !surfaceTags.has(specifier))
+      .map(([specifier, remotes]) => ({ specifier, remotes: remotes.sort(compareText) }))
+      .sort((a, b) => compareText(a.specifier, b.specifier));
+
     const rowOf = (remote: string, member: string) =>
       rowsByMember.get(member)?.find((row) => row.remote === remote);
+    const undecided = undecidedScopes.includes(pool.shareScope);
     const winner = externals.find((e) => e.poolWinner !== null)?.poolWinner ?? null;
     return {
       poolId: pool.id,
       members,
       winner,
       globalSurface: [...surface].sort((a, b) => compareText(a.specifier, b.specifier)),
-      statusMatrix: statusMatrixOf(pool, members, consumers, rowOf, memberSurface, winner),
+      coverage: { declared: declared.size, served: declared.size - missing.length, missing },
+      statusMatrix: statusMatrixOf(pool, members, consumers, rowOf, surfaceTags, memberSurface, winner),
       consumers,
-      pending:
-        externals.some((external) => external.dirty) || undecidedScopes.includes(pool.shareScope),
+      pending: externals.some((external) => external.dirty) || undecided,
+      undecided,
       recorded: externals.some((external) => external.poolName !== null),
     };
   });
@@ -280,6 +292,7 @@ function statusMatrixOf(
   members: readonly PoolFamilyMember[],
   consumers: readonly PoolConsumer[],
   rowOf: RowOf,
+  surface: SpecifierTags,
   memberSurface: MemberSurface,
   winner: string | null,
 ): PoolStatusMatrix {
@@ -316,16 +329,19 @@ function statusMatrixOf(
           : placement.kind === 'subpool'
             ? (rowOf(placement.owner, member)?.tag ?? row.tag)
             : (sharedTag ?? row.tag);
+      const missing = row.specifiers.filter((specifier) => !surface.has(specifier));
       const state: PoolStatusCell['state'] =
-        row.strictVersion && acceptsShared === false
-          ? 'conflict'
-          : placement.kind === 'self'
-            ? 'isolated'
-            : unshared.has(member)
-              ? 'not-shared'
-              : servesOthers && consumer.remote === owner
-                ? 'serves-others'
-                : 'unchanged';
+        acceptsShared === false
+          ? 'rejected'
+          : missing.length > 0
+            ? 'gap'
+            : placement.kind === 'self'
+              ? 'isolated'
+              : unshared.has(member)
+                ? 'not-shared'
+                : servesOthers && consumer.remote === owner
+                  ? 'serves-others'
+                  : 'unchanged';
       return {
         state,
         servedTag,
@@ -334,6 +350,8 @@ function statusMatrixOf(
         strictVersion: row.strictVersion,
         sharedTag,
         acceptsShared,
+        missing,
+        servedBy: consumer.servingBuilds[member] ?? consumer.remote,
       };
     });
     return {
@@ -386,7 +404,7 @@ function verdictOf(
   const isolatedBands = bands.filter((b) => b.kind === 'isolated');
   const isolated = consumers.filter((c) => c.placement.kind === 'self');
   const conflicts = isolatedBands.reduce(
-    (sum, b) => sum + b.rows.flatMap((r) => r.cells).filter((c) => c?.state === 'conflict').length,
+    (sum, b) => sum + b.rows.flatMap((r) => r.cells).filter((c) => c?.state === 'rejected').length,
     0,
   );
   const storedCauses = new Set(isolated.map((c) => c.storedCause));

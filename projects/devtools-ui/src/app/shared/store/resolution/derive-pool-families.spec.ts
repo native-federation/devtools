@@ -345,9 +345,9 @@ describe('derivePoolFamilies — status matrix', () => {
       {
         band: 'subpool:admin serves=2 redirected=2',
         rows: [
-          'admin [no tag] 1.0.0:serves-others 1.0.0:serves-others',
-          'catalog ↪ [ui] 1.0.0:unchanged 1.0.0:unchanged',
-          'checkout ↪ [ui] 1.0.0:unchanged 1.0.0:unchanged',
+          'admin [no tag] 1.0.0:serves-others 1.0.0:gap',
+          'catalog ↪ [ui] 1.0.0:unchanged 1.0.0:gap',
+          'checkout ↪ [ui] 1.0.0:unchanged 1.0.0:gap',
         ],
       },
     ]);
@@ -358,7 +358,7 @@ describe('derivePoolFamilies — status matrix', () => {
       },
       {
         band: 'isolated:dashboard serves=0 redirected=0',
-        rows: ['dashboard [charts] 1.0.0:isolated 2.0.0:conflict'],
+        rows: ['dashboard [charts] 1.0.0:isolated 2.0.0:rejected'],
       },
     ]);
     expect(sketch('pool-showcase', 'form-kit')).toEqual([
@@ -402,15 +402,16 @@ describe('derivePoolFamilies — status matrix', () => {
       'subpool:contacts contacts,invoices,onboarding,orders,reports',
       'isolated:legacy legacy',
     ]);
-    // Members sort as animations, common, core, forms, router.
+    // Members sort as animations, common, core, forms, router; 4.8 rejects non-strict too.
     const legacy = bands[2].rows[0].cells;
     expect(legacy.map((cell) => cell!.state)).toEqual([
-      'isolated',
-      'isolated',
-      'conflict',
-      'isolated',
-      'conflict',
+      'gap',
+      'rejected',
+      'rejected',
+      'gap',
+      'rejected',
     ]);
+    expect(legacy[0]).toMatchObject({ missing: ['@nf-lab/acme-animations'] });
     expect(legacy[1]).toMatchObject({
       strictVersion: false,
       requiredVersion: '^16.0.0',
@@ -424,7 +425,7 @@ describe('derivePoolFamilies — status matrix', () => {
     });
     expect(family.statusMatrix.verdict).toMatchObject({
       kind: 'isolated',
-      isolated: { remotes: ['legacy'], conflicts: 2, cause: 'incompatible' },
+      isolated: { remotes: ['legacy'], conflicts: 3, cause: 'incompatible' },
       redirected: {
         remotes: ['invoices', 'onboarding', 'orders', 'reports'],
         anchors: ['contacts'],

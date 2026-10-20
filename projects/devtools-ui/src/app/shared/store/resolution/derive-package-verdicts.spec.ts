@@ -88,7 +88,7 @@ describe('derivePackageVerdicts — verdicts from stored rows', () => {
             )!;
             const record = verdicts.declarations.find((d) => d.participant === row.remote)!;
             expect(record.acceptsElected, `${id} ${row.remote}`).toBe(cell.acceptsShared);
-            if (cell.state === 'conflict') expect(record.verdict).not.toBe('reuses-shared');
+            if (cell.state === 'rejected') expect(record.verdict).not.toBe('reuses-shared');
             compared += 1;
           });
         }

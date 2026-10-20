@@ -44,6 +44,12 @@
             >show in Graph</a
           >
         </header>
+        <p class="pool-coverage" [attr.data-complete]="pool.coverage.complete">
+          {{ pool.coverage.text }}
+          @if (pool.coverage.missing.length > 0) {
+            · missing: <span class="mono">{{ pool.coverage.missing.join(', ') }}</span>
+          }
+        </p>
         <div class="pool-matrix-wrap">
           <table class="pool-matrix">
             <thead>
@@ -60,9 +66,20 @@
               <tbody>
                 <tr class="pool-band">
                   <th scope="rowgroup" [attr.colspan]="pool.columns.length + 1">
-                    {{ band.label }}
+                    <span class="pool-band-label">{{ band.label }}</span>
                     @if (band.note) {
                       <span class="pool-band-note">· {{ band.note }}</span>
+                    }
+                    @if (band.reason; as reason) {
+                      <span
+                        class="pool-reason"
+                        [attr.data-unexplained]="reason.unexplained ? '' : null"
+                      >
+                        @if (reason.cause) {
+                          <span class="pool-reason-cause">{{ reason.cause }}:</span>
+                        }
+                        {{ reason.text }}
+                      </span>
                     }
                   </th>
                 </tr>
@@ -75,9 +92,20 @@
                           <span class="pool-tag mono">{{ row.tag }}</span>
                         }
                         @if (row.redirected) {
-                          <span class="pool-redirected">↪ redirected</span>
+                          <span class="pool-redirected">↪ subpool</span>
                         }
                       </span>
+                      @if (row.reason; as reason) {
+                        <span
+                          class="pool-reason"
+                          [attr.data-unexplained]="reason.unexplained ? '' : null"
+                        >
+                          @if (reason.cause) {
+                            <span class="pool-reason-cause">{{ reason.cause }}:</span>
+                          }
+                          {{ reason.text }}
+                        </span>
+                      }
                     </th>
                     @for (cell of row.cells; track $index) {
                       <td
