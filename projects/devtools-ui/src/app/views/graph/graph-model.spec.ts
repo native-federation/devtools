@@ -246,7 +246,10 @@ describe('buildGraphModel', () => {
       expect.objectContaining({ style: 'solid', tooltip: null }),
     );
     expect(bySource.get('mfe2')).toEqual(
-      expect.objectContaining({ style: 'dotted', tooltip: 'not-selected' }),
+      expect.objectContaining({
+        style: 'dotted',
+        tooltip: "another remote's copy (its own is not selected)",
+      }),
     );
   });
 
@@ -287,7 +290,7 @@ describe('buildGraphModel', () => {
   it('renders pooling-anchor anchored relations dotted and orders equal labels by copy ID', () => {
     const model = modelOf('pooling-anchor');
 
-    const anchored = model.edges.filter((e) => e.tooltip === 'anchored');
+    const anchored = model.edges.filter((e) => e.tooltip === "a subpool's build");
     expect(anchored.length).toBe(2);
     expect(anchored.every((e) => e.style === 'dotted')).toBe(true);
     expect(anchored.map((e) => e.sourceId).sort()).toEqual(['mfe1', 'mfe2']);
@@ -452,7 +455,7 @@ describe('buildGraphModel', () => {
     expect(model.edges).toEqual([expect.objectContaining({ style: 'solid', tooltip: null })]);
   });
 
-  it('lists all distinct mapping states verbatim on a mixed dotted edge', () => {
+  it('names every distinct mapping state in words on a mixed dotted edge', () => {
     const model = buildGraphModel(
       syntheticProjection({
         remotes: [remoteOf('host', true)],
@@ -463,7 +466,9 @@ describe('buildGraphModel', () => {
       }),
     );
     expect(model.edges[0].style).toBe('dotted');
-    expect(model.edges[0].tooltip).toBe('fallback, not-selected, own-selected');
+    expect(model.edges[0].tooltip).toBe(
+      "the shared copy (it skips its own); another remote's copy (its own is not selected); its own copy",
+    );
   });
 
   // Review regression: remote names are arbitrary capture strings — one that
@@ -790,7 +795,11 @@ describe('buildGraphModel', () => {
     // The copy's evidenced source cluster is untouched by the filter.
     expect(clusterLabelsOf(model, 'dependencies')).toEqual([['mfe1', 1]]);
     expect(model.edges).toEqual([
-      expect.objectContaining({ sourceId: 'mfe2', style: 'dotted', tooltip: 'not-selected' }),
+      expect.objectContaining({
+        sourceId: 'mfe2',
+        style: 'dotted',
+        tooltip: "another remote's copy (its own is not selected)",
+      }),
     ]);
   });
 

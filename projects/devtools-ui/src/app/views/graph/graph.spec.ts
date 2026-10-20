@@ -232,11 +232,11 @@ function nodeByLabel(el: HTMLElement, kind: 'remote' | 'dependency', label: stri
 }
 
 const TOOLBAR_HINT =
-  'click remotes to include · click a dependency or build to expand · hover to trace · dashed node = isolated copy · dotted edge = borrowed';
+  "click remotes to include · click a dependency or build to expand · hover to trace · dashed node = isolated copy · dotted edge = another remote's copy";
 
 describe('GraphView', () => {
   // T1-AC-01: one dependency node with a solid and a dotted consume edge;
-  // the dotted tooltip lists `not-selected`; the resolved tag is the
+  // the dotted tooltip names the state in words; the resolved tag is the
   // right-aligned sub-label.
   it('renders co-declared-share with one copy, a solid and a dotted edge', async () => {
     const el = await createView('co-declared-share');
@@ -248,7 +248,7 @@ describe('GraphView', () => {
     const edges = el.querySelectorAll<SVGPathElement>('path.graph-edge');
     expect(edges.length).toBe(2);
     expect(el.querySelectorAll('path.graph-edge.dotted').length).toBe(1);
-    expect(edgeTitles(el, true)).toEqual(['not-selected']);
+    expect(edgeTitles(el, true)).toEqual(["another remote's copy (its own is not selected)"]);
     expect(edgeTitles(el, false)).toEqual(['']);
 
     // Review follow-up: every edge carries an invisible wide hit path with
@@ -285,7 +285,7 @@ describe('GraphView', () => {
   it('renders pooling-anchor anchored edges dotted and scoped copies isolated', async () => {
     const anchorEl = await createView('pooling-anchor');
     const dottedTitles = edgeTitles(anchorEl, true);
-    expect(dottedTitles.filter((title) => title === 'anchored').length).toBe(2);
+    expect(dottedTitles.filter((title) => title === "a subpool's build").length).toBe(2);
 
     TestBed.resetTestingModule();
     const scopedEl = await createView('scoped');
