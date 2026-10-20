@@ -61,11 +61,18 @@ describe('PoolsView', () => {
     );
     expect(charts.querySelector('.pool-verdict')?.getAttribute('data-tone')).toBe('isolated');
     expect(
-      Array.from(charts.querySelectorAll('.pool-band th')).map((th) =>
+      Array.from(charts.querySelectorAll('.pool-band-label')).map((th) =>
         th.textContent?.replace(/\s+/g, ' ').trim(),
       ),
-    ).toEqual(['Build of catalog', 'Build of dashboard · isolated']);
-    expect(charts.querySelector('td[data-state="conflict"]')?.textContent?.trim()).toBe('2.0.0');
+    ).toEqual(['Global map · build of catalog', 'Own build · dashboard']);
+    expect(charts.querySelector('td[data-state="rejected"]')?.textContent?.trim()).toBe('2.0.0');
+    // The reason sits under the remote, the coverage line above the matrix.
+    expect(charts.querySelector('.pool-reason')?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+      'version conflict: its range rejects the global @nf-lab/chart-dom 1.1.0 (^2.0.0, strict)',
+    );
+    expect(charts.querySelector('.pool-coverage')?.nextElementSibling?.classList).toContain(
+      'pool-matrix-wrap',
+    );
   });
 
   it('T11-AC-02: every coloured cell is focusable and exposes its tooltip', async () => {
@@ -105,6 +112,8 @@ describe('PoolsView', () => {
       'pool-tag-anchored',
       'pool-tag-islanded',
       'pool-tag-orphan',
+      'pool-uncovered-gap',
+      'pool-unshipped',
     ] as const) {
       const el = await createView(id);
       expect(el.textContent).not.toMatch(forbidden);

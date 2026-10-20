@@ -1,7 +1,6 @@
 /**
- * Pools view model (share-pools Stage 2, Task 11) against the wording
- * contract in docs/work/share-pools/design/pools-explainer-mock.md and
- * the mock-up design/pools-matrix-mock.html. The pool-showcase, pool-portfolio
+ * Pools view model (share-pools Stage 2 Task 11, pools-v48 Task 5) against the
+ * wording contract in docs/work/pools-v48/design/pools-reasons-mock.md. The pool-showcase, pool-portfolio
  * and pool-tag-* fixtures are orchestrator 4.8.0 captures; pooling-anchor is
  * 4.6.0. States no capture reaches (pending, the rarer membership notes) run on
  * edited clones.
@@ -13,7 +12,7 @@ import { ingestSnapshot } from '../../shared/store/ingest';
 import type { CanonicalResolutionProjection } from '../../shared/store/resolution';
 import { buildPoolsVm, hasPoolTags, type PoolCardVm } from './pools-view-model';
 
-// Each fixture carries the version its page exposed: 4.7.0 for the nf-lab corpus, none for v2.
+// Each fixture carries the version its page exposed: 4.8.0 for the nf-lab corpora, none for v2.
 const vmOfSnapshot = (snapshot: SnapshotV1) => {
   const model = ingestSnapshot(snapshot);
   return buildPoolsVm(
@@ -41,6 +40,12 @@ const verdictLine = (card: PoolCardVm) => {
   return `${v.icon} ${v.type}${v.cause ? ` · ${v.cause}` : ''} — ${v.who}${v.why ? ` · ${v.why}` : ''}`;
 };
 const allCells = (card: PoolCardVm) => card.bands.flatMap((b) => b.rows).flatMap((r) => r.cells);
+// A row's reason, or its band's when every row of the band shares it.
+const reasonOf = (card: PoolCardVm, remote: string) => {
+  const band = card.bands.find((b) => b.rows.some((r) => r.remote.name === remote))!;
+  const reason = band.reason ?? band.rows.find((r) => r.remote.name === remote)!.reason;
+  return reason === null ? null : `${reason.cause ? `${reason.cause}: ` : ''}${reason.text}`;
+};
 const tooltip = (card: PoolCardVm, remote: string, column: number) =>
   card.bands.flatMap((b) => b.rows).find((r) => r.remote.name === remote)!.cells[column].tooltip;
 
@@ -54,11 +59,12 @@ describe('buildPoolsVm (share-pools T11)', () => {
     expect(vm.versionWarning).toBeNull();
   });
 
-  it('charts: dashboard isolated by one conflict', () => {
+  it('charts: dashboard on its own build, its range rejecting the global chart-dom', () => {
     const card = cardOf('pool-showcase', 'charts');
     expect(card).toMatchObject({
       counts: '2 packages · 2 remotes',
       tags: 'tag: charts',
+      coverage: { text: 'Global map serves all 2 entrypoints the remotes import', complete: true },
       scopePrefix: '@nf-lab',
       columns: [
         { packageName: '@nf-lab/chart-core', label: 'chart-core' },
@@ -66,41 +72,55 @@ describe('buildPoolsVm (share-pools T11)', () => {
       ],
     });
     expect(sketch(card)).toEqual([
-      { band: 'Build of catalog', rows: ['catalog [charts] 1.1.0:unchanged 1.1.0:unchanged'] },
       {
-        band: 'Build of dashboard · isolated',
-        rows: ['dashboard [charts] 1.0.0:isolated 2.0.0:conflict'],
+        band: 'Global map · build of catalog',
+        rows: ['catalog [charts] 1.1.0:unchanged 1.1.0:unchanged'],
       },
+      { band: 'Own build · dashboard', rows: ['dashboard [charts] 1.0.0:isolated 2.0.0:rejected'] },
     ]);
-    expect(verdictLine(card)).toBe('✕ Isolated · version conflict — dashboard · 1 conflict');
+    expect(reasonOf(card, 'dashboard')).toBe(
+      'version conflict: its range rejects the global @nf-lab/chart-dom 1.1.0 (^2.0.0, strict)',
+    );
+    expect(reasonOf(card, 'catalog')).toBeNull();
+    expect(verdictLine(card)).toBe('✕ Own build · version conflict — dashboard · 1 rejection');
     expect(card.verdict!.tone).toBe('isolated');
     expect(tooltip(card, 'dashboard', 1)).toBe(
-      'dashboard · @nf-lab/chart-dom 2.0.0\nConflict: needs ^2.0.0, shared is 1.1.0',
+      'dashboard · @nf-lab/chart-dom 2.0.0\nRejected: needs ^2.0.0, the global map has 1.1.0',
     );
     expect(tooltip(card, 'dashboard', 0)).toBe(
-      "dashboard · @nf-lab/chart-core 1.0.0\nIsolated: follows dashboard's conflict, since a pool comes from one build. Its range (^1.0.0) accepts the shared 1.1.0.",
+      'dashboard · @nf-lab/chart-core 1.0.0\nOwn build: runs the whole pool from its own build. Its range (^1.0.0) accepts the global 1.1.0.',
     );
   });
 
-  it("ui: catalog and checkout in the subpool on admin's build", () => {
+  it("ui: catalog and checkout in the subpool on admin's build, for the ui-dom the host lacks", () => {
     const card = cardOf('pool-showcase', 'ui');
+    expect(card.coverage).toEqual({
+      text: 'Global map serves 1 of 2 entrypoints the remotes import',
+      complete: false,
+      missing: ['@nf-lab/ui-dom (admin, catalog, checkout)'],
+    });
     expect(sketch(card)).toEqual([
-      { band: 'Build of host · host precedence', rows: [`${NF_HOST} 2.0.0:unchanged ·`] },
       {
-        band: 'Build of admin · serves 2 others · 2 redirected',
+        band: 'Global map · build of host · host precedence',
+        rows: [`${NF_HOST} 2.0.0:unchanged ·`],
+      },
+      {
+        band: 'Subpool · build of admin · serves 2 others',
         rows: [
-          'admin [no tag] 1.0.0:serves-others 1.0.0:serves-others',
-          'catalog [ui] ↪ 1.0.0:unchanged 1.0.0:unchanged',
-          'checkout [ui] ↪ 1.0.0:unchanged 1.0.0:unchanged',
+          'admin [no tag] 1.0.0:serves-others 1.0.0:gap',
+          'catalog [ui] ↪ 1.0.0:unchanged 1.0.0:gap',
+          'checkout [ui] ↪ 1.0.0:unchanged 1.0.0:gap',
         ],
       },
     ]);
-    expect(verdictLine(card)).toBe(
-      '↪ Redirected · not covered — catalog, checkout → build of admin',
-    );
+    expect(reasonOf(card, 'catalog')).toBe('not covered: the global map lacks @nf-lab/ui-dom');
+    expect(verdictLine(card)).toBe('↪ Subpool · not covered — catalog, checkout → build of admin');
     expect(card.verdict!.tone).toBe('quiet');
     expect(tooltip(card, 'catalog', 0)).toBe(
-      'catalog · @nf-lab/ui-core 1.0.0\nRedirected to the build of admin',
+      'catalog · @nf-lab/ui-core 1.0.0\nSubpool: runs the build of admin',
+    );
+    expect(tooltip(card, 'catalog', 1)).toBe(
+      'catalog · @nf-lab/ui-dom 1.0.0\nNot on the global map: @nf-lab/ui-dom',
     );
     expect(tooltip(card, 'admin', 0)).toBe('admin · @nf-lab/ui-core 1.0.0\nServes 2 other remotes');
   });
@@ -110,7 +130,7 @@ describe('buildPoolsVm (share-pools T11)', () => {
     expect(card.tags).toBe('tags: form-kit, forms');
     expect(sketch(card)).toEqual([
       {
-        band: 'Build of checkout · serves 1 other',
+        band: 'Global map · build of checkout · serves 1 other',
         rows: [
           'checkout [forms] 1.1.0:serves-others 1.1.0:serves-others',
           'dashboard [form-kit] 1.1.0:unchanged 1.1.0:unchanged',
@@ -118,12 +138,15 @@ describe('buildPoolsVm (share-pools T11)', () => {
       },
     ]);
     expect(verdictLine(card)).toBe('✓ One build — build of checkout');
+    expect(tooltip(card, 'dashboard', 0)).toBe(
+      'dashboard · @nf-lab/form-core 1.1.0\nGlobal map: the build of checkout',
+    );
     expect(card.notes).toEqual([
       'tags "form-kit", "forms" form one pool — they meet through @nf-lab/form-core, @nf-lab/form-dom',
     ]);
   });
 
-  it('pool-portfolio: legacy isolated on two conflicts, the redirect folded into its verdict', () => {
+  it('pool-portfolio: every rejection of legacy listed, the subpool folded into the verdict', () => {
     const card = cardOf('pool-portfolio', 'acme');
     expect(card.columns.map((c) => c.label)).toEqual([
       'acme-animations',
@@ -133,28 +156,71 @@ describe('buildPoolsVm (share-pools T11)', () => {
       'acme-router',
     ]);
     expect(card.bands.map((b) => `${b.label} · ${b.note}`)).toEqual([
-      'Build of host · serves 5 others · host precedence',
-      'Build of contacts · serves 4 others · 4 redirected',
-      'Build of legacy · isolated',
+      'Global map · build of host · serves 5 others · host precedence',
+      'Subpool · build of contacts · serves 4 others',
+      'Own build · legacy · null',
     ]);
+    expect(reasonOf(card, 'legacy')).toBe(
+      'version conflict: its range rejects the global @nf-lab/acme-core 18.2.0 (^16.0.0, strict), @nf-lab/acme-router 18.2.0 (^16.0.0, strict), @nf-lab/acme-common 18.2.0 (^16.0.0, not strict)',
+    );
+    expect(reasonOf(card, 'reports')).toBe(
+      'not covered: the global map lacks @nf-lab/acme-animations, @nf-lab/acme-forms',
+    );
     expect(verdictLine(card)).toBe(
-      '✕ Isolated · version conflict — legacy · 2 conflicts · 4 remotes redirected',
+      '✕ Own build · version conflict — legacy · 3 rejections · 4 remotes in a subpool',
     );
     expect(tooltip(card, 'legacy', 1)).toBe(
-      "legacy · @nf-lab/acme-common 16.2.12\nIsolated: follows legacy's conflicts, since a pool comes from one build. Its own range (^16.0.0, not strict) wouldn't have blocked the shared 18.2.0.",
+      'legacy · @nf-lab/acme-common 16.2.12\nRejected: needs ^16.0.0 (not strict), the global map has 18.2.0',
     );
     expect(tooltip(card, 'products', 2)).toBe(
-      'products · @nf-lab/acme-core 18.2.0\nUnchanged: the build of host',
+      'products · @nf-lab/acme-core 18.2.0\nGlobal map: the build of host',
     );
     const reports = card.bands[1].rows.find((r) => r.remote.name === 'reports')!;
     expect(reports).toMatchObject({ tag: 'no tag', redirected: true });
+  });
+
+  it('pool-uncovered-gap: the secondary entrypoint the global map lacks', () => {
+    const card = cardOf('pool-uncovered-gap', 'ui');
+    expect(card.coverage).toMatchObject({
+      text: 'Global map serves 2 of 3 entrypoints the remotes import',
+      missing: ['@nf-lab/ui-core/testing (mfe1)'],
+    });
+    expect(sketch(card)[1]).toEqual({
+      band: 'Own build · mfe1',
+      rows: ['mfe1 [ui] 1.0.0:gap 1.0.0:isolated'],
+    });
+    expect(reasonOf(card, 'mfe1')).toBe(
+      'not covered: the global map lacks @nf-lab/ui-core/testing',
+    );
+    expect(tooltip(card, 'mfe1', 0)).toBe(
+      'mfe1 · @nf-lab/ui-core 1.0.0\nNot on the global map: @nf-lab/ui-core/testing',
+    );
+    expect(verdictLine(card)).toBe('✕ Own build · not covered — mfe1');
+  });
+
+  it('pool-incompatible-nonstrict: a non-strict range rejects too', () => {
+    const card = cardOf('pool-incompatible-nonstrict', 'ui');
+    expect(reasonOf(card, 'mfe1')).toBe(
+      'version conflict: its range rejects the global @nf-lab/ui-core 2.0.0 (^1.0.0, not strict), @nf-lab/ui-dom 2.0.0 (^1.0.0, not strict)',
+    );
+    expect(verdictLine(card)).toBe('✕ Own build · version conflict — mfe1 · 2 rejections');
+  });
+
+  it('pool-unshipped: an extension in the band, the unshipped combination as the reason', () => {
+    const card = cardOf('pool-unshipped', 'ui');
+    expect(card.bands[0].label + ' · ' + card.bands[0].note).toBe(
+      'Global map · build of host · serves 1 other · host precedence · @nf-lab/ui-dom 2.0.0 from mfe1',
+    );
+    expect(reasonOf(card, 'mfe2')).toBe(
+      'not covered: every entrypoint is on the global map, but no single build ships @nf-lab/ui-dom with the rest',
+    );
   });
 
   it('pooling-anchor (4.6.0): first-member name, redirect verdict, the version warning', () => {
     const vm = vmOf('pooling-anchor');
     const [card] = vm.pools;
     expect(card.name).toBe('@nf-lab/conflict-lib');
-    expect(verdictLine(card)).toBe('↪ Redirected · not covered — mfe2 → build of mfe1');
+    expect(verdictLine(card)).toBe('↪ Subpool · not covered — mfe2 → build of mfe1');
     expect(vm.versionWarning).toBe(
       'No orchestrator version found (exposed from 4.7.0). Pool names and reasons may be missing.',
     );
@@ -229,27 +295,51 @@ describe('buildPoolsVm (share-pools T11)', () => {
         for (const version of external.versions)
           for (const remote of version.remotes)
             if (remote.name === 'mfe2') remote.poolCause = 'future';
-      expect(verdictLine(vmOfSnapshot(snapshot).pools[0])).toBe(
-        '✕ Isolated · future — mfe2 · 1 conflict',
-      );
+      const [card] = vmOfSnapshot(snapshot).pools;
+      expect(verdictLine(card)).toBe('✕ Own build · future — mfe2 · 1 rejection · 1 unexplained');
+      expect(card.bands[1].reason).toEqual({
+        cause: 'future',
+        text: "its range rejects the global @nf-lab/ui-dom 1.1.0 (^2.0.0, strict) — but the stored cause is 'future'",
+        unexplained: true,
+      });
     });
 
-    // mfe2's ui-dom copy (strict ^2.0.0 against the shared 1.1.0) is the capture's one conflict.
+    // mfe2's ui-dom copy (strict ^2.0.0 against the global 1.1.0) is the capture's one rejection.
     it.each([
-      ['a range that accepts the shared tag', { requiredVersion: '>=1.0.0' }],
+      ['a range that accepts the global tag', { requiredVersion: '>=1.0.0' }],
       ['a range it cannot read', { requiredVersion: 'latest' }],
-      ['a non-strict copy', { strictVersion: false }],
-    ])('marks no conflict for %s', (_case, override) => {
+    ])('marks no rejection for %s and calls the stored cause unexplained', (_case, override) => {
       const snapshot: SnapshotV1 = structuredClone(FIXTURES['pool-tag-islanded']);
       const dom = snapshot.runtime!.sharedExternals['__GLOBAL__']['@nf-lab/ui-dom'];
       Object.assign(dom.versions.find((v) => v.action === 'scope')!.remotes[0], override);
       const [card] = vmOfSnapshot(snapshot).pools;
-      expect(verdictLine(card)).toBe('✕ Isolated · version conflict — mfe2');
-      expect(allCells(card).some((cell) => cell.state === 'conflict')).toBe(false);
+      expect(verdictLine(card)).toBe('✕ Own build · version conflict — mfe2 · 1 unexplained');
+      expect(allCells(card).some((cell) => cell.state === 'rejected')).toBe(false);
+      expect(reasonOf(card, 'mfe2')).toBe(
+        'version conflict: the stored rows do not reproduce why it is off the global map',
+      );
+    });
+
+    it('a non-strict copy whose range rejects still counts as a rejection (4.8)', () => {
+      const snapshot: SnapshotV1 = structuredClone(FIXTURES['pool-tag-islanded']);
+      const dom = snapshot.runtime!.sharedExternals['__GLOBAL__']['@nf-lab/ui-dom'];
+      dom.versions.find((v) => v.action === 'scope')!.remotes[0].strictVersion = false;
+      const [card] = vmOfSnapshot(snapshot).pools;
+      expect(verdictLine(card)).toBe('✕ Own build · version conflict — mfe2 · 1 rejection');
+    });
+
+    it('a runtime load that left the scope undecided keeps the pool pending', () => {
+      const snapshot: SnapshotV1 = structuredClone(FIXTURES['pool-tag-coherent']);
+      snapshot.runtime!.cacheState = { version: '4.8.0', undecidedScopes: ['__GLOBAL__'] };
+      const [card] = vmOfSnapshot(snapshot).pools;
+      expect(card.pendingNote).toBe(
+        'a runtime load changed this share scope — the next init decides it again; outcomes not settled yet',
+      );
+      expect(card.verdict).toBeNull();
     });
   });
 
-  describe('pre-4.7.0 warning', () => {
+  describe('pre-4.8.0 warning', () => {
     const warningOf = (version: string | null, snapshot: SnapshotV1 = FIXTURES['pooling-anchor']) =>
       buildPoolsVm(ingestSnapshot(snapshot).resolutionProjection, version).versionWarning;
 
@@ -260,10 +350,13 @@ describe('buildPoolsVm (share-pools T11)', () => {
       expect(warningOf('4.6.0')).toBe(
         "This page runs orchestrator 4.6.0, which doesn't store pool names or why a remote got its own copy — this tab may be incomplete.",
       );
+      expect(warningOf('4.7.0')).toBe(
+        "This page runs orchestrator 4.7.0. The reasons follow 4.8's pooling and may not explain every placement.",
+      );
     });
 
-    it('does not warn from 4.7.0 on, for an unreleased build, or when there is nothing to show', () => {
-      expect(warningOf('4.7.0')).toBeNull();
+    it('does not warn from 4.8.0 on, for an unreleased build, or when there is nothing to show', () => {
+      expect(warningOf('4.8.0')).toBeNull();
       expect(warningOf('5.0.0-rc.1')).toBeNull();
       expect(warningOf('dev')).toBeNull();
       expect(warningOf(null, FIXTURES['frankenstein-live'])).toBeNull();

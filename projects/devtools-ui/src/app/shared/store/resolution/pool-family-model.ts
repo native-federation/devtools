@@ -66,12 +66,19 @@ export interface PoolSurfaceEntry {
 }
 
 /**
- * What happened to one remote's copy of one member, in precedence order: `conflict` (a strict range
- * that rejects the shared tag), `isolated` (the remote runs the whole pool from its own build),
- * `not-shared` (no remote shares the member), `serves-others` (the build's owner, when another
- * remote loads its build), `unchanged`.
+ * What happened to one remote's copy of one member, in precedence order: `rejected` (its range
+ * rejects the global tag; strict or not, either keeps it off the global map), `gap` (it ships an
+ * entrypoint the global map does not serve), `isolated` (the remote runs the whole pool from its
+ * own build), `not-shared` (no remote shares the member), `serves-others` (the build's owner, when
+ * another remote loads its build), `unchanged`.
  */
-export type PoolCellState = 'conflict' | 'isolated' | 'not-shared' | 'serves-others' | 'unchanged';
+export type PoolCellState =
+  | 'rejected'
+  | 'gap'
+  | 'isolated'
+  | 'not-shared'
+  | 'serves-others'
+  | 'unchanged';
 
 export interface PoolStatusCell {
   state: PoolCellState;
@@ -85,6 +92,10 @@ export interface PoolStatusCell {
   sharedTag: string | null;
   /** Whether the copy accepts `sharedTag` (its own tag always passes); null when unreadable or none. */
   acceptsShared: boolean | null;
+  /** Entrypoints of this copy the global map does not serve. */
+  missing: string[];
+  /** The remote whose build serves this copy. */
+  servedBy: string;
 }
 
 export interface PoolStatusRow {
@@ -120,6 +131,7 @@ export interface PoolVerdict {
   kind: 'isolated' | 'redirected' | 'one-build';
   isolated: {
     remotes: string[];
+    /** `rejected` cells of the isolated remotes. */
     conflicts: number;
     /** Stored `poolCause` when every isolated remote stores the same one; else null. */
     cause: string | null;
@@ -135,6 +147,15 @@ export interface PoolVerdict {
   builds: string[];
 }
 
+/** How much of what the pool's remotes import the global map serves. */
+export interface PoolCoverage {
+  /** Distinct specifiers any remote of the pool ships. */
+  declared: number;
+  served: number;
+  /** The specifiers it does not serve, with the remotes shipping each. */
+  missing: { specifier: string; remotes: string[] }[];
+}
+
 export interface PoolStatusMatrix {
   bands: PoolBuildBand[];
   verdict: PoolVerdict;
@@ -148,11 +169,14 @@ export interface PoolFamily {
   winner: string | null;
   /** What the global map serves for the pool's members, specifier order. */
   globalSurface: PoolSurfaceEntry[];
+  coverage: PoolCoverage;
   /** Remotes grouped by the build they load, with every copy's state; the Pools tab's matrix. */
   statusMatrix: PoolStatusMatrix;
   consumers: PoolConsumer[];
   /** A member record is `dirty`, or its scope awaits a re-decision: outcomes not settled. */
   pending: boolean;
+  /** A runtime load wrote the pool's scope since its serving builds were decided (`undecidedScopes`). */
+  undecided: boolean;
   /** A member carries a stored `poolName`: the record was written by orchestrator v4.7+. */
   recorded: boolean;
 }
