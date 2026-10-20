@@ -1,8 +1,8 @@
 {
   "schemaVersion": "lab-lossless-capture/1",
-  "capturedAt": "2026-10-20T08:39:09.095Z",
+  "capturedAt": "2026-10-20T08:59:04.172Z",
   "scenario": {
-    "scenarioId": "torn-many",
+    "scenarioId": "fallback-uncovered",
     "orchestratorCommit": "4.8.0",
     "ready": true,
     "readyError": null
@@ -11,7 +11,7 @@
     "url": "http://localhost:4300/",
     "origin": "http://localhost:4300",
     "path": "/",
-    "title": "nf-lab torn-many",
+    "title": "nf-lab fallback-uncovered",
     "readyState": "complete"
   },
   "collector": {
@@ -21,7 +21,7 @@
   "channels": {
     "nativeFederationGlobals": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:39:09.095Z",
+      "observedAt": "2026-10-20T08:59:04.172Z",
       "data": {
         "present": true,
         "valueType": "object",
@@ -130,7 +130,7 @@
     },
     "orchestratorGlobal": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:39:09.095Z",
+      "observedAt": "2026-10-20T08:59:04.172Z",
       "data": {
         "present": true,
         "valueType": "object",
@@ -156,7 +156,7 @@
     },
     "domImportMaps": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:39:09.095Z",
+      "observedAt": "2026-10-20T08:59:04.172Z",
       "data": {
         "count": 1,
         "maps": [
@@ -194,7 +194,7 @@
     },
     "importShim": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:39:09.095Z",
+      "observedAt": "2026-10-20T08:59:04.172Z",
       "data": {
         "present": true,
         "valueType": "function",

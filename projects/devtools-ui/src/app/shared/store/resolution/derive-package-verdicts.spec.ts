@@ -100,8 +100,8 @@ describe('derivePackageVerdicts — verdicts from stored rows', () => {
 
 describe('derivePackageVerdicts — version statuses', () => {
   // Orchestrator 4.8 borrows no entrypoint: a remote the shared build does not cover runs its own copy.
-  it('torn-many: remotes whose secondaries the shared version lacks keep their own copies', () => {
-    const kit = entry('torn-many', '__GLOBAL__', KIT);
+  it('fallback-uncovered: remotes whose secondaries the shared version lacks keep their own copies', () => {
+    const kit = entry('fallback-uncovered', '__GLOBAL__', KIT);
     expect(kit.versions.map((v) => `${v.tag}:${v.status}`)).toEqual([
       '1.4.0:shared',
       '1.3.0:scoped',
@@ -149,32 +149,22 @@ describe('derivePackageVerdicts — version statuses', () => {
 });
 
 describe('derivePackageVerdicts — build surface', () => {
-  // 4.8 recapture: mfe1 runs its own 1.2.0 copy, yet `merged` still counts its scoped build —
-  // a pre-4.8 reading that pools-v48 Task 3 removes with the merged notion itself.
   it('T3-AC-01 merged-entrypoints: two builds of 1.2.0, mfe1 keeping its secondaries', () => {
     const [version] = entry('merged-entrypoints', '__GLOBAL__', KIT).versions;
-    expect(version.merged).toBe(true);
     expect(version.builds.map((b) => [b.sourceRemote, [...b.specifiers].sort()])).toEqual([
       ['mfe1', [KIT, `${KIT}/dialog`, `${KIT}/table`]],
       [NF_HOST, [KIT]],
     ]);
   });
 
-  it('T3-AC-02 torn-many: on 4.8 nothing is torn', () => {
-    const kit = entry('torn-many', '__GLOBAL__', KIT);
-    expect(kit.torn).toEqual([]);
-    expect(kit.versions.every((v) => !v.merged)).toBe(true);
-  });
-
-  it('T3-AC-03 self-fill: a flat secondary is its own registry key, so nothing is torn', () => {
-    // The V2 capture predates `entries` maps: `/extra` registers as its own package and
-    // resolves on its own, which is not a tear of `@nf-lab/conflict-lib`.
-    const all = verdictsOf(FIXTURES['self-fill']);
-    expect(all.map((v) => v.packageName).sort()).toEqual([
-      '@nf-lab/conflict-lib',
-      '@nf-lab/conflict-lib/extra',
+  // 4.8 records a serving build, so the host's copy alone serves the shared 1.2.0.
+  it('T3-AC-02 merged-entrypoints: a scoped copy of the shared tag is no merge', () => {
+    const [version] = entry('merged-entrypoints', '__GLOBAL__', KIT).versions;
+    expect(version.merged).toBe(false);
+    expect(version.builds.map((b) => [b.sourceRemote, b.fromShareRow])).toEqual([
+      ['mfe1', false],
+      [NF_HOST, true],
     ]);
-    expect(all.flatMap((v) => v.torn)).toEqual([]);
   });
 
   it('T3-AC-04 SRI per entry file follows the effective map', () => {

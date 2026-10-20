@@ -23,8 +23,7 @@ export type DeclarationVerdict =
 
 /**
  * - `shared` / `scoped`: some row of the tag carries action `share` / `scope`
- * - `partly-mapped`: neither, yet a copy of the tag materializes (it fills another version's
- *   entrypoints)
+ * - `partly-mapped`: neither, yet a copy of the tag materializes (a subpool's build)
  * - `not-mapped`: no copy of the tag materializes
  */
 export type VersionStatus = 'shared' | 'scoped' | 'partly-mapped' | 'not-mapped';
@@ -64,20 +63,12 @@ export interface VersionBuild {
   copyId: ResolvedDependencyCopyId;
   /** The remote whose build the copy is; null for a target-only copy. */
   sourceRemote: string | null;
+  /** The copy comes from a `share` row, so the map may publish its files for the version. */
+  fromShareRow: boolean;
   specifiers: string[];
   entryFiles: BuildEntryFile[];
   /** Chunks of the copy's `mapped-source` bundle claims, registry order. */
   chunkFiles: BuildChunkFile[];
-}
-
-/** A specifier the elected version's copies lack, served from another version's build (a tear). */
-export interface TornEntrypoint {
-  specifier: string;
-  fillingTag: string;
-  fillingRemote: string | null;
-  copyId: ResolvedDependencyCopyId;
-  /** Consumers whose claim for the specifier is self-filled, sorted. */
-  consumerRemotes: string[];
 }
 
 export interface VersionVerdict {
@@ -90,7 +81,10 @@ export interface VersionVerdict {
   copyIds: ResolvedDependencyCopyId[];
   /** The copies as builds: the one serving the package's own specifier first, then copy order. */
   builds: VersionBuild[];
-  /** A shared version assembled from more than one build (docs: "Copies of one version always merge"). */
+  /**
+   * A shared version the map assembles from more than one `share`-row build: only without a
+   * serving build, each specifier from the first copy declaring it (docs: "Copies of one version").
+   */
   merged: boolean;
 }
 
@@ -108,6 +102,4 @@ export interface PackageScopeVerdicts {
   versions: VersionVerdict[];
   /** Every declaration, registry order. */
   declarations: DeclarationVerdictRecord[];
-  /** Torn specifiers, sorted; empty without an election. */
-  torn: TornEntrypoint[];
 }

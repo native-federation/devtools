@@ -1,12 +1,12 @@
 {
   "schemaVersion": "lab-lossless-corpus/1",
-  "runId": "20261020T083840Z",
-  "createdAt": "2026-10-20T08:39:19.698Z",
+  "runId": "20261020T085859Z",
+  "createdAt": "2026-10-20T08:59:45.035Z",
   "source": {
     "playground": {
       "repository": "native-federation/playground",
       "branch": "lab/grouping-and-pooling",
-      "commit": "52a199cd12384fd6a7b8462fc3891b75667d2f51",
+      "commit": "a59ce417580d54a03ead6aefd59f20a2e90464d6",
       "runner": "lab/run-scenario.mjs"
     },
     "orchestratorCommit": "4.8.0",
@@ -28,35 +28,35 @@
     "cacheControl": "no-store"
   },
   "expectedScenarios": [
+    "fallback-uncovered",
     "merged-entrypoints",
     "multi-scope",
-    "out-of-range-nonstrict",
-    "torn-many"
+    "out-of-range-nonstrict"
   ],
   "captures": [
     {
+      "scenario": "fallback-uncovered",
+      "path": "fallback-uncovered/20261020T085859Z.json",
+      "runstamp": "20261020T085859Z",
+      "sha256": "f8c2acef5b335bc7e10e49b8e3ea74e860e0ad75af5a06b338c703876c1eea77"
+    },
+    {
       "scenario": "merged-entrypoints",
-      "path": "merged-entrypoints/20261020T083840Z.json",
-      "runstamp": "20261020T083840Z",
-      "sha256": "48b794b881deb3134cb1f47767c808106fa3accd8f594cf0a89467b5963e5cbf"
+      "path": "merged-entrypoints/20261020T085859Z.json",
+      "runstamp": "20261020T085859Z",
+      "sha256": "741a5a6a7b5025296422ea91288cf825199ceebd1185f92d2c47a69502336432"
     },
     {
       "scenario": "multi-scope",
-      "path": "multi-scope/20261020T083840Z.json",
-      "runstamp": "20261020T083840Z",
-      "sha256": "5092b71ded4588016d71c392363757b07719f2bfb78e67bdfd22c96635081cbb"
+      "path": "multi-scope/20261020T085859Z.json",
+      "runstamp": "20261020T085859Z",
+      "sha256": "5382f544f8b3d3d11c22acbc6ce9ae1deed4ff399321af19733c6549bf003429"
     },
     {
       "scenario": "out-of-range-nonstrict",
-      "path": "out-of-range-nonstrict/20261020T083840Z.json",
-      "runstamp": "20261020T083840Z",
-      "sha256": "00f906bd5549136c6526acdecdfe9cbefa13ad862c800fc83b9535ff6d1130a4"
-    },
-    {
-      "scenario": "torn-many",
-      "path": "torn-many/20261020T083840Z.json",
-      "runstamp": "20261020T083840Z",
-      "sha256": "5b048c1377f8818e23c2ad3e97d585e247fbd5df629d77bdd21fc70a83acbc14"
+      "path": "out-of-range-nonstrict/20261020T085859Z.json",
+      "runstamp": "20261020T085859Z",
+      "sha256": "1e06c8a119487d3b4c3fe70fe7c769f2b72cf699209e5efff561d467e111e689"
     }
   ]
 }

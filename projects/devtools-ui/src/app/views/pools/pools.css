@@ -173,7 +173,7 @@
   cursor: help;
 }
 
-/* Quiet by design: only the type carries colour, and only for isolation or a torn combination. */
+/* Quiet by design: only the type carries colour, and only for isolation. */
 .pool-verdict {
   display: flex;
   flex-wrap: wrap;
@@ -189,10 +189,6 @@
 
 .pool-verdict[data-tone='isolated'] .pool-verdict-type {
   color: var(--nf-color-isolated-text);
-}
-
-.pool-verdict[data-tone='torn'] .pool-verdict-type {
-  color: var(--nf-color-conflict-text);
 }
 
 .pool-note {

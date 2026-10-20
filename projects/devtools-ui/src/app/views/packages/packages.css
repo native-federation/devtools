@@ -144,10 +144,6 @@
   background: var(--nf-color-isolated-text);
 }
 
-.mark-torn {
-  background: var(--nf-color-warning-text);
-}
-
 .pkg-strict {
   padding: 0 4px;
   border: 1px solid var(--nf-color-border);

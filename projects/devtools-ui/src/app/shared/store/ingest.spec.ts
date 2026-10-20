@@ -794,7 +794,7 @@ describe('ingestSnapshot — provenance carry', () => {
       servingBuild: '__NF-HOST__',
     });
 
-    const older = ingestSnapshot(FIXTURES['self-fill']);
+    const older = ingestSnapshot(FIXTURES['pooling-anchor']);
     expect(older.provenance.cacheState).toBeNull();
     expect(
       older.registryEvidence.sharedExternals.every(

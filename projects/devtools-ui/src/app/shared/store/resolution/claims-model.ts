@@ -44,7 +44,7 @@ export interface RegistryServingSlotClaim {
  * order. No state means requested, downloaded, evaluated, or used.
  */
 export type ClaimMappingState =
-  'anchored' | 'self-filled' | 'own-selected' | 'fallback' | 'not-selected' | 'blocked' | 'unknown';
+  'anchored' | 'own-selected' | 'fallback' | 'not-selected' | 'blocked' | 'unknown';
 
 /**
  * One shared declaration or private registration candidate claiming one

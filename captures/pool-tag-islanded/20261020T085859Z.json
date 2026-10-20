@@ -1,6 +1,6 @@
 {
   "schemaVersion": "lab-lossless-capture/1",
-  "capturedAt": "2026-10-20T08:39:03.069Z",
+  "capturedAt": "2026-10-20T08:59:23.671Z",
   "scenario": {
     "scenarioId": "pool-tag-islanded",
     "orchestratorCommit": "4.8.0",
@@ -21,7 +21,7 @@
   "channels": {
     "nativeFederationGlobals": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:39:03.069Z",
+      "observedAt": "2026-10-20T08:59:23.670Z",
       "data": {
         "present": true,
         "valueType": "object",
@@ -176,7 +176,7 @@
     },
     "orchestratorGlobal": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:39:03.069Z",
+      "observedAt": "2026-10-20T08:59:23.671Z",
       "data": {
         "present": true,
         "valueType": "object",
@@ -202,7 +202,7 @@
     },
     "domImportMaps": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:39:03.069Z",
+      "observedAt": "2026-10-20T08:59:23.671Z",
       "data": {
         "count": 1,
         "maps": [
@@ -232,7 +232,7 @@
     },
     "importShim": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:39:03.069Z",
+      "observedAt": "2026-10-20T08:59:23.671Z",
       "data": {
         "present": true,
         "valueType": "function",

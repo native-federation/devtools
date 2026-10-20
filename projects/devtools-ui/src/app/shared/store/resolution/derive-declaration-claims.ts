@@ -337,8 +337,8 @@ function push(
 }
 
 /**
- * The normative mapping-state precedence: `anchored`, `self-filled`,
- * `own-selected`, `fallback`, `not-selected`, `blocked`, `unknown`.
+ * The normative mapping-state precedence: `anchored`, `own-selected`,
+ * `fallback`, `not-selected`, `blocked`, `unknown`.
  */
 function sharedMappingState(options: {
   resolution: EffectiveConsumerResolution;
@@ -360,12 +360,6 @@ function sharedMappingState(options: {
     ]);
     if (anyCandidateMatches(surfaces.anchorCandidates.get(anchorKey), targetUrl)) {
       return 'anchored';
-    }
-  }
-  if (targetUrl !== null && options.action === 'skip') {
-    const skipKey = encodeRegistryIdTuple([options.sharedExternalId, 'skip', resolution.specifier]);
-    if (uniqueSubjectMatches(surfaces.sameExternalCandidates.get(skipKey), targetUrl)) {
-      return 'self-filled';
     }
   }
   if (

@@ -28,9 +28,8 @@ interface MemberRow {
 
 /**
  * Family view of every tag pool, read off the rows pooling wrote back
- * (`rebuildMember` in the orchestrator's `pool-shared-externals.ts`): who
- * serves each consumer each member, and whether the resolved combination is
- * one some single build shipped (the `findTornRemotes` contract).
+ * (`records.ts` in the orchestrator's `pooling` domain): who serves each
+ * consumer each member.
  */
 export function derivePoolFamilies(
   evidence: CanonicalRegistryEvidence,
@@ -91,23 +90,6 @@ export function derivePoolFamilies(
       if (row.servedBy !== null) return row.servedBy;
       return basisByMember.get(member)?.remote ?? row.remote;
     };
-    // Every build's own specifier → tag table, `scope` rows included: a build is coherent by construction.
-    const buildTags = new Map<string, Map<string, string>>();
-    for (const [, rows] of rowsByMember) {
-      for (const row of rows) {
-        const tags = buildTags.get(row.remote) ?? new Map<string, string>();
-        buildTags.set(row.remote, tags);
-        for (const specifier of row.specifiers)
-          if (!tags.has(specifier)) tags.set(specifier, row.tag);
-      }
-    }
-    const shipped = (combination: Map<string, string>) =>
-      [...buildTags.values()].some((tags) =>
-        [...combination].every(([spec, tag]) => tags.get(spec) === tag),
-      );
-    const listOf = (combination: Map<string, string>) =>
-      [...combination].map(([spec, tag]) => `${spec}@${tag}`).sort(compareText);
-
     const members: PoolFamilyMember[] = pool.members.map((packageName) => {
       const rows = rowsByMember.get(packageName) ?? [];
       const owner = owningPackage(packageName);
@@ -134,25 +116,17 @@ export function derivePoolFamilies(
       const servingBuilds = Object.fromEntries(
         consumed.map(({ member, row }) => [member, servingBuildOf(row, member)]),
       );
-      const combination = new Map<string, string>();
-      for (const { member, row } of consumed) {
-        const servedTag = rowOf(servingBuilds[member], member)?.tag ?? row.tag;
-        for (const specifier of row.specifiers) combination.set(specifier, servedTag);
-      }
       const outcome = outcomeOf(
         remote,
         consumed.map(({ row }) => row),
         Object.values(servingBuilds),
       );
-      const host = remote === hostRemote;
       return {
         remote,
-        host,
+        host: remote === hostRemote,
         outcome,
         poolCauses: causesOf(consumed),
         servingBuilds,
-        coherent: host ? null : combination.size === 0 || shipped(combination),
-        combination: listOf(combination),
       };
     });
 
@@ -276,8 +250,6 @@ function verdictOf(
   consumers: readonly PoolConsumer[],
   basisByMember: BasisByMember,
 ): PoolVerdict {
-  const torn = consumers.filter((c) => c.coherent === false).map((c) => c.remote);
-
   const isolatedBands = bands.filter((b) => b.kind === 'isolated');
   const isolatedRemotes = new Set(isolatedBands.map((b) => b.owner!));
   const conflicts = isolatedBands.reduce(
@@ -309,14 +281,7 @@ function verdictOf(
 
   return {
     kind:
-      torn.length > 0
-        ? 'torn'
-        : isolatedRemotes.size > 0
-          ? 'isolated'
-          : redirected.length > 0
-            ? 'redirected'
-            : 'one-build',
-    torn,
+      isolatedRemotes.size > 0 ? 'isolated' : redirected.length > 0 ? 'redirected' : 'one-build',
     isolated:
       isolatedRemotes.size > 0
         ? { remotes: [...isolatedRemotes].sort(compareText), conflicts, cause }

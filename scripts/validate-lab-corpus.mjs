@@ -182,11 +182,6 @@ const EVIDENCE = {
     if (maps.length !== 1)
       issue(loc, `override must REPLACE the map tag — expected 1 tag, saw ${maps.length}`);
   },
-  "self-fill": (ns, env, loc) => {
-    const scope = ns["shared-externals"]?.["__GLOBAL__"] ?? {};
-    if (!("@nf-lab/conflict-lib" in scope) || !("@nf-lab/conflict-lib/extra" in scope))
-      issue(loc, "expected the secondary entry point as its own external beside the primary");
-  },
   "co-declared-share": (ns, env, loc) => {
     // The corpus's only multi-declarer row: same version from two remotes
     // is ONE row (action 'share'), not a negotiation split.
@@ -391,7 +386,7 @@ const EVIDENCE = {
   },
   // The shared 1.4.0 lacks the secondaries mfe1 and mfe2 import, so both run kit from their own build;
   // the global map serves no kit secondary (no entrypoint is borrowed).
-  "torn-many": (ns, env, loc) => {
+  "fallback-uncovered": (ns, env, loc) => {
     const rows = kitRows(ns).map((row) => `${row.remote.name}:${row.tag}:${row.action}`).sort();
     const expected = ["__NF-HOST__:1.4.0:share", "mfe1:1.2.0:scope", "mfe2:1.3.0:scope"];
     if (JSON.stringify(rows) !== JSON.stringify(expected)) issue(loc, `expected kit rows ${expected.join(",")}, saw ${rows.join(",")}`);

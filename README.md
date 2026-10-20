@@ -33,8 +33,8 @@ guesses.
 
 - 📦 **Packages** — the negotiation, per package and share scope: every
   version, the resolver's verdict for each remote, and a deep dive into who
-  ships it, its entrypoints and its files. Out-of-range remotes, isolated
-  copies and torn entrypoints are called out, not averaged away.
+  ships it, its entrypoints and its files. Out-of-range remotes and isolated
+  copies are called out, not averaged away.
 - 🛰️ **Remotes** — each participant from its own point of view: what it
   exposes, what it declares, and where every single dependency really
   resolves.

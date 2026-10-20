@@ -123,7 +123,7 @@ export interface ProvidesBlockVm {
   unknownTagNote: string | null;
   declared: DeclaredDisplayVm;
   strict: boolean;
-  /** `isolated` (+ audience), `anchored`, `self-filled` — the norm renders none. */
+  /** `isolated` (+ audience), `anchored` — the norm renders none. */
   deviations: AnnotationVm[];
   files: ZoneFileVm[];
   /** Display suffix under the parent block; null on top-level blocks. */
@@ -499,15 +499,6 @@ function providesDeviationsOf(
       } — the binding resolves through the anchor's copy`,
     });
   }
-  if (
-    copy.effectiveRoles.includes('self-filled-source') ||
-    ownClaims.some((claim) => claim.mappingState === 'self-filled')
-  ) {
-    deviations.push({
-      label: 'self-filled',
-      note: 'no applicable shared source — the consumer’s own copy fills the binding',
-    });
-  }
   if (copy.effectiveRoles.includes('unclassified')) {
     deviations.push({ label: 'unclassified', note: 'no closed rule explains this copy' });
   }
@@ -536,12 +527,6 @@ function consumesDeviationsOf(
       note: `explicit servedBy anchor: ${
         anchor === null ? 'unknown' : participantDisplay(anchor)
       } — the binding resolves through the anchor's copy`,
-    });
-  }
-  if (claim.mappingState === 'self-filled') {
-    deviations.push({
-      label: 'self-filled',
-      note: 'no applicable shared source — the consumer’s own copy fills the binding',
     });
   }
   const skipped =

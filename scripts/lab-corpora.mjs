@@ -19,7 +19,6 @@ export const LAB_CORPORA = [
       "dynamic-init-native",
       "dynamic-init-shim",
       "dynamic-override",
-      "self-fill",
       "co-declared-share",
       "pooling-anchor"
     ]
@@ -54,10 +53,10 @@ export const LAB_CORPORA = [
     collector: { kind: "playwright-cdp", interface: "headless-chromium", webMcpUsed: false },
     live: false,
     scenarios: [
+      "fallback-uncovered",
       "merged-entrypoints",
       "multi-scope",
-      "out-of-range-nonstrict",
-      "torn-many"
+      "out-of-range-nonstrict"
     ]
   },
   {

@@ -1,8 +1,8 @@
 {
   "schemaVersion": "lab-lossless-capture/1",
-  "capturedAt": "2026-10-20T08:38:52.060Z",
+  "capturedAt": "2026-10-20T08:59:20.421Z",
   "scenario": {
-    "scenarioId": "pool-incompatible-nonstrict",
+    "scenarioId": "pool-tag-anchored",
     "orchestratorCommit": "4.8.0",
     "ready": true,
     "readyError": null
@@ -11,7 +11,7 @@
     "url": "http://localhost:4300/",
     "origin": "http://localhost:4300",
     "path": "/",
-    "title": "nf-lab pool-incompatible-nonstrict",
+    "title": "nf-lab pool-tag-anchored",
     "readyState": "complete"
   },
   "collector": {
@@ -21,7 +21,7 @@
   "channels": {
     "nativeFederationGlobals": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:38:52.059Z",
+      "observedAt": "2026-10-20T08:59:20.420Z",
       "data": {
         "present": true,
         "valueType": "object",
@@ -54,6 +54,15 @@
                 }
               ]
             },
+            "mfe3": {
+              "scopeUrl": "./mfe3/",
+              "exposes": [
+                {
+                  "moduleName": "./main",
+                  "file": "main-DXLIHA7T.js"
+                }
+              ]
+            },
             "__NF-HOST__": {
               "scopeUrl": "./",
               "exposes": []
@@ -74,8 +83,7 @@
                         "name": "__NF-HOST__",
                         "strictVersion": true,
                         "cached": true,
-                        "requiredVersion": "^2.0.0",
-                        "pool": "ui",
+                        "requiredVersion": ">=1.0.0 <3.0.0",
                         "entries": {
                           "@nf-lab/ui-core": "_nf_lab_ui_core.jpfHqL1p12.js"
                         }
@@ -83,37 +91,41 @@
                     ]
                   },
                   {
-                    "tag": "1.1.0",
+                    "tag": "1.0.0",
                     "host": false,
                     "action": "skip",
                     "remotes": [
                       {
+                        "name": "mfe1",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": ">=1.0.0 <3.0.0",
+                        "pool": "ui",
+                        "entries": {
+                          "@nf-lab/ui-core": "_nf_lab_ui_core.FGCSlTph3q.js"
+                        },
+                        "servedBy": "mfe1"
+                      },
+                      {
                         "name": "mfe2",
-                        "strictVersion": false,
+                        "strictVersion": true,
                         "cached": false,
                         "requiredVersion": ">=1.0.0 <3.0.0",
                         "pool": "ui",
                         "entries": {
-                          "@nf-lab/ui-core": "_nf_lab_ui_core.omKXFDLfPd.js"
-                        }
-                      }
-                    ]
-                  },
-                  {
-                    "tag": "1.1.0",
-                    "host": false,
-                    "action": "scope",
-                    "remotes": [
-                      {
-                        "name": "mfe1",
-                        "strictVersion": false,
-                        "cached": true,
-                        "requiredVersion": "^1.0.0",
-                        "pool": "ui",
-                        "entries": {
-                          "@nf-lab/ui-core": "_nf_lab_ui_core.omKXFDLfPd.js"
+                          "@nf-lab/ui-core": "_nf_lab_ui_core.FGCSlTph3q.js"
                         },
-                        "poolCause": "incompatible"
+                        "servedBy": "mfe1"
+                      },
+                      {
+                        "name": "mfe3",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": ">=1.0.0 <3.0.0",
+                        "entries": {
+                          "@nf-lab/ui-core": "_nf_lab_ui_core.FGCSlTph3q.js"
+                        },
+                        "servedBy": "mfe1"
                       }
                     ]
                   }
@@ -126,60 +138,46 @@
                 "poolName": "ui",
                 "versions": [
                   {
-                    "tag": "2.0.0",
-                    "host": true,
-                    "action": "share",
-                    "remotes": [
-                      {
-                        "name": "__NF-HOST__",
-                        "strictVersion": true,
-                        "cached": true,
-                        "requiredVersion": "^2.0.0",
-                        "pool": "ui",
-                        "entries": {
-                          "@nf-lab/ui-dom": "_nf_lab_ui_dom.rBIPcZn2qo.js"
-                        }
-                      }
-                    ]
-                  },
-                  {
-                    "tag": "1.1.0",
+                    "tag": "1.0.0",
                     "host": false,
                     "action": "skip",
                     "remotes": [
                       {
+                        "name": "mfe1",
+                        "strictVersion": true,
+                        "cached": true,
+                        "requiredVersion": ">=1.0.0 <3.0.0",
+                        "pool": "ui",
+                        "entries": {
+                          "@nf-lab/ui-dom": "_nf_lab_ui_dom.LEdXNkv1m2.js"
+                        },
+                        "servedBy": "mfe1"
+                      },
+                      {
                         "name": "mfe2",
-                        "strictVersion": false,
+                        "strictVersion": true,
                         "cached": false,
                         "requiredVersion": ">=1.0.0 <3.0.0",
                         "pool": "ui",
                         "entries": {
-                          "@nf-lab/ui-dom": "_nf_lab_ui_dom.dFB1zhKPhR.js"
-                        }
-                      }
-                    ]
-                  },
-                  {
-                    "tag": "1.1.0",
-                    "host": false,
-                    "action": "scope",
-                    "remotes": [
-                      {
-                        "name": "mfe1",
-                        "strictVersion": false,
-                        "cached": true,
-                        "requiredVersion": "^1.0.0",
-                        "pool": "ui",
-                        "entries": {
-                          "@nf-lab/ui-dom": "_nf_lab_ui_dom.dFB1zhKPhR.js"
+                          "@nf-lab/ui-dom": "_nf_lab_ui_dom.LEdXNkv1m2.js"
                         },
-                        "poolCause": "incompatible"
+                        "servedBy": "mfe1"
+                      },
+                      {
+                        "name": "mfe3",
+                        "strictVersion": true,
+                        "cached": false,
+                        "requiredVersion": ">=1.0.0 <3.0.0",
+                        "entries": {
+                          "@nf-lab/ui-dom": "_nf_lab_ui_dom.LEdXNkv1m2.js"
+                        },
+                        "servedBy": "mfe1"
                       }
                     ]
                   }
                 ],
-                "poolWinner": "__NF-HOST__",
-                "servingBuild": "__NF-HOST__"
+                "poolWinner": "__NF-HOST__"
               }
             }
           }
@@ -188,7 +186,7 @@
     },
     "orchestratorGlobal": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:38:52.060Z",
+      "observedAt": "2026-10-20T08:59:20.420Z",
       "data": {
         "present": true,
         "valueType": "object",
@@ -214,26 +212,34 @@
     },
     "domImportMaps": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:38:52.060Z",
+      "observedAt": "2026-10-20T08:59:20.420Z",
       "data": {
         "count": 1,
         "maps": [
           {
             "index": 0,
             "type": "importmap-shim",
-            "text": "{\"imports\":{\"@nf-lab/ui-core\":\"./_nf_lab_ui_core.jpfHqL1p12.js\",\"@nf-lab/ui-dom\":\"./_nf_lab_ui_dom.rBIPcZn2qo.js\",\"mfe1/./main\":\"./mfe1/main-DXLIHA7T.js\",\"mfe2/./main\":\"./mfe2/main-DXLIHA7T.js\"},\"scopes\":{\"./mfe1/\":{\"@nf-lab/ui-core\":\"./mfe1/_nf_lab_ui_core.omKXFDLfPd.js\",\"@nf-lab/ui-dom\":\"./mfe1/_nf_lab_ui_dom.dFB1zhKPhR.js\"}}}",
+            "text": "{\"imports\":{\"@nf-lab/ui-core\":\"./_nf_lab_ui_core.jpfHqL1p12.js\",\"mfe1/./main\":\"./mfe1/main-DXLIHA7T.js\",\"mfe2/./main\":\"./mfe2/main-DXLIHA7T.js\",\"mfe3/./main\":\"./mfe3/main-DXLIHA7T.js\"},\"scopes\":{\"./mfe1/\":{\"@nf-lab/ui-core\":\"./mfe1/_nf_lab_ui_core.FGCSlTph3q.js\",\"@nf-lab/ui-dom\":\"./mfe1/_nf_lab_ui_dom.LEdXNkv1m2.js\"},\"./mfe2/\":{\"@nf-lab/ui-core\":\"./mfe1/_nf_lab_ui_core.FGCSlTph3q.js\",\"@nf-lab/ui-dom\":\"./mfe1/_nf_lab_ui_dom.LEdXNkv1m2.js\"},\"./mfe3/\":{\"@nf-lab/ui-core\":\"./mfe1/_nf_lab_ui_core.FGCSlTph3q.js\",\"@nf-lab/ui-dom\":\"./mfe1/_nf_lab_ui_dom.LEdXNkv1m2.js\"}}}",
             "parsed": true,
             "map": {
               "imports": {
                 "@nf-lab/ui-core": "./_nf_lab_ui_core.jpfHqL1p12.js",
-                "@nf-lab/ui-dom": "./_nf_lab_ui_dom.rBIPcZn2qo.js",
                 "mfe1/./main": "./mfe1/main-DXLIHA7T.js",
-                "mfe2/./main": "./mfe2/main-DXLIHA7T.js"
+                "mfe2/./main": "./mfe2/main-DXLIHA7T.js",
+                "mfe3/./main": "./mfe3/main-DXLIHA7T.js"
               },
               "scopes": {
                 "./mfe1/": {
-                  "@nf-lab/ui-core": "./mfe1/_nf_lab_ui_core.omKXFDLfPd.js",
-                  "@nf-lab/ui-dom": "./mfe1/_nf_lab_ui_dom.dFB1zhKPhR.js"
+                  "@nf-lab/ui-core": "./mfe1/_nf_lab_ui_core.FGCSlTph3q.js",
+                  "@nf-lab/ui-dom": "./mfe1/_nf_lab_ui_dom.LEdXNkv1m2.js"
+                },
+                "./mfe2/": {
+                  "@nf-lab/ui-core": "./mfe1/_nf_lab_ui_core.FGCSlTph3q.js",
+                  "@nf-lab/ui-dom": "./mfe1/_nf_lab_ui_dom.LEdXNkv1m2.js"
+                },
+                "./mfe3/": {
+                  "@nf-lab/ui-core": "./mfe1/_nf_lab_ui_core.FGCSlTph3q.js",
+                  "@nf-lab/ui-dom": "./mfe1/_nf_lab_ui_dom.LEdXNkv1m2.js"
                 }
               }
             }
@@ -243,7 +249,7 @@
     },
     "importShim": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:38:52.060Z",
+      "observedAt": "2026-10-20T08:59:20.421Z",
       "data": {
         "present": true,
         "valueType": "function",
@@ -251,14 +257,22 @@
         "map": {
           "imports": {
             "@nf-lab/ui-core": "http://localhost:4300/_nf_lab_ui_core.jpfHqL1p12.js",
-            "@nf-lab/ui-dom": "http://localhost:4300/_nf_lab_ui_dom.rBIPcZn2qo.js",
             "mfe1/./main": "http://localhost:4300/mfe1/main-DXLIHA7T.js",
-            "mfe2/./main": "http://localhost:4300/mfe2/main-DXLIHA7T.js"
+            "mfe2/./main": "http://localhost:4300/mfe2/main-DXLIHA7T.js",
+            "mfe3/./main": "http://localhost:4300/mfe3/main-DXLIHA7T.js"
           },
           "scopes": {
             "http://localhost:4300/mfe1/": {
-              "@nf-lab/ui-core": "http://localhost:4300/mfe1/_nf_lab_ui_core.omKXFDLfPd.js",
-              "@nf-lab/ui-dom": "http://localhost:4300/mfe1/_nf_lab_ui_dom.dFB1zhKPhR.js"
+              "@nf-lab/ui-core": "http://localhost:4300/mfe1/_nf_lab_ui_core.FGCSlTph3q.js",
+              "@nf-lab/ui-dom": "http://localhost:4300/mfe1/_nf_lab_ui_dom.LEdXNkv1m2.js"
+            },
+            "http://localhost:4300/mfe2/": {
+              "@nf-lab/ui-core": "http://localhost:4300/mfe1/_nf_lab_ui_core.FGCSlTph3q.js",
+              "@nf-lab/ui-dom": "http://localhost:4300/mfe1/_nf_lab_ui_dom.LEdXNkv1m2.js"
+            },
+            "http://localhost:4300/mfe3/": {
+              "@nf-lab/ui-core": "http://localhost:4300/mfe1/_nf_lab_ui_core.FGCSlTph3q.js",
+              "@nf-lab/ui-dom": "http://localhost:4300/mfe1/_nf_lab_ui_dom.LEdXNkv1m2.js"
             }
           },
           "integrity": {}

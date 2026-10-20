@@ -392,9 +392,6 @@ separately:
 - `anchored` — `servedBy` is present and the target matches an anchor
   candidate of that remote within the share scope, across external records;
   `servedBy === consumerRemote` is a valid self-anchor.
-- `self-filled` — a `skip` claim resolves to the unique matching `skip`
-  candidate of the same shared external (its own declaration or the first
-  filler of the entry).
 - `own-selected` — the target exactly equals the claim's own candidate URL.
 - `fallback` — a `skip` claim resolves to the unique matching `share` source
   of the same shared external; the raw action is retained.
@@ -512,8 +509,7 @@ Source provenance and effective behavior stay separate axes:
 - `effectiveRoles` (sorted, coexisting) derive from the attached claim and
   action evidence, never from consumer counts: a selected `share` surface
   contributes `ordinary-shared` even with a single consumer, a `scope`
-  declaration's own mapping contributes `isolated-own`, a selected skip
-  self-fill source `self-filled-source`, selection through an explicit
+  declaration's own mapping contributes `isolated-own`, selection through an explicit
   `servedBy` `anchor-source`, a private registration's own mapping
   `private-own`, and a copy no closed rule explains stays `unclassified`.
 - `sourceActions` lists evidenced source actions only, never every consumer
@@ -575,7 +571,6 @@ classDiagram
     +string? electedTag
     +VersionVerdict[] versions
     +DeclarationVerdictRecord[] declarations
-    +TornEntrypoint[] torn
   }
   class VersionVerdict {
     +string tag
@@ -686,8 +681,8 @@ identifiable `servedBy` anchor is that copy's source already, and a
 non-selected bundle-bearing declaration donates nothing. A claim is
 `mapped-source` only when registered `shared-chunks` evidence of
 `(sourceRemote, bundle)` backs it; a declared bundle without registered
-chunks stays `source-only` (named-share-scope and dynamic self-fill map the
-file without registering its bundle — absence there is qualified evidence,
+chunks stays `source-only` (a named share scope maps the file without
+registering its bundle — absence there is qualified evidence,
 never "missing" or "downloaded"); an ambiguous-source copy surfaces every
 candidate `(sourceRemote, bundle)` pair as `ambiguous` without attributing
 chunks. Structural zero-entry bundle lists (`mapping-or-exposed`) contribute
@@ -706,12 +701,11 @@ re-runs nothing the orchestrator decided: the serving build per
 `(remote, member)` is read off the stored row — `scope` is the remote's own
 build, `servedBy` names the build, otherwise the first participant of the
 `share` row — and the status matrix folds those into bands per build with
-one verdict (`torn > isolated > redirected > one-build`). The model makes two
-computations of its own, both consistency checks on stored facts: a strict
-range that rejects the shared tag (npm `semver`, the orchestrator's own
-`satisfies` call) marks a `conflict` cell, and a resolved combination no
-single build ships marks a torn consumer. A stored `poolCause` is published
-as is, never inferred. `copyGroupingFacets` (one per copy, same order) names
+one verdict (`isolated > redirected > one-build`). The model makes one
+computation of its own, a consistency check on stored facts: a strict range
+that rejects the shared tag (npm `semver`, the orchestrator's own `satisfies`
+call) marks a `conflict` cell. A stored `poolCause` is published as is, never
+inferred. `copyGroupingFacets` (one per copy, same order) names
 each copy's share scope, tag pool, and build outputs; the Graph's share-scope,
 pool, and build groupings read nothing else.
 
@@ -725,10 +719,12 @@ from `out-of-range` (a non-strict declaration the orchestrator left on a
 plain `skip` although its range rejects the elected tag). Each registered
 version carries its status (`shared`, `scoped`, `partly-mapped`,
 `not-mapped`) and its builds, the copies that materialize it with their
-entry and chunk files; `merged` marks a version assembled from several
-builds, observed from the map. `torn` lists specifiers the elected version's
-copies lack and another version self-fills. An unreadable range or a
-missing election yields `unknown`, never a guess.
+entry and chunk files; `merged` marks a shared version the map assembles from
+more than one `share`-row build, which orchestrator 4.8 does only without a
+serving build. Orchestrator 4.8 never fills an entrypoint from another build
+(no tear): a copy the serving build does not cover runs from its own build as
+a `scope` row. An unreadable range or a missing election yields `unknown`,
+never a guess.
 
 Completeness counts each unique binding once: `total` reports unknown,
 unmapped, and blocked bindings plus ambiguous source claims without double

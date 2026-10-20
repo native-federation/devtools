@@ -1,8 +1,8 @@
 {
   "schemaVersion": "lab-lossless-capture/1",
-  "capturedAt": "2026-10-20T08:38:44.059Z",
+  "capturedAt": "2026-10-20T08:59:00.470Z",
   "scenario": {
-    "scenarioId": "dense-externals-only",
+    "scenarioId": "dense-both",
     "orchestratorCommit": "4.8.0",
     "ready": true,
     "readyError": null
@@ -11,7 +11,7 @@
     "url": "http://localhost:4300/",
     "origin": "http://localhost:4300",
     "path": "/",
-    "title": "nf-lab dense-externals-only",
+    "title": "nf-lab dense-both",
     "readyState": "complete"
   },
   "collector": {
@@ -21,15 +21,15 @@
   "channels": {
     "nativeFederationGlobals": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:38:44.058Z",
+      "observedAt": "2026-10-20T08:59:00.470Z",
       "data": {
         "present": true,
         "valueType": "object",
         "namespaceKeys": [
           "cache-state",
           "remotes",
-          "scoped-externals",
-          "shared-externals"
+          "shared-externals",
+          "shared-chunks"
         ],
         "namespace": {
           "cache-state": {
@@ -51,16 +51,6 @@
               "exposes": []
             }
           },
-          "scoped-externals": {
-            "mfe1": {
-              "@nf-internal/chunk-Y6UYBMA7": {
-                "tag": "0.0.0",
-                "entries": {
-                  "@nf-internal/chunk-Y6UYBMA7": "chunk-Y6UYBMA7.js"
-                }
-              }
-            }
-          },
           "shared-externals": {
             "__GLOBAL__": {
               "@nf-lab/dense-lib": {
@@ -73,6 +63,7 @@
                     "remotes": [
                       {
                         "name": "mfe1",
+                        "bundle": "browser-shared",
                         "strictVersion": false,
                         "cached": true,
                         "requiredVersion": "^1.0.0",
@@ -105,6 +96,7 @@
                       },
                       {
                         "name": "mfe1",
+                        "bundle": "browser-shared",
                         "strictVersion": false,
                         "cached": false,
                         "requiredVersion": "^1.0.0",
@@ -118,13 +110,21 @@
                 "servingBuild": "__NF-HOST__"
               }
             }
+          },
+          "shared-chunks": {
+            "mfe1": {
+              "browser-shared": [
+                "chunk-Y6UYBMA7.js"
+              ],
+              "mapping-or-exposed": []
+            }
           }
         }
       }
     },
     "orchestratorGlobal": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:38:44.059Z",
+      "observedAt": "2026-10-20T08:59:00.470Z",
       "data": {
         "present": true,
         "valueType": "object",
@@ -150,7 +150,7 @@
     },
     "domImportMaps": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:38:44.059Z",
+      "observedAt": "2026-10-20T08:59:00.470Z",
       "data": {
         "count": 1,
         "maps": [
@@ -178,7 +178,7 @@
     },
     "importShim": {
       "availability": "available",
-      "observedAt": "2026-10-20T08:38:44.059Z",
+      "observedAt": "2026-10-20T08:59:00.470Z",
       "data": {
         "present": true,
         "valueType": "function",

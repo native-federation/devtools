@@ -63,16 +63,6 @@
         }
       </div>
 
-      @if (scope.torn; as torn) {
-        <p class="torn-banner">
-          <span class="torn-word tip" [title]="torn.note">Torn</span>
-          {{ torn.text }}
-          <a class="torn-docs" [href]="torn.docsUrl" target="_blank" rel="noopener"
-            >What is torn? ↗</a
-          >
-        </p>
-      }
-
       <div class="table-scroll">
         <table class="versions">
           <thead>
@@ -198,11 +188,6 @@
                           <section>
                             <h4>
                               Entrypoints <span>{{ entrypoints.count }}</span>
-                              @if (entrypoints.fillsTorn; as fills) {
-                                <span class="h4-note tip" [title]="fills.note">{{
-                                  fills.label
-                                }}</span>
-                              }
                             </h4>
                             @for (group of entrypoints.groups; track $index) {
                               @if (group.build; as build) {
@@ -214,41 +199,9 @@
                                 @for (item of group.items; track item.specifier) {
                                   <li>
                                     <span class="mono">{{ item.specifier }}</span>
-                                    @if (item.torn; as torn) {
-                                      <span class="torn-note tip" [title]="torn.note">{{
-                                        torn.label
-                                      }}</span>
-                                    }
                                   </li>
                                 }
                               </ul>
-                            }
-                            @if (entrypoints.tornGroup; as tornGroup) {
-                              <details class="torn-group">
-                                <summary>
-                                  <span class="torn-note tip" [title]="tornGroup.note">{{
-                                    tornGroup.summary
-                                  }}</span>
-                                </summary>
-                                @for (group of tornGroup.groups; track group.tag) {
-                                  <p class="build-head">
-                                    <span class="mono">{{ group.tag }}</span>
-                                    @if (group.remote; as remote) {
-                                      ·
-                                      <nf-participant-chip
-                                        [name]="remote.name"
-                                        [host]="remote.host"
-                                      />
-                                    }
-                                    <span class="muted">{{ group.specifiers.length }}</span>
-                                  </p>
-                                  <ul>
-                                    @for (specifier of group.specifiers; track specifier) {
-                                      <li class="mono">{{ specifier }}</li>
-                                    }
-                                  </ul>
-                                }
-                              </details>
                             }
                           </section>
                         }

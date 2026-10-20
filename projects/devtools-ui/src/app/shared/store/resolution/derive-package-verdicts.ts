@@ -17,7 +17,6 @@ import type {
   DeclarationVerdict,
   DeclarationVerdictRecord,
   PackageScopeVerdicts,
-  TornEntrypoint,
   VersionBuild,
   VersionStatus,
   VersionVerdict,
@@ -123,7 +122,7 @@ export function derivePackageVerdicts(
         declarationIds: rows.flatMap((r) => r.participantDeclarationIds),
         copyIds: tagCopies.map((copy) => copy.id),
         builds,
-        merged: status === 'shared' && builds.length > 1,
+        merged: status === 'shared' && builds.filter((b) => b.fromShareRow).length > 1,
       };
     });
 
@@ -140,7 +139,6 @@ export function derivePackageVerdicts(
       electedDeclarationId: elected?.participantDeclarationIds[0] ?? null,
       versions,
       declarations,
-      torn: tornOf(external.packageName, electedTag, scopeCopies, claims),
     };
   });
 }
@@ -223,6 +221,7 @@ function buildFactory(
     return {
       copyId: copy.id,
       sourceRemote: sourceRemoteOf(copy),
+      fromShareRow: copy.sourceDisposition === 'share-registration',
       specifiers: Object.keys(copy.entrypoints),
       entryFiles: Object.entries(copy.entrypoints).map(([specifier, url]) => ({
         specifier,
@@ -232,35 +231,4 @@ function buildFactory(
       chunkFiles,
     };
   };
-}
-
-// A tear is a self-filled claim onto a copy of another tag; a same-tag fill is a merged build.
-function tornOf(
-  packageName: string,
-  electedTag: string | null,
-  scopeCopies: readonly ResolvedDependencyCopy[],
-  claims: readonly DeclarationResolutionClaim[],
-): TornEntrypoint[] {
-  if (electedTag === null) return [];
-  const copyById = new Map(scopeCopies.map((copy) => [copy.id, copy]));
-  const bySpecifier = new Map<string, TornEntrypoint>();
-  for (const claim of claims) {
-    if (claim.mappingState !== 'self-filled' || claim.copyId === null) continue;
-    if (claim.consumerRegistryPackage !== packageName) continue;
-    const copy = copyById.get(claim.copyId);
-    if (copy === undefined || copy.resolvedTag === null || copy.resolvedTag === electedTag)
-      continue;
-    const entry = bySpecifier.get(claim.specifier) ?? {
-      specifier: claim.specifier,
-      fillingTag: copy.resolvedTag,
-      fillingRemote: sourceRemoteOf(copy),
-      copyId: copy.id,
-      consumerRemotes: [],
-    };
-    if (!entry.consumerRemotes.includes(claim.consumerRemote)) {
-      entry.consumerRemotes = [...entry.consumerRemotes, claim.consumerRemote].sort();
-    }
-    bySpecifier.set(claim.specifier, entry);
-  }
-  return [...bySpecifier.values()].sort((a, b) => (a.specifier < b.specifier ? -1 : 1));
 }
