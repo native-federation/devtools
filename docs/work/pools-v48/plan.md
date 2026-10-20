@@ -247,10 +247,127 @@ the orchestrator's "What pooling stores" section.
 
 - **T7-AC-01** — no doc mentions torn/self-fill except a 4.7 compatibility note.
 
+## Task 8: Pool chip jumps to the remote's Pools row
+
+Status: DONE (committed with Task 9). Picked up from Task 6 after Task 7. Amendment: landing also selects the global-map band.
+
+Goal: a `pool: <tag>` chip in Packages or Remotes opens Pools with its card
+selected **and** the declaring remote's row marked and scrolled into view.
+Today the chip already lands on `/pools?select=<tag pool ID>`; the remote is
+dropped. The link carries identifiers only, never a derived placement.
+
+### Instructions
+
+- Route convention (`app.routes.ts` doc comment): `/pools?select=<tag pool ID>&remote=<participant>`;
+  `remote` without `select` is ignored.
+- `shared/pool-chip.ts`: replace `poolSelect: string | null` with
+  `poolQuery: { select: string; remote: string } | null` from `outcome.pool.id`
+  and `declaration.participant`. Orphan chips keep linking to bare `/pools`,
+  strict-tag chips stay unlinked.
+- The five chip sites (`remote-detail.html` ×3, `package-detail.html` ×2) bind
+  `[queryParams]="pool.poolQuery ?? {}"`; extract the repeated chip block into
+  one component only if it simplifies the templates.
+- `views/pools/pools.ts`: read `remote` next to `select`; the matching row
+  (`row.remote.name`) in the selected card gets `.selected` (light and dark)
+  and `aria-current="true"` on its row header.
+- Scroll the marked row (else the selected card) into view once, after the
+  rows exist — reuse the `import-map.ts` effect + `setTimeout` +
+  `scrolledToSelection` pattern.
+- An unknown `remote` marks no row and does not throw; the card stays selected.
+
+### Acceptance
+
+- **T8-AC-01** — Remotes detail pool chip href is `/pools?select=<pool ID>&remote=<remote>`;
+  landing on it marks exactly that row in exactly that card (`pools-cross-links.spec.ts`, real routes).
+- **T8-AC-02** — the same from a Packages deep-dive declaration chip.
+- **T8-AC-03** — on `pool-subpool` or `pool-incompatible-nonstrict`, the marked row sits in the
+  `Subpool` / `Own build` band with its reason line.
+- **T8-AC-04** — unknown `remote`, or `remote` without `select`: no row marked, no error.
+- **T8-AC-05** — full UI suite, extension build and panel-bundle check pass; dev server checked light and dark.
+
+### Key Locations
+
+- `shared/pool-chip.ts`, `views/pools/{pools.ts,pools.html,pools.css,pools-cross-links.spec.ts}`,
+  `views/remotes/remote-detail.html`, `views/packages/{package-detail.html,packages-view-model.spec.ts}`,
+  `views/import-map/import-map.ts` (scroll-once), `app.routes.ts`
+
+## Task 9: Pools matrix layout and compact range reasons
+
+Status: DONE (committed with Task 8). Found while checking Task 8 on a real
+4.8 page with strict ranges across 13 entrypoints; grew into selection, the
+per-build view, the issue-centric warning and the orchestrator parity fix.
+
+### Instructions
+
+- Range reasons name packages (pool members), one clause per range and tag,
+  with an entrypoint count when there are more entrypoints than packages;
+  strictness per group when one range mixes both (`shared/placement-text.ts`).
+- No reason inside the matrix: a cause chip next to the remote (`version
+  conflict`, `not covered`, `unexplained`; tooltip: every reason), and a list
+  under the verdict — one line per set of remotes sharing the same reasons.
+  A chip's `remote` marks its row and its list entry.
+- An own-build remote also says why no subpool's build serves it
+  (`PoolConsumer.subpoolMisses`, recomputed like the orchestrator's `serves`:
+  range, then coverage), e.g. `not in the subpool of X: its build lacks …`.
+- Fixed version-column widths (`table-layout: fixed`, width from the column
+  count); the remote column is measured from its widest cell across all
+  cards (capped at 420px, 240px when unmeasured). Horizontal scroll inside
+  the card with the remote column, band labels and reasons pinned left.
+- Judge the pool against one build: clicking a subpool or own-build band
+  label (`PoolFamily.lenses`, one per remote's build, recomputed like
+  `serves`) recolours the cells against that build, swaps coverage and the
+  verdict line for that build's, and lists per remote whether it fits or why
+  not, next to where it actually runs (`runs on: …`). The global band label
+  (or a second click) goes back. What-if evidence only; placement stays as
+  stored. Worded as "fits" (the `serves` check), not "would serve": the
+  election itself is deliberately not re-implemented, to stay decoupled.
+- The warning box under the matrix (above the verdict card, so selecting never shifts the rows) is the issue list, one line per
+  problem, not per remote, remotes first: `<remotes> conflict <packages>
+  global <tag> · needs <range> (strict)` (strict first), `<remotes> missing
+  <entrypoint>`, `<remotes> unshipped …`; a subpool's remotes show once, as
+  its owner (`↪ subpool · n`, named on hover). The per-remote reasons (incl. `not in the
+  subpool of X`, `runs on`) live in the cause chip's tooltip; no per-remote
+  list under the matrix (unreadable at 20+ remotes). The verdict line stays
+  as a card header (with a reset button while judging a build); the judged
+  band is tinted.
+- Selection: nothing selected by default (no warning box, neutral coverage
+  line). Every band label selects its pool — the global map included —
+  and a click on a remote's row selects the pool it runs in; the selected
+  band is tinted and its issues fill the warning. A pool chip's `remote`
+  lands with the global map selected (why the remote runs where it does).
+- Tooltips are the view's own (styled, instant, keyboard-focusable; a bold
+  header line, causes set off); hovering a row lights its issue lines and an
+  issue line lights its rows.
+- Scales to 20–50 remotes: remote chips cap at six (five plus `+N more`,
+  named on hover); identical reasons share one card line.
+- Pool membership follows the orchestrator that stored it: a stored
+  `poolName` groups first; else v4.8 records (`poolWinner`) link one label
+  across every remote (`membership.ts`), older ones per remote
+  (`pool-graph.ts`). Found by replaying 460 portfolios from the
+  orchestrator's own generator (`generate-portfolio.ts`) through the
+  derivation: 4 of 6,843 placements disagreed, all from this rule; 0 after.
+- A pool whose members span several npm scopes gets a scope header row (one
+  cell per run of columns, unscoped runs blank) and every label drops its own
+  scope; widths come from a `<colgroup>` so either header row may come first.
+- Update the wording contract (`design/pools-reasons-mock.md`).
+
+### Acceptance
+
+- **T9-AC-01** — every matrix row is one line high whatever its reason or remote name.
+- **T9-AC-05** — mixed scopes: scope groups in order, labels without their scope; a single scope keeps the corner prefix.
+- **T9-AC-04** — the cause chip's tooltip carries every reason; the list groups remotes with identical reasons.
+- **T9-AC-07** — `pool-portfolio`, build of contacts: serves 11 of 12; legacy `version conflict with the build of contacts`, `runs on: its own build`; the global band label returns to the stored view.
+- **T9-AC-06** — `pool-portfolio`: legacy lists why contacts' subpool does not take it (strict range on 18.1.3).
+- **T9-AC-02** — `pool-portfolio`: legacy's reason reads `its range ^16.0.0 rejects the global 18.2.0 of
+  @nf-lab/acme-core, @nf-lab/acme-router (strict) and @nf-lab/acme-common (not strict)`.
+- **T9-AC-03** — synthetic secondaries collapse into their package with an entrypoint count.
+
+### Key Locations
+
+- `shared/placement-text.ts`, `views/pools/{pools-view-model.ts,pools.html,pools.css}`, `design/pools-reasons-mock.md`
+
 ## Out of scope
 
-- A pool chip that jumps to the remote's row in Pools (Task 6; needs a Pools
-  `remote` query parameter).
 - Strict-scope per-tag fallbacks (not stored; recompute later from `strictTagScopes` rules).
 - Reading orchestrator log lines (gap/strict detail is re-derived instead).
 - A page-wide "no tear" import walk (the orchestrator's test oracle `page-graph.ts`).

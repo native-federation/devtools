@@ -55,6 +55,11 @@ export interface PoolConsumer {
   consistent: boolean;
   /** Member package → the remote whose build serves it to this consumer. */
   servingBuilds: Record<string, string>;
+  /**
+   * On its own build: why each subpool's build does not serve it either, recomputed like the
+   * orchestrator's `serves` (range, then coverage). A null miss: it fits that build.
+   */
+  subpoolMisses: { owner: string; miss: PoolMiss | null }[];
 }
 
 /** One specifier the global map serves for the pool, at the tag of the build it comes from. */
@@ -151,6 +156,30 @@ export interface PoolCoverage {
   missing: { specifier: string; remotes: string[] }[];
 }
 
+/** One copy judged against a lens build: its range rejects the build's tag, the build lacks an entrypoint, or it fits. */
+export interface PoolLensCell {
+  state: 'rejected' | 'gap' | 'accepted';
+  /** The lens build's tag for the member; null when it does not ship it. */
+  tag: string | null;
+  requiredVersion: string;
+  strictVersion: boolean;
+  /** Entrypoints of the copy the lens build does not ship. */
+  missing: string[];
+}
+
+/**
+ * Every remote judged against one remote's build instead of the global map, recomputed like the
+ * orchestrator's `serves` (range, then coverage). What-if evidence: placement stays as stored.
+ */
+export interface PoolLens {
+  owner: string;
+  coverage: PoolCoverage;
+  /** Pool remote order; a null miss: it fits the build (not a prediction of the election). */
+  consumers: { remote: string; miss: PoolMiss | null }[];
+  /** Remote → cells following the family's `members`; null where it does not declare the member. */
+  cells: Record<string, (PoolLensCell | null)[]>;
+}
+
 export interface PoolStatusMatrix {
   bands: PoolBuildBand[];
   verdict: PoolVerdict;
@@ -168,6 +197,8 @@ export interface PoolFamily {
   /** Remotes grouped by the build they load, with every copy's state; the Pools tab's matrix. */
   statusMatrix: PoolStatusMatrix;
   consumers: PoolConsumer[];
+  /** One per remote that ships a member: the pool judged against that remote's build. */
+  lenses: PoolLens[];
   /** A member record is `dirty`, or its scope awaits a re-decision: outcomes not settled. */
   pending: boolean;
   /** A runtime load wrote the pool's scope since its serving builds were decided (`undecidedScopes`). */

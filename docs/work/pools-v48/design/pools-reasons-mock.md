@@ -31,11 +31,38 @@ not covered: the global map lacks @nf-lab/acme-animations, @nf-lab/acme-forms
   contacts [acme]      18.1.3▒   18.1.3■     18.1.3■   18.1.3▒   18.1.3■
   invoices [acme] ↪ subpool  18.1.3▒  18.1.3 …
 Own build · legacy
-version conflict: its range rejects the global @nf-lab/acme-core 18.2.0 (^16.0.0, strict), @nf-lab/acme-router 18.2.0 (^16.0.0, strict), @nf-lab/acme-common 18.2.0 (^16.0.0, not strict)
   legacy [acme]        16.2.12▒  16.2.12✕   16.2.12✕  16.2.12▒  16.2.12✕
+    version conflict: its range ^16.0.0 rejects the global 18.2.0 of @nf-lab/acme-core, @nf-lab/acme-router (strict) and @nf-lab/acme-common (not strict)
 ✕ Own build · version conflict  legacy · 3 rejections · 4 remotes in a subpool
 ```
 
+- **Judge against a build:** a subpool / own-build band label is a toggle.
+  Pressed: cells against that build (`rejected`, `gap`, its owner green),
+  coverage `Build of <X> ships …`, verdict `◎ Build of <X> — fits <n>
+  of <m> remotes · <k> version conflicts · <j> not covered`, list lines
+  `fits the build of <X>: …` or `<cause> with the build of <X>: …`, then
+  `runs on: <actual placement>`. Chips only for misses and `this build`.
+  "Fits" is the orchestrator's `serves` check only, never a prediction of the
+  election (ranking, subpool order, extensions, host precedence are not
+  re-run); the devtools stay decoupled from `election.ts`.
+- **Columns:** one npm scope → shown once in the matrix corner (`@nf-lab/`);
+  several → a scope row above the labels, one cell per run of columns. Labels
+  never repeat their scope.
+- **Matrix:** every version column 8em; the remote column fits the widest
+  remote cell across cards (max 420px); a long reason never widens the table. A pool wider than the card scrolls
+  sideways with the remote column, band labels and reasons pinned left.
+- **Selection:** none by default; the warning box shows only for the
+  selected pool (band): the global map's issues, or the judged build's. A row
+  click selects its band; a chip landing selects the global map.
+- **Issues (the warning box, under the matrix):** one line per problem, conflicts first
+  (strict, then by remotes hit), remotes first in their own column:
+  `<remote chips> CONFLICT <packages, two then +N> global <tag> · needs
+  <range> (strict)`, `<remote chips> MISSING <specifier>`, `<remote chips>
+  UNSHIPPED <gap> with the rest in no single build`. A subpool's remotes are
+  one chip, its owner, with `↪ subpool · n` (members named on hover). Judging a build: `build of <X> <tag>`. Remote
+  chips cap at six (five plus `+N more`, named on hover).
+- **Per-remote reasons:** only in the cause chip's tooltip (all reasons, one
+  per line); the verdict line heads a small card under the matrix.
 - **Coverage line** (under the header): `Global map serves all <n>
   entrypoints the remotes import`, or `… serves <s> of <n> … · missing:
   <specifier> (<remotes>), …` in warning colour.
@@ -44,13 +71,15 @@ version conflict: its range rejects the global @nf-lab/acme-core 18.2.0 (^16.0.0
   `Own build · <remote>`, `Unknown placement`. Note: `serves <n> other(s)`,
   `host precedence`, and on the global band each extension
   `<member> <tag> from <build>`.
-- **Reason line:** under the band label when every row of the band shares it
-  (a subpool's members, a one-remote own build), else under the remote.
-  `<cause>: <text>`:
+- **Reasons:** a cause chip next to the remote (tooltip: all its reasons);
+  the full text in a list under the verdict, one entry per set of remotes with
+  identical reasons, so a row is always one line high. An own-build remote
+  adds `not in the subpool of <owner>: <text>` per subpool (judged against
+  `its build`). `<cause>: <text>`:
 
 | Miss | Text |
 |---|---|
-| range | `its range rejects the global <specifier> <tag> (<range>, strict \| not strict), …` |
+| range | one clause per range and tag, joined by `; `: `its range <range> (strict \| not strict) rejects the global <tag> of <package>, …[ (<n> entrypoints)]`; when one range mixes both: `<range> rejects the global <tag> of <packages> (strict) and <packages> (not strict)`. Packages, not entrypoints — the cells' tooltips name each. |
 | coverage | `the global map lacks <specifier>, …` |
 | unshipped | `every entrypoint is on the global map, but no single build ships <gap> with the rest` |
 | subpool owner the map would serve | `the global map would serve it; its build stays for the remotes of its subpool` |

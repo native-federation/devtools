@@ -1174,12 +1174,12 @@ describe('buildPackageDetail — pool chips (share-pools T5)', () => {
     for (const pkg of ['@nf-lab/ui-core', '@nf-lab/ui-dom']) {
       const chips = chipsOf('pool-tag-coherent', pkg);
       expect(chips.map((chip) => chip.name)).toEqual(['mfe1', 'mfe2']);
-      for (const { pool } of chips) {
+      for (const { name, pool } of chips) {
         expect(pool).toEqual({
           tag: 'ui',
           note: 'explicit pool tag declared by this remote (config: pool on the shared external) — member of pool ui',
           orphan: false,
-          poolSelect: 'tag-pool:["__GLOBAL__","@nf-lab/ui-core",0]',
+          poolQuery: { select: 'tag-pool:["__GLOBAL__","@nf-lab/ui-core",0]', remote: name },
         });
       }
     }
@@ -1190,7 +1190,7 @@ describe('buildPackageDetail — pool chips (share-pools T5)', () => {
     expect(chips.find((chip) => chip.name === 'mfe1')!.pool).toMatchObject({
       tag: 'ui',
       orphan: true,
-      poolSelect: null,
+      poolQuery: null,
     });
     expect(chips.find((chip) => chip.name === 'mfe1')!.pool!.note).toContain(
       'likely a typo or a missing sibling',

@@ -382,7 +382,7 @@ describe('buildRemoteDetail — registry action ≠ zone (T8.6-AC-03)', () => {
     const dom = dashboard.provides.find((block) => block.packageName === '@nf-lab/chart-dom')!;
     expect(dom.deviations[0]).toEqual({
       label: 'isolated',
-      note: 'runs its own build — version conflict: its range rejects the global @nf-lab/chart-dom 1.1.0 (^2.0.0, strict)',
+      note: 'runs its own build — version conflict: its range ^2.0.0 (strict) rejects the global 1.1.0 of @nf-lab/chart-dom',
     });
   });
 

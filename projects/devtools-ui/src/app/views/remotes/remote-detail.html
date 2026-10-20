@@ -99,13 +99,13 @@
               >
             }
             @if (block.pool; as pool) {
-              @if (pool.poolSelect !== null || pool.orphan) {
+              @if (pool.poolQuery !== null || pool.orphan) {
                 <a
                   class="pool-chip tip"
                   [class.pool-chip-orphan]="pool.orphan"
                   [title]="pool.note"
                   [routerLink]="['/pools']"
-                  [queryParams]="pool.poolSelect === null ? {} : { select: pool.poolSelect }"
+                  [queryParams]="pool.poolQuery ?? {}"
                   >pool: {{ pool.tag }}</a
                 >
               } @else {
@@ -271,13 +271,13 @@
             >
           }
           @if (row.pool; as pool) {
-            @if (pool.poolSelect !== null || pool.orphan) {
+            @if (pool.poolQuery !== null || pool.orphan) {
               <a
                 class="pool-chip tip"
                 [class.pool-chip-orphan]="pool.orphan"
                 [title]="pool.note"
                 [routerLink]="['/pools']"
-                [queryParams]="pool.poolSelect === null ? {} : { select: pool.poolSelect }"
+                [queryParams]="pool.poolQuery ?? {}"
                 >pool: {{ pool.tag }}</a
               >
             } @else {
@@ -385,13 +385,13 @@
             >
           }
           @if (row.pool; as pool) {
-            @if (pool.poolSelect !== null || pool.orphan) {
+            @if (pool.poolQuery !== null || pool.orphan) {
               <a
                 class="pool-chip tip"
                 [class.pool-chip-orphan]="pool.orphan"
                 [title]="pool.note"
                 [routerLink]="['/pools']"
-                [queryParams]="pool.poolSelect === null ? {} : { select: pool.poolSelect }"
+                [queryParams]="pool.poolQuery ?? {}"
                 >pool: {{ pool.tag }}</a
               >
             } @else {

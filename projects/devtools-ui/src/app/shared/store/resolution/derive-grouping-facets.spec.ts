@@ -138,13 +138,16 @@ describe('projection determinism (T3-AC-03)', () => {
 // `scope → package → [participant, tag?][]`, one `share` registration per package.
 type Registry = Record<string, Record<string, [string, string?][]>>;
 
-function poolsOf(registry: Registry) {
+// `stored`: what the orchestrator wrote back — a `poolWinner` (v4.8) and/or a `poolName` (v4.7+).
+function poolsOf(registry: Registry, stored: { winner?: string; poolName?: string } = {}) {
   const sharedExternals: NonNullable<SnapshotV1['runtime']>['sharedExternals'] = {};
   for (const [scope, packages] of Object.entries(registry)) {
     sharedExternals[scope] = {};
     for (const [pkg, participants] of Object.entries(packages)) {
       sharedExternals[scope][pkg] = {
         dirty: false,
+        ...(stored.winner === undefined ? {} : { poolWinner: stored.winner }),
+        ...(stored.poolName === undefined ? {} : { poolName: stored.poolName }),
         versions: [
           {
             tag: '1.0.0',
@@ -190,6 +193,27 @@ describe('tag-pool membership rules (T3-AC-04)', () => {
         },
       }),
     ).toEqual({ pools: ['__GLOBAL__ a: a,b', '__GLOBAL__ c: c,d'], orphans: [] });
+  });
+
+  // Orchestrator v4.8 `membership.ts`: "A label is one node across every remote".
+  const disjoint = {
+    __GLOBAL__: {
+      a: [['mfe1', 'ui']],
+      b: [['mfe1', 'ui']],
+      c: [['mfe2', 'ui']],
+      d: [['mfe2', 'ui']],
+    },
+  } satisfies Registry;
+
+  it('v4.8: one label is one pool across remotes, members shared or not', () => {
+    expect(poolsOf(disjoint, { winner: 'mfe1' })).toEqual({
+      pools: ['__GLOBAL__ a: a,b,c,d'],
+      orphans: [],
+    });
+  });
+
+  it("a stored poolName is the orchestrator's own grouping, whatever the labels say", () => {
+    expect(poolsOf(disjoint, { poolName: 'ui' }).pools).toEqual(['__GLOBAL__ ui: a,b,c,d']);
   });
 
   it('different tags join through a shared member', () => {

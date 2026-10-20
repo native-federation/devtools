@@ -463,3 +463,58 @@ describe('derivePoolFamilies — status matrix', () => {
     });
   });
 });
+
+// The lenses re-derive the orchestrator's `serves` (election.ts `formSubpools`, `settle`); on every
+// 4.8 capture they must agree with the placements the orchestrator stored.
+describe('derivePoolFamilies — lenses agree with the stored placements', () => {
+  const recorded = (Object.keys(FIXTURES) as FixtureId[]).flatMap((id) =>
+    [...poolsOf(id).values()]
+      .filter((family) => family.winner !== null && !family.pending)
+      .map((family) => ({ id, family })),
+  );
+
+  it('covers some 4.8 pools with subpools and own builds', () => {
+    const kinds = new Set(
+      recorded.flatMap(({ family }) => family.consumers.map((c) => c.placement.kind)),
+    );
+    expect(kinds).toEqual(new Set(['global', 'subpool', 'self']));
+  });
+
+  it("every subpool member fits its owner's build", () => {
+    const misfits = recorded.flatMap(({ id, family }) =>
+      family.consumers.flatMap((c) => {
+        if (c.placement.kind !== 'subpool') return [];
+        const lens = family.lenses.find(
+          (l) => l.owner === (c.placement as { owner: string }).owner,
+        );
+        const miss = lens?.consumers.find((x) => x.remote === c.remote)?.miss;
+        return lens && miss === null ? [] : [`${id}: ${c.remote}`];
+      }),
+    );
+    expect(misfits).toEqual([]);
+  });
+
+  it("no own-build remote fits a subpool's build", () => {
+    const fits = recorded.flatMap(({ id, family }) =>
+      family.consumers.flatMap((c) =>
+        c.subpoolMisses
+          .filter((s) => s.miss === null)
+          .map((s) => `${id}: ${c.remote} → ${s.owner}`),
+      ),
+    );
+    expect(fits).toEqual([]);
+  });
+
+  it('the global winner fits every remote the stored rows put on the global map', () => {
+    const misfits = recorded.flatMap(({ id, family }) => {
+      const lens = family.lenses.find((l) => l.owner === family.winner);
+      // Extensions widen the global map past the winner's build; only check pools without them.
+      if (!lens || family.globalSurface.some((e) => e.build !== family.winner)) return [];
+      return family.consumers
+        .filter((c) => c.placement.kind === 'global')
+        .filter((c) => lens.consumers.find((x) => x.remote === c.remote)?.miss !== null)
+        .map((c) => `${id}: ${c.remote}`);
+    });
+    expect(misfits).toEqual([]);
+  });
+});

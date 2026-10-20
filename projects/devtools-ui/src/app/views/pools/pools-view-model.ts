@@ -4,6 +4,9 @@ import type {
   PoolCellState,
   PoolConsumer,
   PoolFamily,
+  PoolLens,
+  PoolLensCell,
+  PoolMiss,
   PoolStatusCell,
   PoolStatusRow,
   PoolVerdict,
@@ -29,11 +32,13 @@ export const POOL_LEGEND: readonly { state: PoolCellState; label: string }[] = [
 export interface PoolRemoteVm {
   name: string;
   host: boolean;
+  /** In an issue line: the subpool this owner stands for, its remotes named; absent otherwise. */
+  subpool?: { count: number; names: string };
 }
 
 export interface PoolColumnVm {
   packageName: string;
-  /** The name without the pool's shared npm scope. */
+  /** The name without its npm scope (shown once above, or in the matrix corner). */
   label: string;
 }
 
@@ -52,6 +57,28 @@ export interface PoolReasonVm {
   text: string;
   /** The stored rows do not reproduce the stored cause or the placement. */
   unexplained: boolean;
+  /** Context, not a cause (`runs on: …`): shown quieter. */
+  aside?: boolean;
+}
+
+/** Remotes as chips, capped so a pool of 50 stays readable; the rest are named on hover. */
+export interface PoolRemoteListVm {
+  shown: PoolRemoteVm[];
+  more: number;
+  moreNames: string;
+}
+
+const REMOTE_CHIP_LIMIT = 6;
+
+export function remoteListOf(remotes: readonly PoolRemoteVm[]): PoolRemoteListVm {
+  const shown =
+    remotes.length > REMOTE_CHIP_LIMIT ? remotes.slice(0, REMOTE_CHIP_LIMIT - 1) : [...remotes];
+  const rest = remotes.slice(shown.length);
+  return {
+    shown,
+    more: rest.length,
+    moreNames: rest.map((remote) => participantDisplay(remote.name)).join(', '),
+  };
 }
 
 export interface PoolRowVm {
@@ -60,16 +87,40 @@ export interface PoolRowVm {
   tag: string | null;
   /** In a subpool on another remote's build. */
   redirected: boolean;
-  reason: PoolReasonVm | null;
+  /** Short cause next to the remote (`version conflict`, `unexplained`); its tooltip lists `reasons`. */
+  chip: { label: string; unexplained: boolean; tooltip: string } | null;
+  /** Why it is off the global map, then why no subpool's build serves it either. */
+  reasons: PoolReasonVm[];
   cells: PoolCellVm[];
 }
 
 export interface PoolBandVm {
   label: string;
   note: string | null;
-  /** The reason every row of the band shares, lifted out of the rows (full width); null otherwise. */
-  reason: PoolReasonVm | null;
+  /** The build a click judges the pool against; null for the global map (judged as stored). */
+  lensOwner: string | null;
+  /** A click selects it: the global map always, another build when it has a lens. */
+  selectable: boolean;
+  /** Selected: its issues show in the warning, and it is tinted. */
+  active: boolean;
   rows: PoolRowVm[];
+}
+
+/**
+ * One problem and the remotes it hits: a range rejecting a version (packages grouped), an
+ * entrypoint nothing serves, or a combination no single build ships.
+ */
+export interface PoolIssueVm {
+  kind: 'conflict' | 'missing' | 'unshipped';
+  label: string;
+  subject: string;
+  /** Every package when `subject` abbreviates them; null otherwise. */
+  subjectAll: string | null;
+  detail: string | null;
+  /** Who it hits, a subpool shown once as its owner. */
+  remotes: PoolRemoteListVm;
+  /** Every remote it hits, for highlighting their rows. */
+  all: PoolRemoteVm[];
 }
 
 export interface PoolVerdictVm {
@@ -91,13 +142,24 @@ export interface PoolCardVm {
   counts: string;
   tags: string;
   /** How much of what the remotes import the global map serves. */
-  coverage: { text: string; complete: boolean; missing: string[] };
+  coverage: {
+    text: string;
+    complete: boolean;
+    /** What keeps remotes off the map (or the judged build), one line per problem, not per remote. */
+    issues: PoolIssueVm[];
+  };
   /** The npm scope every column shares, shown once in the matrix corner. */
   scopePrefix: string | null;
+  /** With several scopes: one header cell per run of columns sharing a scope (`''` unscoped); else null. */
+  scopeGroups: { label: string; span: number }[] | null;
   columns: PoolColumnVm[];
   bands: PoolBandVm[];
   /** Null while the pool is pending. */
   verdict: PoolVerdictVm | null;
+  /** The build the card is judged against instead of the global map; null for the global map. */
+  lens: string | null;
+  /** A pool (band) is selected: the warning shows its issues. */
+  selected: boolean;
   pendingNote: string | null;
   notes: string[];
 }
@@ -111,13 +173,28 @@ export interface PoolsVm {
   emptyNote: string | null;
 }
 
+/**
+ * The selected band of one pool card: `owner` null selects the global map (as stored), else the
+ * card is judged against that remote's build (`PoolLens`).
+ */
+export interface PoolLensSelection {
+  poolId: string;
+  owner: string | null;
+}
+
 export function buildPoolsVm(
   projection: CanonicalResolutionProjection,
   orchestratorVersion: string | null,
+  lensSelection: PoolLensSelection | null = null,
 ): PoolsVm {
   const pools = projection.tagPools
     .map((pool, index) => ({
-      card: poolCardOf(pool, projection.poolFamilies[index], projection.tagPools),
+      card: poolCardOf(
+        pool,
+        projection.poolFamilies[index],
+        projection.tagPools,
+        lensSelection?.poolId === pool.id ? lensSelection : null,
+      ),
       rank: severity(projection.poolFamilies[index]),
       index,
     }))
@@ -148,12 +225,26 @@ function severity(family: PoolFamily): number {
   return ['isolated', 'redirected', 'one-build'].indexOf(family.statusMatrix.verdict.kind);
 }
 
-function poolCardOf(pool: TagPool, family: PoolFamily, allPools: readonly TagPool[]): PoolCardVm {
+function poolCardOf(
+  pool: TagPool,
+  family: PoolFamily,
+  allPools: readonly TagPool[],
+  selection: PoolLensSelection | null,
+): PoolCardVm {
+  const lens =
+    selection?.owner == null
+      ? null
+      : (family.lenses.find((l) => l.owner === selection.owner) ?? null);
+  // An owner without a lens (gone after a refresh) selects nothing.
+  const selected = selection !== null && (selection.owner === null || lens !== null);
   const tagStrings = [...new Set(pool.tags.map((tag) => tag.tag))].sort();
   const scopes = new Set(pool.members.map(npmScope));
   const scopePrefix = scopes.size === 1 ? [...scopes][0] : null;
   const pending = family.pending;
   const consumerOf = new Map(family.consumers.map((c) => [c.remote, c]));
+  const bands = family.statusMatrix.bands.map((band) =>
+    bandOf(band, family, pool.members, consumerOf, pending, lens, selected),
+  );
 
   return {
     id: pool.id,
@@ -161,16 +252,21 @@ function poolCardOf(pool: TagPool, family: PoolFamily, allPools: readonly TagPoo
     scopeLabel: pool.shareScope === GLOBAL_SCOPE ? null : pool.shareScope,
     counts: `${pool.members.length} packages · ${pool.remotes.length} remotes`,
     tags: `${tagStrings.length === 1 ? 'tag' : 'tags'}: ${tagStrings.join(', ')}`,
-    coverage: coverageOf(family),
+    coverage: lens ? lensCoverageOf(lens, family.consumers) : coverageOf(family, pending, selected),
     scopePrefix,
-    columns: pool.members.map((packageName) => ({
-      packageName,
-      label: scopePrefix ? packageName.slice(scopePrefix.length + 1) : packageName,
-    })),
-    bands: family.statusMatrix.bands.map((band) =>
-      bandOf(band, family, pool.members, consumerOf, pending),
-    ),
-    verdict: pending ? null : verdictOf(family.statusMatrix.verdict, family.consumers),
+    scopeGroups: scopes.size > 1 ? scopeGroupsOf(pool.members) : null,
+    columns: pool.members.map((packageName) => {
+      const scope = npmScope(packageName);
+      return { packageName, label: scope ? packageName.slice(scope.length + 1) : packageName };
+    }),
+    bands,
+    verdict: lens
+      ? lensVerdictOf(lens)
+      : pending
+        ? null
+        : verdictOf(family.statusMatrix.verdict, family.consumers),
+    lens: lens?.owner ?? null,
+    selected,
     pendingNote: pending
       ? family.undecided
         ? 'a runtime load changed this share scope — the next init decides it again; outcomes not settled yet'
@@ -180,19 +276,122 @@ function poolCardOf(pool: TagPool, family: PoolFamily, allPools: readonly TagPoo
   };
 }
 
-function coverageOf(family: PoolFamily): PoolCardVm['coverage'] {
+function coverageOf(
+  family: PoolFamily,
+  pending: boolean,
+  selected: boolean,
+): PoolCardVm['coverage'] {
   const { declared, served, missing } = family.coverage;
-  if (missing.length === 0)
-    return {
-      text: `Global map serves all ${plural(declared, 'entrypoint')} the remotes import`,
-      complete: true,
-      missing: [],
-    };
+  // Only remotes the stored rows keep off the global map; a pending pool has no settled reasons.
+  const off = pending ? [] : family.consumers.filter((c) => c.placement.kind !== 'global');
   return {
-    text: `Global map serves ${served} of ${plural(declared, 'entrypoint')} the remotes import`,
-    complete: false,
-    missing: missing.map((m) => `${m.specifier} (${m.remotes.map(participantDisplay).join(', ')})`),
+    text:
+      missing.length === 0
+        ? `Global map serves all ${plural(declared, 'entrypoint')} the remotes import`
+        : `Global map serves ${served} of ${plural(declared, 'entrypoint')} the remotes import`,
+    complete: missing.length === 0,
+    // The warning only while the global map is selected.
+    issues: selected
+      ? issuesOf(
+          off.map((c) => ({ remote: c.remote, miss: c.miss })),
+          missing,
+          'global',
+          family.consumers,
+        )
+      : [],
   };
+}
+
+const PACKAGES_SHOWN = 2;
+
+function issuesOf(
+  misses: readonly { remote: string; miss: PoolMiss | null }[],
+  missing: readonly { specifier: string; remotes: string[] }[],
+  which: string,
+  consumers: readonly PoolConsumer[],
+): PoolIssueVm[] {
+  const ownerOf = new Map(
+    consumers.flatMap((c) =>
+      c.placement.kind === 'subpool' ? [[c.remote, c.placement.owner]] : [],
+    ),
+  );
+  const remoteOf = (name: string): PoolRemoteVm => ({ name, host: isHostRemote(name) });
+  const conflicts = new Map<
+    string,
+    { tag: string; range: string; strict: boolean; members: Set<string>; remotes: Set<string> }
+  >();
+  const unshipped = new Map<string, string[]>();
+  for (const { remote, miss } of misses) {
+    if (miss?.kind === 'range')
+      for (const r of miss.rejections) {
+        const key = JSON.stringify([r.requiredVersion, r.strict, r.tag]);
+        const group = conflicts.get(key) ?? {
+          tag: r.tag,
+          range: r.requiredVersion,
+          strict: r.strict,
+          members: new Set<string>(),
+          remotes: new Set<string>(),
+        };
+        group.members.add(r.member);
+        group.remotes.add(remote);
+        conflicts.set(key, group);
+      }
+    if (miss?.kind === 'unshipped')
+      unshipped.set(miss.gap, [...(unshipped.get(miss.gap) ?? []), remote]);
+  }
+  const issue = (
+    kind: PoolIssueVm['kind'],
+    label: string,
+    subjects: readonly string[],
+    detail: string | null,
+    remotes: readonly string[],
+  ): PoolIssueVm => {
+    const all = remotes.map(remoteOf);
+    // A subpool's remotes run its owner's build: one entry, the owner, standing for all of them.
+    const bySubpool = new Map<string, string[]>();
+    for (const remote of remotes) {
+      const key = ownerOf.get(remote) ?? remote;
+      bySubpool.set(key, [...(bySubpool.get(key) ?? []), remote]);
+    }
+    const shown = [...bySubpool].map(([name, members]): PoolRemoteVm => {
+      const subpool = [...ownerOf.values()].includes(name);
+      return subpool
+        ? {
+            ...remoteOf(name),
+            subpool: { count: members.length, names: members.map(participantDisplay).join(', ') },
+          }
+        : remoteOf(name);
+    });
+    const more = subjects.length - PACKAGES_SHOWN;
+    return {
+      kind,
+      label,
+      subject:
+        more > 1 ? `${subjects.slice(0, PACKAGES_SHOWN).join(', ')} +${more}` : subjects.join(', '),
+      subjectAll: more > 1 ? subjects.join(', ') : null,
+      detail,
+      remotes: remoteListOf(shown),
+      all,
+    };
+  };
+  return [
+    // Strict first: those are what `strictExternalCompatibility` refuses; then by how many it hits.
+    ...[...conflicts.values()]
+      .sort((a, b) => Number(b.strict) - Number(a.strict) || b.remotes.size - a.remotes.size)
+      .map((c) =>
+        issue(
+          'conflict',
+          'conflict',
+          [...c.members],
+          `${which} ${c.tag} · needs ${c.range}${c.strict ? ' (strict)' : ''}`,
+          [...c.remotes],
+        ),
+      ),
+    ...missing.map((m) => issue('missing', 'missing', [m.specifier], null, m.remotes)),
+    ...[...unshipped].map(([gap, remotes]) =>
+      issue('unshipped', 'unshipped', [gap], 'with the rest in no single build', remotes),
+    ),
+  ];
 }
 
 function bandOf(
@@ -201,6 +400,8 @@ function bandOf(
   members: readonly string[],
   consumerOf: ReadonlyMap<string, PoolConsumer>,
   pending: boolean,
+  lens: PoolLens | null,
+  selected: boolean,
 ): PoolBandVm {
   const owner = band.owner === null ? null : participantDisplay(band.owner);
   const note: string[] = [];
@@ -226,18 +427,50 @@ function bandOf(
           ? `Own build · ${owner}`
           : 'Unknown placement';
   const rows = band.rows.map((row) =>
-    rowOf(row, band, members, consumerOf.get(row.remote)!, pending),
+    lens
+      ? lensRowOf(row, members, consumerOf.get(row.remote)!, lens)
+      : rowOf(row, band, members, consumerOf.get(row.remote)!, pending),
   );
-  const [first] = rows;
-  const shared =
-    first !== undefined &&
-    first.reason !== null &&
-    rows.every((row) => JSON.stringify(row.reason) === JSON.stringify(first.reason));
+  const lensOwner =
+    band.kind !== 'global' &&
+    band.owner !== null &&
+    family.lenses.some((l) => l.owner === band.owner)
+      ? band.owner
+      : null;
   return {
     label,
     note: note.length > 0 ? note.join(' · ') : null,
-    reason: shared ? first.reason : null,
-    rows: shared ? rows.map((row) => ({ ...row, reason: null })) : rows,
+    lensOwner,
+    selectable: band.kind === 'global' || lensOwner !== null,
+    active:
+      selected &&
+      (band.kind === 'global' ? lens === null : lensOwner !== null && lens?.owner === lensOwner),
+    rows,
+  };
+}
+
+const reasonLine = (reason: PoolReasonVm) =>
+  reason.cause ? `${reason.cause}: ${reason.text}` : reason.text;
+
+function chipOf(reasons: readonly PoolReasonVm[]): PoolRowVm['chip'] {
+  const [main] = reasons;
+  if (main === undefined || (main.cause === null && !main.unexplained)) return null;
+  return {
+    label: main.unexplained ? 'unexplained' : main.cause!,
+    unexplained: main.unexplained,
+    tooltip: reasons.map(reasonLine).join('\n'),
+  };
+}
+
+// Recomputed like the orchestrator's `serves`: the subpool's build, not the global map.
+function subpoolReasonOf({ owner, miss }: PoolConsumer['subpoolMisses'][number]): PoolReasonVm {
+  return {
+    cause: `not in the subpool of ${participantDisplay(owner)}`,
+    text:
+      miss === null
+        ? 'it fits its build — the stored rows do not say why'
+        : missText(miss, 'its build'),
+    unexplained: miss === null,
   };
 }
 
@@ -249,11 +482,14 @@ function rowOf(
   pending: boolean,
 ): PoolRowVm {
   const host = isHostRemote(row.remote);
+  const main = pending ? null : reasonOf(consumer);
+  const reasons = main === null ? [] : [main, ...consumer.subpoolMisses.map(subpoolReasonOf)];
   return {
     remote: { name: row.remote, host },
     tag: row.tag ?? (host ? null : 'no tag'),
     redirected: row.redirected,
-    reason: pending ? null : reasonOf(consumer),
+    chip: chipOf(reasons),
+    reasons,
     cells: row.cells.map((cell, index) =>
       cell === null
         ? { text: '·', state: null, tooltip: null }
@@ -265,6 +501,132 @@ function rowOf(
               : `${participantDisplay(row.remote)} · ${members[index]} ${cell.servedTag}\n${cellText(cell, row, band)}`,
           },
     ),
+  };
+}
+
+function lensRowOf(
+  row: PoolStatusRow,
+  members: readonly string[],
+  consumer: PoolConsumer,
+  lens: PoolLens,
+): PoolRowVm {
+  const host = isHostRemote(row.remote);
+  const build = `the build of ${participantDisplay(lens.owner)}`;
+  const own = row.remote === lens.owner;
+  const miss = lens.consumers.find((c) => c.remote === row.remote)?.miss ?? null;
+  const judged: PoolReasonVm = own
+    ? { cause: null, text: 'this build', unexplained: false }
+    : miss === null
+      ? {
+          cause: `fits ${build}`,
+          text: 'its ranges accept every version, and the build ships every entrypoint it imports',
+          unexplained: false,
+        }
+      : {
+          cause: `${causeLabel(causeOfMiss(miss))} with ${build}`,
+          text: missText(miss, 'the build'),
+          unexplained: false,
+        };
+  const runs: PoolReasonVm = {
+    cause: 'runs on',
+    text: placementText(consumer),
+    unexplained: false,
+    aside: true,
+  };
+  const cells = lens.cells[row.remote] ?? [];
+  return {
+    remote: { name: row.remote, host },
+    tag: row.tag ?? (host ? null : 'no tag'),
+    redirected: row.redirected,
+    // Chips flag what does not fit; the list still says every remote fits.
+    chip:
+      !own && miss === null
+        ? null
+        : {
+            label: own ? 'this build' : causeLabel(causeOfMiss(miss!)),
+            unexplained: false,
+            tooltip: [judged, runs].map(reasonLine).join('\n'),
+          },
+    reasons: own ? [runs] : [judged, runs],
+    cells: members.map((member, index) => {
+      const cell = cells[index] ?? null;
+      return cell === null
+        ? { text: '·', state: null, tooltip: null }
+        : {
+            text: cell.tag ?? '—',
+            state: lensStateOf(cell, own),
+            tooltip: `${participantDisplay(row.remote)} · ${member} on ${build}\n${lensCellText(cell, own, build)}`,
+          };
+    }),
+  };
+}
+
+function lensStateOf(cell: PoolLensCell, own: boolean): PoolCellState {
+  if (cell.state !== 'accepted') return cell.state;
+  return own ? 'serves-others' : 'unchanged';
+}
+
+function lensCellText(cell: PoolLensCell, own: boolean, build: string): string {
+  switch (cell.state) {
+    case 'rejected':
+      return `Rejected: needs ${cell.requiredVersion}${cell.strictVersion ? '' : ' (not strict)'}, ${build} has ${cell.tag}`;
+    case 'gap':
+      return `Not covered: ${build} lacks ${cell.missing.join(', ')}`;
+    case 'accepted':
+      return own ? 'This build' : `Fits: ${build} ships it at ${cell.tag}`;
+  }
+}
+
+function placementText({ placement, remote }: PoolConsumer): string {
+  switch (placement.kind) {
+    case 'global':
+      return 'the global map';
+    case 'subpool':
+      return placement.owner === remote
+        ? 'its own build, which serves its subpool'
+        : `the subpool of ${participantDisplay(placement.owner)}`;
+    case 'self':
+      return 'its own build';
+    case 'unknown':
+      return 'a placement the stored rows do not settle';
+  }
+}
+
+function lensCoverageOf(
+  lens: PoolLens,
+  consumers: readonly PoolConsumer[],
+): PoolCardVm['coverage'] {
+  const build = `Build of ${participantDisplay(lens.owner)}`;
+  const { declared, served, missing } = lens.coverage;
+  return {
+    text:
+      missing.length === 0
+        ? `${build} ships all ${plural(declared, 'entrypoint')} the remotes import`
+        : `${build} ships ${served} of ${plural(declared, 'entrypoint')} the remotes import`,
+    complete: missing.length === 0,
+    issues: issuesOf(
+      lens.consumers.filter((c) => c.remote !== lens.owner),
+      missing,
+      `build of ${participantDisplay(lens.owner)}`,
+      consumers,
+    ),
+  };
+}
+
+function lensVerdictOf(lens: PoolLens): PoolVerdictVm {
+  const misses = lens.consumers.flatMap((c) => (c.miss === null ? [] : [c.miss]));
+  const conflicts = misses.filter((m) => m.kind === 'range').length;
+  const why = [
+    conflicts > 0 ? `${conflicts} version ${conflicts === 1 ? 'conflict' : 'conflicts'}` : null,
+    misses.length > conflicts ? `${misses.length - conflicts} not covered` : null,
+  ].filter((part) => part !== null);
+  return {
+    icon: '◎',
+    tone: 'quiet',
+    type: `Build of ${participantDisplay(lens.owner)}`,
+    cause: null,
+    who: `fits ${lens.consumers.length - misses.length} of ${plural(lens.consumers.length, 'remote')}`,
+    why: why.length > 0 ? why.join(' · ') : null,
   };
 }
 
@@ -425,6 +787,19 @@ function names(remotes: readonly string[]): string {
 
 function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`;
+}
+
+// Members are sorted, so a scope's packages form one run.
+function scopeGroupsOf(members: readonly string[]): { label: string; span: number }[] {
+  const groups: { label: string; span: number }[] = [];
+  for (const member of members) {
+    const scope = npmScope(member);
+    const label = scope ? `${scope}/` : '';
+    const last = groups.at(-1);
+    if (last?.label === label) last.span++;
+    else groups.push({ label, span: 1 });
+  }
+  return groups;
 }
 
 function npmScope(packageName: string): string | null {

@@ -32,12 +32,7 @@ export function causeOfMiss(miss: PlacementMiss): string {
 export function missText(miss: PlacementMiss, surface = 'the global map'): string {
   switch (miss.kind) {
     case 'range':
-      return `its range rejects the ${surface === 'the global map' ? 'global' : 'served'} ${miss.rejections
-        .map(
-          (r) =>
-            `${r.specifier} ${r.tag} (${r.requiredVersion}${r.strict ? ', strict' : ', not strict'})`,
-        )
-        .join(', ')}`;
+      return rangeText(miss.rejections, surface === 'the global map' ? 'global' : 'served');
     case 'coverage':
       return `${surface} lacks ${miss.missing.join(', ')}`;
     case 'unshipped':
@@ -45,6 +40,32 @@ export function missText(miss: PlacementMiss, surface = 'the global map'): strin
     case 'two-tags':
       return `it ships the package at two versions (${miss.tags.join(', ')})`;
   }
+}
+
+type Rejection = Extract<PlacementMiss, { kind: 'range' }>['rejections'][number];
+
+// One clause per range and tag, naming packages; the entrypoints are in the cells' tooltips.
+function rangeText(rejections: readonly Rejection[], which: string): string {
+  const groups = new Map<string, Rejection[]>();
+  for (const r of rejections) {
+    const key = JSON.stringify([r.requiredVersion, r.tag]);
+    groups.set(key, [...(groups.get(key) ?? []), r]);
+  }
+  const clauses = [...groups.values()].map((group) => {
+    const strictness = (strict: boolean) => (strict ? 'strict' : 'not strict');
+    const packagesOf = (rs: readonly Rejection[]) => {
+      const members = [...new Set(rs.map((r) => r.member))];
+      const entrypoints = rs.length > members.length ? ` (${rs.length} entrypoints)` : '';
+      return `${members.join(', ')}${entrypoints}`;
+    };
+    const { requiredVersion, tag } = group[0];
+    const strict = group.filter((r) => r.strict);
+    const loose = group.filter((r) => !r.strict);
+    if (strict.length === 0 || loose.length === 0)
+      return `${requiredVersion} (${strictness(loose.length === 0)}) rejects the ${which} ${tag} of ${packagesOf(group)}`;
+    return `${requiredVersion} rejects the ${which} ${tag} of ${packagesOf(strict)} (strict) and ${packagesOf(loose)} (not strict)`;
+  });
+  return `its range ${clauses.join('; ')}`;
 }
 
 /** `<cause>: <text>` for a package verdict's reason; null when nothing explains it. */

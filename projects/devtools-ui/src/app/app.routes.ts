@@ -16,7 +16,7 @@ import { ViewPlaceholder } from './views/placeholder';
  *   /packages?select=<scope>|<pkg>
  *   /remotes?select=<remote>
  *   /import-map?select=<specifier>
- *   /pools?select=<tag pool ID>
+ *   /pools?select=<tag pool ID>[&remote=<remote>]  (remote marks its row)
  * Views (Tasks 10–13) read it on entry; cross-view links (e.g. from
  * Diagnostics) navigate with it.
  */
