@@ -1,52 +1,23 @@
 /**
- * Detail half of the Remotes vm builder — the transposed projection of one
- * remote against the canonical resolution model, presented as three zones
- * decided PER CLAIM (T8.6):
- *
- *  - `provides` — resolved copies whose evidenced source is this remote
- *    (source qualifier `exact-target-source` or `explicit-anchor` with this
- *    remote as target). The block head folds the remote's own DECLARED-BY
- *    row; the remote consumes its own copies in place unless a chip says
- *    otherwise. Qualified attributions (ambiguous / observed / unknown
- *    source) NEVER form provides blocks.
- *  - `consumes` — claims whose binding resolves to ANOTHER remote's copy,
- *    plus every qualified attribution with its qualifier chip visible, plus
- *    the relation-only sub-bucket (claim-less consumer relations, T8-H2).
- *  - `unresolved` — claims without a copy and candidate-less declarations,
- *    in the Packages bucket grammar with `offered <tag>`.
- *
- * Registry action ≠ zone (T8-H4): share/scope/skip stay registry-evidence
- * tooltips on the declared version; where a binding resolves is said by
- * zone membership and state chips alone — pooling-anchor witnesses
- * skip + anchored → a provides block with an `anchored` chip.
+ * Detail half of the Remotes vm builder: one remote's identity, capabilities and exposes, where
+ * each of its packages runs from and whom its builds serve (`remotes-runs-vm.ts`), then what
+ * only some captures carry — private registrations, claim-less consumer relations, chunks.
  *
  * Everything joins the canonical read surface — `model.resolutionProjection`,
  * `model.effectiveConsumerResolutions`, `model.registryEvidence` — by ID
  * only. Nothing re-derives elections, share counts, or source semantics.
  */
-import { placementReasonText } from '../../shared/placement-text';
-import { PoolChipVm, poolChipOf } from '../../shared/pool-chip';
 import type { FederationModel, RemoteEntity } from '../../shared/store/federation-model';
-import type {
-  BundleClaimStatus,
-  DeclarationResolutionClaim,
-  ParticipantDeclaration,
-  ResolvedDependencyCopy,
-  SharedExternalRecord,
-  VersionRegistration,
-} from '../../shared/store/resolution';
+import type { BundleClaimStatus, DeclarationResolutionClaim } from '../../shared/store/resolution';
 import {
-  ACTION_NOTES,
   CanonicalIndexes,
-  GLOBAL_SCOPE,
-  STRICT_SCOPE,
   chunkFileClaim,
   copySourceVmOf,
   countClaim,
-  packageId,
   participantDisplay,
   targetFileName,
 } from '../../shared/view-conventions';
+import { RunsVm, buildRuns } from './remotes-runs-vm';
 
 /** One annotated fact — state chip or grounded note. */
 export interface AnnotationVm {
@@ -74,118 +45,6 @@ export interface ExposeVm {
   mapTarget: string | null;
   /** True when the remote's recorded integrity map carries this file. */
   hasIntegrity: boolean;
-}
-
-/**
- * Display form of the remote's own declared version, with the grounded
- * registration tooltip (registry evidence only — T8-H4: the action never
- * claims a mapping outcome; zones and chips do).
- */
-export interface DeclaredDisplayVm {
-  text: string;
-  /** True in the strict share scope — the exact tag, never a range. */
-  pinned: boolean;
-  note: string;
-}
-
-/** One mapped entrypoint file line (Packages file-line grammar). */
-export interface ZoneFileVm {
-  specifier: string;
-  /** True when the specifier is not the registry key itself. */
-  showSpecifier: boolean;
-  file: string;
-  targetUrl: string;
-  hasIntegrity: boolean;
-  /** `select` payload for the /import-map cross-link. */
-  importMapSelect: string;
-}
-
-/**
- * One resolved copy this remote is the evidenced source of. The head folds
- * the remote's own DECLARED-BY row (name · resolved tag · own declared
- * range · strict); deviation chips speak only for exceptions — there is
- * deliberately NO `kept own copy` chip (zone membership already says it).
- * Secondary registry keys group under their name-derived parent block as
- * compact sub-rows (presentational grouping of REAL registry keys — not
- * the Packages entries-map `entry` sub-row semantics).
- */
-export interface ProvidesBlockVm {
-  /** Canonical copy ID (render tracking key). */
-  copyId: string;
-  packageName: string;
-  /** `select` payload for the /packages cross-link. */
-  packageSelect: string;
-  /** Verbatim share-scope chip; null in the global scope. */
-  scopeLabel: string | null;
-  /** This remote's explicit pool tag on the package; null when untagged. */
-  pool: PoolChipVm | null;
-  resolvedTag: string | null;
-  /** Why the tag is unknown; null while `resolvedTag` exists. */
-  unknownTagNote: string | null;
-  declared: DeclaredDisplayVm;
-  strict: boolean;
-  /** `isolated` (+ audience), `anchored` — the norm renders none. */
-  deviations: AnnotationVm[];
-  files: ZoneFileVm[];
-  /** Display suffix under the parent block; null on top-level blocks. */
-  suffix: string | null;
-  secondaries: ProvidesBlockVm[];
-}
-
-/** Qualified source of a consumed copy (file-line provider + from-chip). */
-export interface ConsumesSourceVm {
-  /** Provider text — qualified display name or qualified label. */
-  label: string;
-  /** Grounded tooltip of the source attribution. */
-  note: string;
-  /** `select` payload for the /remotes cross-link; null without a remote. */
-  remoteSelect: string | null;
-  host: boolean;
-}
-
-/**
- * One claim of this remote resolving to another remote's copy (or to a
- * qualified attribution — those never form provides blocks and render
- * here with their qualifier chip visible). Renders as a two-line
- * mini-block in the provides grammar: head line with the claim facts, the
- * winner file `from` its source on an own file line (screenshot review 3
- * — no arrow glyph).
- */
-export interface ConsumesRowVm {
-  /** Canonical claim ID (render tracking key). */
-  claimId: string;
-  packageName: string;
-  packageSelect: string;
-  scopeLabel: string | null;
-  pool: PoolChipVm | null;
-  declared: DeclaredDisplayVm;
-  strict: boolean;
-  /** Claimed specifier when it is not the registry key itself. */
-  via: string | null;
-  /** Deviation chips incl. the source qualifier chip; the norm renders none. */
-  deviations: AnnotationVm[];
-  /** Display file of the winner binding (file-line grammar). */
-  file: string;
-  /** Mapped target URL of the winner binding; null when not evidenced. */
-  targetUrl: string | null;
-  source: ConsumesSourceVm;
-}
-
-/** One claim that resolves nowhere — the `unresolved` bucket (T7 grammar). */
-export interface RemoteUnresolvedRowVm {
-  /** Canonical claim ID, or the declaration ID for claim-less declarations. */
-  key: string;
-  packageName: string;
-  packageSelect: string;
-  scopeLabel: string | null;
-  pool: PoolChipVm | null;
-  declared: DeclaredDisplayVm;
-  strict: boolean;
-  /** Claimed specifier when it is not the registry key itself; null otherwise. */
-  specifier: string | null;
-  state: AnnotationVm;
-  /** Tag of the remote's own registration — offered, never resolved. */
-  offered: AnnotationVm | null;
 }
 
 /**
@@ -294,11 +153,9 @@ export interface RemoteDetailVm {
   resolvedScopeUrl: string;
   capabilities: CapabilityVm[];
   exposes: ExposeVm[];
-  provides: ProvidesBlockVm[];
-  consumes: ConsumesRowVm[];
-  /** Consumer-copy relations without an own claim (consumes sub-bucket). */
+  runs: RunsVm;
+  /** Consumer-copy relations without an own claim. */
   relationOnly: RelationConsumerVm[];
-  unresolved: RemoteUnresolvedRowVm[];
   chunks: RemoteChunkSectionVm;
   scoped: ScopedPackageVm[];
   /** Muted divergence footer; empty renders nothing. */
@@ -306,11 +163,6 @@ export interface RemoteDetailVm {
 }
 
 const CHUNK_EXPLANATION = "code shared between this remote's exposes, plus lazy modules";
-
-const UNKNOWN_TAG_NOTE = 'no uniquely evidenced source tag for this copy';
-
-const PINNED_TAG_NOTE =
-  'exact tag — pinned by the strict share scope; the configured requiredVersion range is not stored';
 
 // Chunk lists and `bundle` are both written only under `features.denseChunking`; a multi-entry map
 // can come from `features.denseExternals` or host-side `convertFlatSharedInfo`, so that note claims
@@ -363,440 +215,6 @@ function exposesOf(remote: RemoteEntity): ExposeVm[] {
     mapTarget: expose.mapTarget,
     hasIntegrity: remote.integrity[expose.file] !== undefined,
   }));
-}
-
-/** One declaration of the remote with its registry joins, registry order. */
-interface DeclarationRow {
-  declaration: ParticipantDeclaration;
-  registration: VersionRegistration;
-  external: SharedExternalRecord;
-  claims: DeclarationResolutionClaim[];
-}
-
-function declarationRowsOf(
-  remote: RemoteEntity,
-  model: FederationModel,
-  indexes: CanonicalIndexes,
-): DeclarationRow[] {
-  const rows: DeclarationRow[] = [];
-  for (const declaration of model.registryEvidence.participantDeclarations) {
-    if (declaration.participant !== remote.name) {
-      continue;
-    }
-    const registration = indexes.registrationById.get(declaration.versionRegistrationId);
-    const external =
-      registration === undefined
-        ? undefined
-        : indexes.sharedExternalById.get(registration.sharedExternalId);
-    if (registration === undefined || external === undefined) {
-      continue;
-    }
-    rows.push({
-      declaration,
-      registration,
-      external,
-      claims: indexes.claimsByDeclaration.get(declaration.id) ?? [],
-    });
-  }
-  return rows;
-}
-
-function declaredDisplayOf(row: DeclarationRow): DeclaredDisplayVm {
-  const registrationNote =
-    ACTION_NOTES[row.registration.action] ?? 'registry action recorded verbatim';
-  return row.external.shareScope === STRICT_SCOPE
-    ? { text: row.registration.tag, pinned: true, note: `${PINNED_TAG_NOTE}; ${registrationNote}` }
-    : { text: row.declaration.requiredVersion, pinned: false, note: registrationNote };
-}
-
-function scopeLabelOf(external: SharedExternalRecord): string | null {
-  return external.shareScope === GLOBAL_SCOPE ? null : external.shareScope;
-}
-
-/** Mapped entrypoint file lines of one copy (Packages file-line grammar). */
-function filesOf(
-  copy: ResolvedDependencyCopy,
-  packageName: string,
-  indexes: CanonicalIndexes,
-): ZoneFileVm[] {
-  const integrityByTarget = new Map<string, boolean>();
-  for (const resolutionId of copy.effectiveResolutionIds) {
-    const resolution = indexes.resolutionById.get(resolutionId);
-    if (resolution?.status === 'mapped') {
-      integrityByTarget.set(resolution.targetUrl, resolution.hasIntegrity);
-    }
-  }
-  return Object.entries(copy.entrypoints).map(([specifier, targetUrl]) => ({
-    specifier,
-    showSpecifier: specifier !== packageName,
-    file: targetFileName(targetUrl),
-    targetUrl,
-    hasIntegrity: integrityByTarget.get(targetUrl) ?? false,
-    importMapSelect: specifier,
-  }));
-}
-
-/**
- * Audience of an isolated copy: the scope registration's own declarers,
- * checked against the copy's canonical consumer relations. As soon as a
- * consumer beyond the declarers resolves to the copy, claiming "mapped
- * only for X" would be false — the "only" drops and the note says why.
- */
-function audienceOf(
-  copy: ResolvedDependencyCopy,
-  registration: VersionRegistration,
-  model: FederationModel,
-  indexes: CanonicalIndexes,
-): AnnotationVm {
-  const declarers = model.registryEvidence.participantDeclarations.filter(
-    (declaration) => declaration.versionRegistrationId === registration.id,
-  );
-  const declarerNames = new Set(declarers.map((declarer) => declarer.participant));
-  const audience = declarers.map((declarer) => participantDisplay(declarer.participant)).join(', ');
-  const external = (indexes.relationsByCopy.get(copy.id) ?? []).some(
-    (relation) => !declarerNames.has(relation.consumerRemote),
-  );
-  return external
-    ? {
-        label: `mapped for ${audience}`,
-        note: 'the scope registration’s own declarers — consumers beyond them also resolve to this copy in this capture',
-      }
-    : {
-        label: `mapped only for ${audience}`,
-        note: 'the scope registration’s own declarers — the isolated copy is mapped for them alone',
-      };
-}
-
-/**
- * Deviation chips of one provides block. The norm (selected share source,
- * consumed in place) renders none; there is NO `kept own copy` chip — the
- * provides zone plus the `isolated` disposition already say it (a fact
- * renders once). The registry action stays in the registration tooltip.
- */
-function providesDeviationsOf(
-  copy: ResolvedDependencyCopy,
-  row: DeclarationRow,
-  ownClaims: DeclarationResolutionClaim[],
-  model: FederationModel,
-  indexes: CanonicalIndexes,
-): AnnotationVm[] {
-  const deviations: AnnotationVm[] = [];
-  if (copy.sourceDisposition === 'scope-registration') {
-    const reason = reasonTextOf(row, indexes);
-    deviations.push({
-      label: 'isolated',
-      note:
-        reason === null
-          ? 'the evidenced source is registered with action scope — an isolated copy'
-          : `runs its own build — ${reason}`,
-    });
-    deviations.push(audienceOf(copy, row.registration, model, indexes));
-  }
-  if (
-    copy.effectiveRoles.includes('anchor-source') ||
-    ownClaims.some((claim) => claim.mappingState === 'anchored')
-  ) {
-    deviations.push(subpoolChipOf(row, indexes));
-  }
-  if (copy.effectiveRoles.includes('unclassified')) {
-    deviations.push({ label: 'unclassified', note: 'no closed rule explains this copy' });
-  }
-  return deviations;
-}
-
-function reasonTextOf(row: DeclarationRow, indexes: CanonicalIndexes): string | null {
-  const reason = indexes.verdictByDeclaration.get(row.declaration.id)?.reason ?? null;
-  return reason === null ? null : placementReasonText(reason);
-}
-
-// A stored `servedBy` (orchestrator 4.8): the subpool whose build the declaration runs; its owner names itself.
-function subpoolChipOf(row: DeclarationRow, indexes: CanonicalIndexes): AnnotationVm {
-  const owner = row.declaration.servedBy;
-  const reason = reasonTextOf(row, indexes);
-  const own = owner === row.declaration.participant;
-  const where =
-    owner === null
-      ? 'runs another build in a subpool'
-      : own
-        ? 'its build serves a subpool of its pool'
-        : `runs ${participantDisplay(owner)}'s build in a subpool of its pool`;
-  return {
-    label: own
-      ? 'subpool owner'
-      : `subpool of ${owner === null ? 'unknown' : participantDisplay(owner)}`,
-    note: reason === null ? where : `${where} — ${reason}`,
-  };
-}
-
-/**
- * Deviation chips of one consumes row from its claim's canonical mapping
- * state and the remote's own registration action. Outcome notes name the
- * remote's own registered file when the claim evidence carries it (T7.9);
- * capture-relative wording — an unselected own copy may be selected under
- * a different composition. A plain fallback stays chip-less: the zone and
- * the winner arrow speak.
- */
-function consumesDeviationsOf(
-  claim: DeclarationResolutionClaim,
-  row: DeclarationRow,
-  indexes: CanonicalIndexes,
-): AnnotationVm[] {
-  const deviations: AnnotationVm[] = [];
-  const ownFile = indexes.candidateById.get(claim.candidateId)?.file ?? null;
-  if (claim.mappingState === 'anchored') {
-    deviations.push(subpoolChipOf(row, indexes));
-  }
-  const skipped =
-    row.registration.action === 'skip' &&
-    (claim.mappingState === 'fallback' || claim.mappingState === 'not-selected');
-  if (skipped) {
-    deviations.push({
-      label: `skipped own ${row.registration.tag}`,
-      note:
-        ownFile === null || ownFile === ''
-          ? `own copy ${row.registration.tag} is registered with action skip — the consumer resolves to the elected copy`
-          : `own copy ${ownFile} (${row.registration.tag}) is registered with action skip — the consumer resolves to the elected copy`,
-    });
-  } else if (claim.mappingState === 'not-selected') {
-    // The chip names its subject (screenshot review 4): next to the winner
-    // file `from <source>`, a bare `not selected` reads as a statement
-    // about the ELECTED copy. Mirrors the `skipped own <tag>` grammar.
-    deviations.push({
-      label: `own ${row.registration.tag} not selected`,
-      note:
-        ownFile === null || ownFile === ''
-          ? 'the own candidate is not selected in this capture — the binding resolves to the selected copy; a different composition may select it'
-          : `own copy ${ownFile} is registered but not selected in this capture — the binding resolves to the selected copy; a different composition may select it`,
-    });
-  }
-  return deviations;
-}
-
-/** Bucket state of one claim that resolves nowhere (grounded, honest). */
-function unresolvedStateOf(
-  claim: DeclarationResolutionClaim,
-  indexes: CanonicalIndexes,
-): AnnotationVm {
-  const resolution = indexes.resolutionById.get(claim.effectiveResolutionId);
-  if (resolution?.status === 'unmapped') {
-    return {
-      label: 'not mapped',
-      note: 'no applicable import-map binding for this specifier in this capture',
-    };
-  }
-  if (resolution?.status === 'blocked') {
-    return {
-      label: 'blocked',
-      note: `the matching import-map entry terminally blocks this binding (${resolution.blockedReason})`,
-    };
-  }
-  if (resolution?.status === 'unknown') {
-    return {
-      label: 'unknown',
-      note: `required evidence missing: ${resolution.unknownReasons.join(', ')}`,
-    };
-  }
-  return { label: 'unknown', note: 'mapping state not derivable from the captured evidence' };
-}
-
-interface ZoneSplit {
-  provides: ProvidesBlockVm[];
-  consumes: ConsumesRowVm[];
-  unresolved: RemoteUnresolvedRowVm[];
-}
-
-/**
- * The zone partition. Provides blocks are copy-driven (every copy whose
- * evidenced source is one of this remote's declarations, exact/anchor
- * qualified); claims are partitioned per claim — a claim resolving to one
- * of those own copies folds into its block, a claim resolving anywhere
- * else becomes a consumes row, a claim without a copy lands in the
- * unresolved bucket. A declaration can therefore render in BOTH zones
- * (own main claim + foreign-resolving secondary).
- */
-function zonesOf(
-  remote: RemoteEntity,
-  model: FederationModel,
-  indexes: CanonicalIndexes,
-): ZoneSplit {
-  const rows = declarationRowsOf(remote, model, indexes);
-
-  const copiesByDeclaration = new Map<string, ResolvedDependencyCopy[]>();
-  for (const copy of model.resolutionProjection.copies) {
-    if (copy.source.kind !== 'shared-declaration') {
-      continue;
-    }
-    copiesByDeclaration.set(copy.source.declarationId, [
-      ...(copiesByDeclaration.get(copy.source.declarationId) ?? []),
-      copy,
-    ]);
-  }
-  const ownClaimsByCopy = new Map<string, DeclarationResolutionClaim[]>();
-  for (const row of rows) {
-    for (const claim of row.claims) {
-      if (claim.copyId !== null) {
-        ownClaimsByCopy.set(claim.copyId, [...(ownClaimsByCopy.get(claim.copyId) ?? []), claim]);
-      }
-    }
-  }
-
-  const blockEntries: { scope: string; vm: ProvidesBlockVm }[] = [];
-  for (const row of rows) {
-    for (const copy of copiesByDeclaration.get(row.declaration.id) ?? []) {
-      const source = copySourceVmOf(copy);
-      // Zone rule: provides requires exact/anchor source evidence. Shared-
-      // declaration sources always qualify; the guard keeps the rule
-      // explicit should the ladder ever grow.
-      if (source.qualifier !== 'exact-target-source' && source.qualifier !== 'explicit-anchor') {
-        continue;
-      }
-      blockEntries.push({
-        scope: row.external.shareScope,
-        vm: {
-          copyId: copy.id,
-          packageName: row.external.packageName,
-          packageSelect: packageId(row.external.shareScope, row.external.packageName),
-          scopeLabel: scopeLabelOf(row.external),
-          pool: poolChipOf(row.declaration, model.resolutionProjection),
-          resolvedTag: copy.resolvedTag,
-          unknownTagNote: copy.resolvedTag === null ? UNKNOWN_TAG_NOTE : null,
-          declared: declaredDisplayOf(row),
-          strict: row.declaration.strictVersion,
-          deviations: providesDeviationsOf(
-            copy,
-            row,
-            ownClaimsByCopy.get(copy.id) ?? [],
-            model,
-            indexes,
-          ),
-          files: filesOf(copy, row.external.packageName, indexes),
-          suffix: null,
-          secondaries: [],
-        },
-      });
-    }
-  }
-  const providedCopyIds = new Set(blockEntries.map((entry) => entry.vm.copyId));
-
-  const consumes: ConsumesRowVm[] = [];
-  const unresolved: RemoteUnresolvedRowVm[] = [];
-  for (const row of rows) {
-    const declared = declaredDisplayOf(row);
-    const base = {
-      packageName: row.external.packageName,
-      packageSelect: packageId(row.external.shareScope, row.external.packageName),
-      scopeLabel: scopeLabelOf(row.external),
-      pool: poolChipOf(row.declaration, model.resolutionProjection),
-      strict: row.declaration.strictVersion,
-    };
-    if (row.claims.length === 0) {
-      unresolved.push({
-        ...base,
-        key: row.declaration.id,
-        declared,
-        specifier: null,
-        state: {
-          label: 'declared',
-          note: 'declaration without entrypoint candidates — no resolution claim derivable',
-        },
-        offered: {
-          label: `offered ${row.registration.tag}`,
-          note: 'the tag of the remote’s own version registration — no resolution claim is derivable for this declaration',
-        },
-      });
-      continue;
-    }
-    for (const claim of row.claims) {
-      const copy = claim.copyId === null ? undefined : indexes.copyById.get(claim.copyId);
-      if (copy === undefined) {
-        unresolved.push({
-          ...base,
-          key: claim.id,
-          declared,
-          specifier: claim.specifier === row.external.packageName ? null : claim.specifier,
-          state:
-            claim.copyId === null
-              ? unresolvedStateOf(claim, indexes)
-              : { label: 'unknown', note: 'mapping evidence missing in this capture' },
-          offered: {
-            label: `offered ${row.registration.tag}`,
-            note: 'the tag of the remote’s own version registration — this claim’s binding does not resolve in this capture',
-          },
-        });
-        continue;
-      }
-      if (providedCopyIds.has(copy.id)) {
-        // Self-consumption folds into the provides block — a fact renders once.
-        continue;
-      }
-      const source = copySourceVmOf(copy);
-      const resolution = indexes.resolutionById.get(claim.effectiveResolutionId);
-      const targetUrl =
-        resolution?.status === 'mapped'
-          ? resolution.targetUrl
-          : (copy.entrypoints[claim.specifier] ?? null);
-      const deviations = consumesDeviationsOf(claim, row, indexes);
-      // Qualified attributions render their qualifier chip on the row —
-      // ambiguity renders as ambiguity, never as silent provides membership.
-      if (source.qualifier !== 'exact-target-source' && source.qualifier !== 'explicit-anchor') {
-        deviations.push({ label: source.label, note: source.note });
-      }
-      consumes.push({
-        ...base,
-        claimId: claim.id,
-        declared,
-        via: claim.specifier === row.external.packageName ? null : claim.specifier,
-        deviations,
-        file: targetUrl === null ? '(no target file evidenced)' : targetFileName(targetUrl),
-        targetUrl,
-        source: {
-          label: source.display ?? source.label,
-          note: `${source.label} — ${source.note}`,
-          remoteSelect: source.remoteSelect,
-          host: source.host,
-        },
-      });
-    }
-  }
-
-  return { provides: groupSecondaries(blockEntries), consumes, unresolved };
-}
-
-/**
- * Groups secondary registry keys under their name-derived parent block:
- * the SHORTEST same-scope prefix that exists as a provides block (the
- * Packages list rule). Presentational grouping of REAL registry keys —
- * a secondary without its parent in this remote's provides stays a
- * top-level block.
- */
-function groupSecondaries(entries: { scope: string; vm: ProvidesBlockVm }[]): ProvidesBlockVm[] {
-  const byKey = new Map<string, ProvidesBlockVm>();
-  for (const entry of entries) {
-    const key = `${entry.scope}|${entry.vm.packageName}`;
-    if (!byKey.has(key)) {
-      byKey.set(key, entry.vm);
-    }
-  }
-  const top: ProvidesBlockVm[] = [];
-  for (const entry of entries) {
-    const name = entry.vm.packageName;
-    let parent: ProvidesBlockVm | null = null;
-    let index = name.indexOf('/');
-    while (index > 0 && index < name.length - 1) {
-      const candidate = byKey.get(`${entry.scope}|${name.slice(0, index)}`);
-      if (candidate !== undefined) {
-        parent = candidate;
-        break;
-      }
-      index = name.indexOf('/', index + 1);
-    }
-    if (parent === null || parent === entry.vm) {
-      top.push(entry.vm);
-    } else {
-      parent.secondaries.push({ ...entry.vm, suffix: name.slice(parent.packageName.length) });
-    }
-  }
-  return top;
 }
 
 /**
@@ -1080,62 +498,19 @@ function scopedOf(
     }));
 }
 
-/**
- * Distinct declarations of the remote whose claims resolve nowhere in this
- * capture (candidate-less, claim without a copy, or missing copy evidence)
- * — the grounding of the list's `⚠` marker.
- */
-export function unresolvedDeclarationCount(
-  remoteName: string,
-  model: FederationModel,
-  indexes: CanonicalIndexes,
-): number {
-  let count = 0;
-  for (const declaration of model.registryEvidence.participantDeclarations) {
-    if (declaration.participant !== remoteName) {
-      continue;
-    }
-    const registration = indexes.registrationById.get(declaration.versionRegistrationId);
-    const external =
-      registration === undefined
-        ? undefined
-        : indexes.sharedExternalById.get(registration.sharedExternalId);
-    if (registration === undefined || external === undefined) {
-      continue;
-    }
-    const claims = indexes.claimsByDeclaration.get(declaration.id) ?? [];
-    if (
-      claims.length === 0 ||
-      claims.some((claim) => claim.copyId === null || !indexes.copyById.has(claim.copyId))
-    ) {
-      count += 1;
-    }
-  }
-  return count;
-}
-
 /** Divergence-only footer (Packages pattern) — silent otherwise. */
-function diagnosticsOf(
-  provides: ProvidesBlockVm[],
-  unresolved: RemoteUnresolvedRowVm[],
-): AnnotationVm[] {
-  const diagnostics: AnnotationVm[] = [];
-  const unknownStates = unresolved.filter((row) => row.state.label === 'unknown').length;
-  if (unknownStates > 0) {
-    diagnostics.push({
-      label: `unknown states: ${unknownStates}`,
-      note: `${countClaim(unknownStates, 'declaration claim')} without a derivable mapping state in this capture`,
-    });
-  }
-  const allBlocks = provides.flatMap((block) => [block, ...block.secondaries]);
-  const unknownTags = allBlocks.filter((block) => block.resolvedTag === null).length;
-  if (unknownTags > 0) {
-    diagnostics.push({
-      label: `unknown tags: ${unknownTags}`,
-      note: `${countClaim(unknownTags, 'provided copy', 'provided copies')} without a uniquely evidenced source tag`,
-    });
-  }
-  return diagnostics;
+function diagnosticsOf(runs: RunsVm): AnnotationVm[] {
+  const unknown = runs.rows.filter(
+    (row) => row.kind === 'unresolved' && row.from.label === 'unknown',
+  );
+  return unknown.length === 0
+    ? []
+    : [
+        {
+          label: `unknown states: ${unknown.length}`,
+          note: `${countClaim(unknown.length, 'declaration')} without a derivable mapping state in this capture`,
+        },
+      ];
 }
 
 export function buildRemoteDetail(
@@ -1151,7 +526,7 @@ export function buildRemoteDetail(
     return null;
   }
   const display = participantDisplay(remote.name);
-  const zones = zonesOf(remote, model, indexes);
+  const runs = buildRuns(remote, model, indexes);
   return {
     name: remote.name,
     display,
@@ -1160,12 +535,10 @@ export function buildRemoteDetail(
     resolvedScopeUrl: remote.resolvedScopeUrl,
     capabilities: capabilitiesOf(remote, model),
     exposes: exposesOf(remote),
-    provides: zones.provides,
-    consumes: zones.consumes,
+    runs,
     relationOnly: relationOnlyOf(remote, model, indexes),
-    unresolved: zones.unresolved,
     chunks: chunksOf(remote, display, model, indexes),
     scoped: scopedOf(remote, display, model, indexes),
-    diagnostics: diagnosticsOf(zones.provides, zones.unresolved),
+    diagnostics: diagnosticsOf(runs),
   };
 }

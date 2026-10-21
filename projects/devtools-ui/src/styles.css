@@ -35,6 +35,8 @@
   --nf-color-isolated-bg: #ffd9b3;
   --nf-color-serves-text: #137333;
   --nf-color-serves-bg: #b7e4c4;
+  /* A subpool: a pool member running another remote's build (views/remotes). */
+  --nf-color-subpool-text: #6a4bc4;
 
   /* Participant identity hues (CVD-validated set + order, light-surface
    * steps). Count and numbering are the contract of
@@ -75,6 +77,7 @@
     --nf-color-isolated-bg: #5a3313;
     --nf-color-serves-text: #81c995;
     --nf-color-serves-bg: #1f4a2c;
+    --nf-color-subpool-text: #b9a3f5;
 
     /* Same eight hues, stepped for the dark surface — not a new palette. */
     --nf-participant-color-1: #3987e5;
@@ -110,6 +113,7 @@
   --nf-color-isolated-bg: #5a3313;
   --nf-color-serves-text: #81c995;
   --nf-color-serves-bg: #1f4a2c;
+  --nf-color-subpool-text: #b9a3f5;
 
   /* Same eight hues, stepped for the dark surface — not a new palette. */
   --nf-participant-color-1: #3987e5;

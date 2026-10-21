@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Remotes Tab Mock</title>
+<style>
+  :root {
+    --bg: #ffffff; --surface: #f1f3f4; --border: #e3e3e3; --text: #202124; --muted: #5f6368;
+    --accent: #1a73e8; --accent-bg: #e8f0fe;
+    --bad: #c5221f; --bad-bg: #fce8e6; --own: #b95000; --own-bg: #ffe9d4; --sub: #6a4bc4; --sub-bg: #efeafc;
+    --p1: #2a78d6; --p2: #eb6834; --p3: #1baf7a; --p4: #eda100; --p5: #e87ba4; --p6: #008300; --p7: #4a3aa7; --p-host: #80868b;
+    --tip-bg: #202124; --tip-text: #f1f3f4;
+    --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      --bg: #202124; --surface: #292a2d; --border: #3c4043; --text: #e8eaed; --muted: #9aa0a6;
+      --accent: #8ab4f8; --accent-bg: #283142;
+      --bad: #f28b82; --bad-bg: #3c2322; --own: #ffb870; --own-bg: #45301c; --sub: #b9a3f5; --sub-bg: #2f2944;
+      --p1: #3987e5; --p2: #d95926; --p3: #199e70; --p4: #c98500; --p5: #d55181; --p6: #2a9d2a; --p7: #9085e9; --p-host: #9aa0a6;
+      --tip-bg: #e8eaed; --tip-text: #202124;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme='dark'] {
+    --bg: #202124; --surface: #292a2d; --border: #3c4043; --text: #e8eaed; --muted: #9aa0a6;
+    --accent: #8ab4f8; --accent-bg: #283142;
+    --bad: #f28b82; --bad-bg: #3c2322; --own: #ffb870; --own-bg: #45301c; --sub: #b9a3f5; --sub-bg: #2f2944;
+    --p1: #3987e5; --p2: #d95926; --p3: #199e70; --p4: #c98500; --p5: #d55181; --p6: #2a9d2a; --p7: #9085e9; --p-host: #9aa0a6;
+    --tip-bg: #e8eaed; --tip-text: #202124;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 12px/1.45 var(--font-ui); }
+  .page { max-width: 1120px; margin: 0 auto; padding: 16px 16px 40px; display: grid; gap: 12px; }
+  .mono { font-family: var(--font-mono); font-size: 11px; }
+  .muted { color: var(--muted); }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .intro { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; color: var(--muted); }
+  .intro h1 { margin: 0; font-size: 13px; color: var(--text); }
+  .fx { display: flex; flex-wrap: wrap; gap: 2px; }
+  .fbtn { padding: 2px 8px; border: 0; border-radius: 4px; background: transparent; cursor: pointer; color: var(--muted); font: 11px var(--font-mono); }
+  .fbtn:hover { background: var(--surface); }
+  .fbtn.on { background: var(--accent-bg); color: var(--accent); }
+  .theme { margin-left: auto; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); padding: 1px 8px; cursor: pointer; }
+
+  .panel { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; min-width: 0; }
+  .tabs { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .tabs span { padding: 6px 12px; color: var(--muted); border-bottom: 2px solid transparent; }
+  .tabs span.on { color: var(--text); border-bottom-color: var(--accent); }
+
+  .split { display: grid; grid-template-columns: minmax(200px, 260px) minmax(0, 1fr); min-height: 420px; }
+  @media (max-width: 760px) { .split { grid-template-columns: minmax(0, 1fr); } .list { border-right: 0 !important; border-bottom: 1px solid var(--border); } }
+
+  .list { border-right: 1px solid var(--border); min-width: 0; padding: 4px 0; }
+  .row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 10px; border: 0; background: transparent; cursor: pointer; text-align: left; }
+  .row:hover { background: var(--surface); }
+  .row.sel { background: var(--accent-bg); }
+  .row .marks { margin-left: auto; display: inline-flex; gap: 8px; white-space: nowrap; font-size: 11px; }
+
+  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 0 5px; border: 1px solid var(--border); border-radius: 3px; font: 11px var(--font-mono); white-space: nowrap; background: var(--bg); color: var(--text); }
+  .chip::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--dot); }
+  .chip.host { background: var(--p-host); border-color: var(--p-host); color: #fff; }
+  .chip.host::before { display: none; }
+  a.chip:hover { text-decoration: none; border-color: var(--muted); }
+
+  .k { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; white-space: nowrap; }
+  .k::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+  .k-own { --c: var(--own); color: var(--own); font-weight: 600; }
+  .k-off { --c: var(--bad); color: var(--bad); font-weight: 600; }
+  .k-sub { --c: var(--sub); color: var(--sub); font-weight: 600; }
+  .k-ok { --c: transparent; color: var(--muted); }
+  .k-ok::before { display: none; }
+
+  .detail { padding: 12px 14px 20px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+  .dhead { display: grid; gap: 2px; }
+  .dhead h2 { margin: 0; font: 600 13px var(--font-mono); }
+  .meta { display: flex; flex-wrap: wrap; gap: 2px 6px; color: var(--muted); }
+  .meta .sep::before { content: '·'; }
+  .tally { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+
+  h3 { margin: 0 0 4px; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .scroll { overflow-x: auto; min-width: 0; }
+  table.rt { border-collapse: collapse; width: 100%; }
+  .rt th, .rt td { text-align: left; padding: 4px 12px 4px 0; vertical-align: baseline; }
+  .rt th { font-weight: normal; color: var(--muted); font-size: 11px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .rt td { white-space: nowrap; }
+  .rt td.why { white-space: normal; min-width: 220px; color: var(--muted); }
+  .rt td.why b { font-weight: 600; color: var(--text); }
+  .rt td:first-child, .rt th:first-child { padding-left: 6px; }
+  .rt tbody.pick { cursor: pointer; }
+  .rt tbody.pick:hover td, .rt tbody.pick.on td, .rt tbody.dive td { background: var(--surface); }
+  .rt tbody + tbody tr:first-child td { border-top: 1px solid var(--border); }
+  .rt .pkg { font: 11px var(--font-mono); }
+  .rt .tag { font: 600 11px var(--font-mono); font-variant-numeric: tabular-nums; }
+  .rt tr.calm .tag { font-weight: normal; }
+  .caret { display: inline-block; width: 1em; color: var(--muted); font-size: 10px; }
+  .src-self { color: var(--muted); }
+
+  .rt tbody.dive td { padding: 4px 16px 12px 26px; white-space: normal; }
+  .facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 16px; margin: 0; }
+  .facts dt { color: var(--muted); }
+  .facts dd { margin: 0; display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; }
+  .miss { color: var(--own); font-size: 11px; }
+  .eps { margin: 0; padding: 0; list-style: none; display: grid; gap: 1px; }
+
+  .serves { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+  .serves li { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+  .arrow { color: var(--muted); }
+
+  .changes { color: var(--muted); max-width: 760px; }
+  .changes h2 { margin: 0 0 4px; font-size: 12px; color: var(--text); }
+  .changes ul { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
+
+  [data-tip] { position: relative; cursor: help; }
+  [data-tip]:hover::after {
+    content: attr(data-tip); position: absolute; left: 0; top: calc(100% + 4px); z-index: 10;
+    width: max-content; max-width: 340px; padding: 6px 8px; border-radius: 4px; white-space: pre-line;
+    background: var(--tip-bg); color: var(--tip-text); font: 11px/1.4 var(--font-ui); font-weight: normal; text-transform: none; letter-spacing: 0;
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.25); pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="intro">
+    <h1>Remotes tab mock — orchestrator 4.8</h1>
+    <span>real data from the lab captures:</span>
+    <div class="fx" id="fx"></div>
+    <button class="theme" id="theme" type="button">theme</button>
+  </div>
+
+  <div class="panel">
+    <div class="tabs"><span>Packages</span><span class="on">Remotes</span><span>Import Map</span><span>Graph</span><span>Pools</span></div>
+    <div class="split">
+      <div class="list" id="list"></div>
+      <div class="detail" id="detail"></div>
+    </div>
+  </div>
+
+  <section class="changes">
+    <h2>What moved compared with today's tab</h2>
+    <ul>
+      <li><b>Provides / consumes from other remotes</b> become one <b>Runs</b> table: one row per package, with where it runs from and why.</li>
+      <li>The <code>isolated</code>, <code>own X not selected</code>, <code>skipped own X</code> and <code>subpool of</code> chips become the From column, using the Packages status words.</li>
+      <li><b>Serves</b> is new: which remotes run this remote's build.</li>
+      <li>Range, STRICT, pool, entrypoints and files move into the expanded row; ranges show on the row only when they are the reason.</li>
+      <li>Per-file <code>mapped</code> / SRI lines, chunks and the scope URL go behind links (Import Map) or the meta line.</li>
+      <li>The list says what is off per remote instead of <code>1 expose · 5 declarations</code>.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+const DATA = {"pool-showcase": [{"name": "catalog", "host": false, "scopeUrl": "./catalog/", "exposes": ["main"], "caps": [], "rows": [{"pkg": "@nf-lab/chart-core", "scope": "global", "pool": "charts", "runs": "1.1.0", "ships": "1.1.0", "kind": "self", "from": null, "why": "", "note": "provides the shared 1.1.0 \u2014 the mapping publishes this build", "range": "^1.0.0 (strict)", "eps": [{"s": "@nf-lab/chart-core", "miss": null}], "files": 1}, {"pkg": "@nf-lab/chart-dom", "scope": "global", "pool": "charts", "runs": "1.1.0", "ships": "1.1.0", "kind": "self", "from": null, "why": "", "note": "provides the shared 1.1.0 \u2014 the mapping publishes this build", "range": "^1.0.0 (strict)", "eps": [{"s": "@nf-lab/chart-dom", "miss": null}], "files": 1}, {"pkg": "@nf-lab/icons", "scope": "global", "pool": null, "runs": "1.0.0", "ships": "1.0.0", "kind": "self", "from": null, "why": "", "note": "provides the shared 1.0.0 \u2014 the mapping publishes this build", "range": "^1.0.0 (strict)", "eps": [{"s": "@nf-lab/icons", "miss": null}], "files": 1}, {"pkg": "@nf-lab/ui-core", "scope": "global", "pool": "ui", "runs": "1.0.0", "ships": "1.0.0", "kind": "subpool", "from": "admin", "why": "not covered: the global map lacks @nf-lab/ui-dom", "note": "runs admin's build in a subpool of its pool \u00b7 not covered: the global map lacks @nf-lab/ui-dom", "range": ">=1.0.0 <3.0.0 (strict)", "eps": [{"s": "@nf-lab/ui-core", "miss": null}], "files": 1}, {"pkg": "@nf-lab/ui-dom", "scope": "global", "pool": "ui", "runs": "1.0.0", "ships": "1.0.0", "kind": "subpool", "from": "admin", "why": "not covered: the global map lacks @nf-lab/ui-dom", "note": "runs admin's build in a subpool of its pool \u00b7 not covered: the global map lacks @nf-lab/ui-dom", "range": "exact 1.0.0 (strict scope stores no configured range)", "eps": [{"s": "@nf-lab/ui-dom", "miss": "not on the global map"}], "files": 1}], "serves": []}, {"name": "checkout", "host": false, "scopeUrl": "./checkout/", "exposes": ["main"], "caps": [], "rows": [{"pkg": "@nf-lab/form-core", "scope": "global", "pool": "form-kit", "runs": "1.1.0", "ships": "1.1.0", "kind": "self", "from": null, "why": "", "note": "provides the shared 1.1.0 \u2014 the mapping publishes this build", "range": "^1.0.0 (strict)", "eps": [{"s": "@nf-lab/form-core", "miss": null}], "files": 1}, {"pkg": "@nf-lab/form-dom", "scope": "global", "pool": "form-kit", "runs": "1.1.0", "ships": "1.1.0", "kind": "self", "from": null, "why": "", "note": "provides the shared 1.1.0 \u2014 the mapping publishes this build", "range": "^1.0.0 (strict)", "eps": [{"s": "@nf-lab/form-dom", "miss": null}], "files": 1}, {"pkg": "@nf-lab/ui-core", "scope": "global", "pool": "ui", "runs": "1.0.0", "ships": "1.0.0", "kind": "subpool", "from": "admin", "why": "not covered: the global map lacks @nf-lab/ui-dom", "note": "runs admin's build in a subpool of its pool \u00b7 not covered: the global map lacks @nf-lab/ui-dom", "range": ">=1.0.0 <3.0.0 (strict)", "eps": [{"s": "@nf-lab/ui-core", "miss": null}], "files": 1}, {"pkg": "@nf-lab/ui-dom", "scope": "global", "pool": "ui", "runs": "1.0.0", "ships": "1.0.0", "kind": "subpool", "from": "admin", "why": "not covered: the global map lacks @nf-lab/ui-dom", "note": "runs admin's build in a subpool of its pool \u00b7 not covered: the global map lacks @nf-lab/ui-dom", "range": "exact 1.0.0 (strict scope stores no configured range)", "eps": [{"s": "@nf-lab/ui-dom", "miss": "not on the global map"}], "files": 1}], "serves": [{"pkg": "@nf-lab/form-core", "tag": "1.1.0", "scope": "global", "to": ["dashboard"], "subpool": false}, {"pkg": "@nf-lab/form-dom", "tag": "1.1.0", "scope": "global", "to": ["dashboard"], "subpool": false}]}, {"name": "dashboard", "host": false, "scopeUrl": "./dashboard/", "exposes": ["main"], "caps": [], "rows": [{"pkg": "@nf-lab/chart-core", "scope": "global", "pool": "charts", "runs": "1.0.0", "ships": "1.0.0", "kind": "own", "from": null, "why": "version conflict: its range ^2.0.0 (strict) rejects the global 1.1.0 of @nf-lab/chart-dom", "note": "version conflict: its range ^2.0.0 (strict) rejects the global 1.1.0 of @nf-lab/chart-dom \u00b7 runs its whole pool from its own build", "range": "^1.0.0 (strict)", "eps": [{"s": "@nf-lab/chart-core", "miss": null}], "files": 1}, {"pkg": "@nf-lab/chart-dom", "scope": "global", "pool": "charts", "runs": "2.0.0", "ships": "2.0.0", "kind": "own", "from": null, "why": "version conflict: its range ^2.0.0 (strict) rejects the global 1.1.0 of @nf-lab/chart-dom", "note": "version conflict: its range ^2.0.0 (strict) rejects the global 1.1.0 of @nf-lab/chart-dom \u00b7 runs its whole pool from its own build", "range": "^2.0.0 (strict)", "eps": [{"s": "@nf-lab/chart-dom", "miss": null}], "files": 1}, {"pkg": "@nf-lab/form-core", "scope": "global", "pool": "form-kit", "runs": "1.1.0", "ships": "1.0.0", "kind": "shared", "from": "checkout", "why": "", "note": "^1.0.0 accepts 1.1.0 \u00b7 resolves to the shared copy", "range": "^1.0.0 (strict)", "eps": [{"s": "@nf-lab/form-core", "miss": null}], "files": 1}, {"pkg": "@nf-lab/form-dom", "scope": "global", "pool": "form-kit", "runs": "1.1.0", "ships": "1.0.0", "kind": "shared", "from": "checkout", "why": "", "note": "^1.0.0 accepts 1.1.0 \u00b7 resolves to the shared copy", "range": "^1.0.0 (strict)", "eps": [{"s": "@nf-lab/form-dom", "miss": null}], "files": 1}], "serves": []}, {"name": "admin", "host": false, "scopeUrl": "./admin/", "exposes": ["main"], "caps": [], "rows": [{"pkg": "@nf-lab/ui-core", "scope": "global", "pool": "ui", "runs": "1.0.0", "ships": "1.0.0", "kind": "owner", "from": null, "why": "not covered: the global map lacks @nf-lab/ui-dom", "note": "its build serves a subpool of its pool \u00b7 not covered: the global map lacks @nf-lab/ui-dom", "range": ">=1.0.0 <3.0.0 (strict)", "eps": [{"s": "@nf-lab/ui-core", "miss": null}], "files": 1}, {"pkg": "@nf-lab/ui-dom", "scope": "global", "pool": "ui", "runs": "1.0.0", "ships": "1.0.0", "kind": "owner", "from": null, "why": "not covered: the global map lacks @nf-lab/ui-dom", "note": "its build serves a subpool of its pool \u00b7 not covered: the global map lacks @nf-lab/ui-dom", "range": "exact 1.0.0 (strict scope stores no configured range)", "eps": [{"s": "@nf-lab/ui-dom", "miss": "not on the global map"}], "files": 1}], "serves": [{"pkg": "@nf-lab/ui-core", "tag": "1.0.0", "scope": "global", "to": ["catalog", "checkout"], "subpool": true}, {"pkg": "@nf-lab/ui-dom", "tag": "1.0.0", "scope": "global", "to": ["catalog", "checkout"], "subpool": true}]}, {"name": "host", "host": true, "scopeUrl": "./", "exposes": [], "caps": [], "rows": [{"pkg": "@nf-lab/ui-core", "scope": "global", "pool": "ui", "runs": "2.0.0", "ships": "2.0.0", "kind": "self", "from": null, "why": "", "note": "provides the shared 2.0.0 \u2014 the mapping publishes this build", "range": ">=1.0.0 <3.0.0 (strict)", "eps": [{"s": "@nf-lab/ui-core", "miss": null}], "files": 1}, {"pkg": "@nf-lab/utils", "scope": "global", "pool": null, "runs": "1.0.0", "ships": "1.0.0", "kind": "self", "from": null, "why": "", "note": "provides the shared 1.0.0 \u2014 the mapping publishes this build", "range": "^1.0.0 (not strict)", "eps": [{"s": "@nf-lab/utils", "miss": null}], "files": 1}], "serves": []}], "strict-uncovered": [{"name": "mfe1", "host": false, "scopeUrl": "./mfe1/", "exposes": ["main"], "caps": ["multi-entry registrations"], "rows": [{"pkg": "@nf-lab/kit", "scope": "strict", "pool": null, "runs": "1.2.0", "ships": "1.2.0", "kind": "own", "from": null, "why": "not covered: the serving build of host lacks @nf-lab/kit/table, @nf-lab/kit/dialog", "note": "not covered: the serving build of host lacks @nf-lab/kit/table, @nf-lab/kit/dialog \u00b7 runs its own 1.2.0 from its own build", "range": "exact 1.2.0 (strict scope stores no configured range)", "eps": [{"s": "@nf-lab/kit", "miss": null}, {"s": "@nf-lab/kit/dialog", "miss": "not in host's build"}, {"s": "@nf-lab/kit/table", "miss": "not in host's build"}], "files": 4}], "serves": []}, {"name": "mfe2", "host": false, "scopeUrl": "./mfe2/", "exposes": ["main"], "caps": [], "rows": [{"pkg": "@nf-lab/kit", "scope": "strict", "pool": null, "runs": "1.2.0", "ships": "1.2.0", "kind": "shared", "from": "host", "why": "", "note": "strict scope \u00b7 exact match of 1.2.0", "range": "exact 1.2.0 (strict scope stores no configured range)", "eps": [], "files": 4}], "serves": []}, {"name": "mfe3", "host": false, "scopeUrl": "./mfe3/", "exposes": ["main"], "caps": [], "rows": [{"pkg": "@nf-lab/kit", "scope": "strict", "pool": null, "runs": "1.3.0", "ships": "1.3.0", "kind": "self", "from": null, "why": "", "note": "strict scope \u00b7 shares exact 1.3.0", "range": "exact 1.3.0 (strict scope stores no configured range)", "eps": [{"s": "@nf-lab/kit", "miss": null}], "files": 1}], "serves": []}, {"name": "host", "host": true, "scopeUrl": "./", "exposes": [], "caps": [], "rows": [{"pkg": "@nf-lab/kit", "scope": "strict", "pool": null, "runs": "1.2.0", "ships": "1.2.0", "kind": "self", "from": null, "why": "", "note": "strict scope \u00b7 shares exact 1.2.0", "range": "exact 1.2.0 (strict scope stores no configured range)", "eps": [{"s": "@nf-lab/kit", "miss": null}], "files": 4}], "serves": [{"pkg": "@nf-lab/kit", "tag": "1.2.0", "scope": "strict", "to": ["mfe2"], "subpool": false}]}], "fallback-uncovered": [{"name": "mfe1", "host": false, "scopeUrl": "./mfe1/", "exposes": ["main"], "caps": ["multi-entry registrations"], "rows": [{"pkg": "@nf-lab/kit", "scope": "global", "pool": null, "runs": "1.2.0", "ships": "1.2.0", "kind": "own", "from": null, "why": "not covered: the serving build of host lacks @nf-lab/kit/table, @nf-lab/kit/table/sort, @nf-lab/kit/table/paginator, @nf-lab/kit/dialog, @nf-lab/kit/forms", "note": "not covered: the serving build of host lacks @nf-lab/kit/table, @nf-lab/kit/table/sort, @nf-lab/kit/table/paginator, @nf-lab/kit/dialog, @nf-lab/kit/forms \u00b7 runs its own 1.2.0 from its own build", "range": "^1.0.0 (strict)", "eps": [{"s": "@nf-lab/kit", "miss": null}, {"s": "@nf-lab/kit/dialog", "miss": "not in host's build"}, {"s": "@nf-lab/kit/forms", "miss": "not in host's build"}, {"s": "@nf-lab/kit/table", "miss": "not in host's build"}, {"s": "@nf-lab/kit/table/paginator", "miss": "not in host's build"}, {"s": "@nf-lab/kit/table/sort", "miss": "not in host's build"}], "files": 6}], "serves": []}, {"name": "mfe2", "host": false, "scopeUrl": "./mfe2/", "exposes": ["main"], "caps": ["multi-entry registrations"], "rows": [{"pkg": "@nf-lab/kit", "scope": "global", "pool": null, "runs": "1.3.0", "ships": "1.3.0", "kind": "own", "from": null, "why": "not covered: the serving build of host lacks @nf-lab/kit/charts, @nf-lab/kit/charts/legend, @nf-lab/kit/date-picker", "note": "not covered: the serving build of host lacks @nf-lab/kit/charts, @nf-lab/kit/charts/legend, @nf-lab/kit/date-picker \u00b7 runs its own 1.3.0 from its own build", "range": "^1.0.0 (strict)", "eps": [{"s": "@nf-lab/kit", "miss": null}, {"s": "@nf-lab/kit/charts", "miss": "not in host's build"}, {"s": "@nf-lab/kit/charts/legend", "miss": "not in host's build"}, {"s": "@nf-lab/kit/date-picker", "miss": "not in host's build"}], "files": 4}], "serves": []}, {"name": "host", "host": true, "scopeUrl": "./", "exposes": [], "caps": [], "rows": [{"pkg": "@nf-lab/kit", "scope": "global", "pool": null, "runs": "1.4.0", "ships": "1.4.0", "kind": "self", "from": null, "why": "", "note": "provides the shared 1.4.0 \u2014 the mapping publishes this build", "range": "^1.0.0 (strict)", "eps": [{"s": "@nf-lab/kit", "miss": null}], "files": 1}], "serves": []}], "out-of-range-nonstrict": [{"name": "mfe1", "host": false, "scopeUrl": "./mfe1/", "exposes": ["main"], "caps": [], "rows": [{"pkg": "@nf-lab/kit", "scope": "global", "pool": null, "runs": "2.0.0", "ships": "1.2.0", "kind": "off", "from": "host", "why": "^1.0.0 rejects 2.0.0 \u00b7 not strict \u00b7 resolves to 2.0.0 anyway \u2014 the orchestrator stores a plain skip", "note": "^1.0.0 rejects 2.0.0 \u00b7 not strict \u00b7 resolves to 2.0.0 anyway \u2014 the orchestrator stores a plain skip", "range": "^1.0.0 (not strict)", "eps": [{"s": "@nf-lab/kit", "miss": null}], "files": 1}], "serves": []}, {"name": "mfe2", "host": false, "scopeUrl": "./mfe2/", "exposes": ["main"], "caps": [], "rows": [{"pkg": "@nf-lab/kit", "scope": "global", "pool": null, "runs": "1.3.0", "ships": "1.3.0", "kind": "own", "from": null, "why": "version conflict: its range ^1.0.0 (strict) rejects the served 2.0.0 of @nf-lab/kit", "note": "version conflict: its range ^1.0.0 (strict) rejects the served 2.0.0 of @nf-lab/kit \u00b7 runs its own 1.3.0 from its own build", "range": "^1.0.0 (strict)", "eps": [{"s": "@nf-lab/kit", "miss": null}], "files": 1}], "serves": []}, {"name": "mfe3", "host": false, "scopeUrl": "./mfe3/", "exposes": ["main"], "caps": [], "rows": [{"pkg": "@nf-lab/kit", "scope": "global", "pool": null, "runs": "2.0.0", "ships": "2.0.0", "kind": "shared", "from": "host", "why": "", "note": "same version as the shared copy \u00b7 resolves to host's build", "range": "^2.0.0 (strict)", "eps": [{"s": "@nf-lab/kit", "miss": null}], "files": 1}], "serves": []}, {"name": "host", "host": true, "scopeUrl": "./", "exposes": [], "caps": [], "rows": [{"pkg": "@nf-lab/kit", "scope": "global", "pool": null, "runs": "2.0.0", "ships": "2.0.0", "kind": "self", "from": null, "why": "", "note": "provides the shared 2.0.0 \u2014 the mapping publishes this build", "range": "^2.0.0 (strict)", "eps": [{"s": "@nf-lab/kit", "miss": null}], "files": 1}], "serves": [{"pkg": "@nf-lab/kit", "tag": "2.0.0", "scope": "global", "to": ["mfe3", "mfe1"], "subpool": false}]}], "pool-incompatible-nonstrict": [{"name": "mfe1", "host": false, "scopeUrl": "./mfe1/", "exposes": ["main"], "caps": [], "rows": [{"pkg": "@nf-lab/ui-core", "scope": "global", "pool": "ui", "runs": "1.1.0", "ships": "1.1.0", "kind": "own", "from": null, "why": "version conflict: its range ^1.0.0 (not strict) rejects the global 2.0.0 of @nf-lab/ui-core, @nf-lab/ui-dom", "note": "version conflict: its range ^1.0.0 (not strict) rejects the global 2.0.0 of @nf-lab/ui-core, @nf-lab/ui-dom \u00b7 runs its whole pool from its own build", "range": "^1.0.0 (not strict)", "eps": [{"s": "@nf-lab/ui-core", "miss": null}], "files": 1}, {"pkg": "@nf-lab/ui-dom", "scope": "global", "pool": "ui", "runs": "1.1.0", "ships": "1.1.0", "kind": "own", "from": null, "why": "version conflict: its range ^1.0.0 (not strict) rejects the global 2.0.0 of @nf-lab/ui-core, @nf-lab/ui-dom", "note": "version conflict: its range ^1.0.0 (not strict) rejects the global 2.0.0 of @nf-lab/ui-core, @nf-lab/ui-dom \u00b7 runs its whole pool from its own build", "range": "^1.0.0 (not strict)", "eps": [{"s": "@nf-lab/ui-dom", "miss": null}], "files": 1}], "serves": []}, {"name": "mfe2", "host": false, "scopeUrl": "./mfe2/", "exposes": ["main"], "caps": [], "rows": [{"pkg": "@nf-lab/ui-core", "scope": "global", "pool": "ui", "runs": "2.0.0", "ships": "1.1.0", "kind": "shared", "from": "host", "why": "", "note": ">=1.0.0 <3.0.0 accepts 2.0.0 \u00b7 resolves to the shared copy", "range": ">=1.0.0 <3.0.0 (not strict)", "eps": [{"s": "@nf-lab/ui-core", "miss": null}], "files": 1}, {"pkg": "@nf-lab/ui-dom", "scope": "global", "pool": "ui", "runs": "2.0.0", "ships": "1.1.0", "kind": "shared", "from": "host", "why": "", "note": ">=1.0.0 <3.0.0 accepts 2.0.0 \u00b7 resolves to the shared copy", "range": ">=1.0.0 <3.0.0 (not strict)", "eps": [{"s": "@nf-lab/ui-dom", "miss": null}], "files": 1}], "serves": []}, {"name": "host", "host": true, "scopeUrl": "./", "exposes": [], "caps": [], "rows": [{"pkg": "@nf-lab/ui-core", "scope": "global", "pool": "ui", "runs": "2.0.0", "ships": "2.0.0", "kind": "self", "from": null, "why": "", "note": "provides the shared 2.0.0 \u2014 the mapping publishes this build", "range": "^2.0.0 (strict)", "eps": [{"s": "@nf-lab/ui-core", "miss": null}], "files": 1}, {"pkg": "@nf-lab/ui-dom", "scope": "global", "pool": "ui", "runs": "2.0.0", "ships": "2.0.0", "kind": "self", "from": null, "why": "", "note": "provides the shared 2.0.0 \u2014 the mapping publishes this build", "range": "^2.0.0 (strict)", "eps": [{"s": "@nf-lab/ui-dom", "miss": null}], "files": 1}], "serves": [{"pkg": "@nf-lab/ui-core", "tag": "2.0.0", "scope": "global", "to": ["mfe2"], "subpool": false}, {"pkg": "@nf-lab/ui-dom", "tag": "2.0.0", "scope": "global", "to": ["mfe2"], "subpool": false}]}]};
+const ORDER = { off: 0, own: 1, owner: 2, subpool: 3, shared: 4, self: 5, unknown: 6 };
+const state = { fx: Object.keys(DATA)[0], remote: null, open: null };
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const short = (pkg) => pkg;
+
+function colorOf(fx, name) {
+  const remotes = DATA[fx].filter((r) => !r.host);
+  const i = remotes.findIndex((r) => r.name === name);
+  return i < 0 ? 'var(--p-host)' : `var(--p${(i % 7) + 1})`;
+}
+function chip(name, tip) {
+  const host = name === 'host';
+  const t = tip ? ` data-tip="${esc(tip)}"` : '';
+  return `<a href="#" class="chip${host ? ' host' : ''}" style="--dot:${colorOf(state.fx, name)}" data-go="${esc(name)}"${t}>${esc(name)}</a>`;
+}
+
+function fromCell(row) {
+  switch (row.kind) {
+    case 'self': return `<span class="src-self" data-tip="${esc('serves the shared ' + row.runs + ' — the import map points everyone here')}">self</span>`;
+    case 'shared': return chip(row.from, row.note);
+    case 'subpool': return `<span class="k k-sub">subpool of</span> ${chip(row.from)}`;
+    case 'owner': return `<span class="k k-sub" data-tip="its build serves a subpool of its pool">self · subpool</span>`;
+    case 'own': return `<span class="k k-own" data-tip="runs its own ${esc(row.runs)}, not the shared one">own build</span>`;
+    case 'off': return `<span class="k k-off">out of range</span> ${chip(row.from)}`;
+    default: return `<span class="muted">unknown</span>`;
+  }
+}
+
+function whyCell(row) {
+  if (!row.why) return '';
+  const i = row.why.indexOf(': ');
+  const html = i > 0 && i < 20 ? `<b>${esc(row.why.slice(0, i))}</b> ${esc(row.why.slice(i + 2))}` : esc(row.why);
+  return html;
+}
+
+const tallyKind = { own: ['k-own', 'own build'], off: ['k-off', 'out of range'], subpool: ['k-sub', 'subpool'], owner: ['k-sub', 'subpool owner'] };
+function counts(rows) {
+  const c = {};
+  for (const r of rows) c[r.kind] = (c[r.kind] || 0) + 1;
+  return c;
+}
+
+function renderFx() {
+  document.getElementById('fx').innerHTML = Object.keys(DATA)
+    .map((fx) => `<button type="button" class="fbtn${fx === state.fx ? ' on' : ''}" data-fx="${fx}">${fx}</button>`).join('');
+}
+
+function renderList() {
+  const remotes = DATA[state.fx];
+  document.getElementById('list').innerHTML = remotes.map((r) => {
+    const c = counts(r.rows);
+    const marks = Object.entries(tallyKind).filter(([k]) => c[k]).map(([k, [cls, label]]) => `<span class="k ${cls}">${c[k]} ${label}</span>`);
+    if (marks.length === 0) marks.push('<span class="k k-ok">ok</span>');
+    if (r.serves.length) marks.push(`<span class="muted">serves ${new Set(r.serves.flatMap((s) => s.to)).size}</span>`);
+    const host = r.host ? ' host' : '';
+    return `<button type="button" class="row${r.name === state.remote ? ' sel' : ''}" data-remote="${esc(r.name)}">
+      <span class="chip${host}" style="--dot:${colorOf(state.fx, r.name)}">${esc(r.name)}</span>
+      <span class="marks">${marks.join('')}</span></button>`;
+  }).join('');
+}
+
+function renderDetail() {
+  const r = DATA[state.fx].find((x) => x.name === state.remote);
+  const el = document.getElementById('detail');
+  if (!r) { el.innerHTML = '<p class="muted">Select a remote on the left.</p>'; return; }
+
+  const c = counts(r.rows);
+  const fromCounts = {};
+  for (const row of r.rows) {
+    const key = row.kind === 'self' ? 'self' : row.kind === 'own' ? 'own build' : row.kind === 'owner' ? 'subpool owner' : row.kind === 'subpool' ? 'subpool of ' + row.from : 'from ' + row.from;
+    fromCounts[key] = (fromCounts[key] || 0) + 1;
+  }
+  const tally = Object.entries(fromCounts).map(([k, n]) => {
+    const cls = k === 'own build' ? 'k-own' : k.startsWith('subpool') ? 'k-sub' : 'k-ok';
+    return `<span class="k ${cls}">${n} ${esc(k)}</span>`;
+  });
+  if (c.off) tally.unshift(`<span class="k k-off">${c.off} out of range</span>`);
+
+  const exposes = r.exposes.length
+    ? r.exposes.map((e) => `<a href="#" data-tip="${esc(r.name + '/./' + e + ' — open in Import Map')}">${esc(e)}</a>`).join(', ')
+    : 'none';
+  const caps = r.caps && r.caps.length ? r.caps.join(', ') : 'none recorded';
+
+  const rows = [...r.rows].sort((a, b) => ORDER[a.kind] - ORDER[b.kind] || a.pkg.localeCompare(b.pkg));
+  const body = rows.map((row, i) => {
+    const id = `${row.scope}|${row.pkg}`;
+    const open = state.open === id;
+    const calm = row.kind === 'self' || row.kind === 'shared';
+    const scope = row.scope !== 'global' ? ` <span class="muted mono">${esc(row.scope)}</span>` : '';
+    let html = `<tbody class="pick${open ? ' on' : ''}" data-open="${esc(id)}" tabindex="0">
+      <tr class="${calm ? 'calm' : ''}">
+        <td><span class="caret">${open ? '▾' : '▸'}</span><span class="pkg">${esc(short(row.pkg))}</span>${scope}</td>
+        <td class="tag">${esc(row.runs ?? '—')}</td>
+        <td>${fromCell(row)}</td>
+        <td class="why">${whyCell(row)}</td>
+      </tr></tbody>`;
+    if (open) {
+      const ships = row.ships && row.ships !== row.runs ? `${esc(row.ships)} <span class="muted">— not used, runs ${esc(row.runs)}</span>` : esc(row.ships ?? '—');
+      const eps = row.eps.map((e) => `<li class="mono">${esc(e.s)}${e.miss ? ` <span class="miss">${esc(e.miss)}</span>` : ''}</li>`).join('');
+      html += `<tbody class="dive"><tr><td colspan="4"><dl class="facts">
+        <dt>Declares</dt><dd class="mono">${esc(row.range || '—')}</dd>
+        <dt>Ships</dt><dd class="mono">${ships}</dd>
+        ${row.pool ? `<dt>Pool</dt><dd><a href="#">${esc(row.pool)} →</a></dd>` : ''}
+        <dt>Entrypoints</dt><dd><ul class="eps">${eps || '<li class="muted">none</li>'}</ul></dd>
+        <dt>Files</dt><dd><span>${row.files}</span><a href="#">Import Map →</a><a href="#">Packages →</a></dd>
+      </dl></td></tr></tbody>`;
+    }
+    return html;
+  }).join('');
+
+  const serves = r.serves.length
+    ? `<ul class="serves">${r.serves.map((s) => `<li><span class="mono">${esc(s.pkg)}</span> <span class="tag mono">${esc(s.tag)}</span>
+        ${s.subpool ? '<span class="k k-sub">subpool</span>' : ''}<span class="arrow">→</span>${s.to.map((n) => chip(n)).join(' ')}</li>`).join('')}</ul>`
+    : `<p class="muted" style="margin:0">no other remote runs ${esc(r.name)}'s builds</p>`;
+
+  el.innerHTML = `
+    <div class="dhead">
+      <h2>${esc(r.name)}</h2>
+      <div class="meta"><span class="mono">${esc(r.scopeUrl)}</span><span class="sep"></span><span>exposes ${exposes}</span><span class="sep"></span><span>capabilities: ${esc(caps)}</span></div>
+    </div>
+    <div class="tally">${tally.join('')}</div>
+    <section>
+      <h3>Runs</h3>
+      <div class="scroll"><table class="rt">
+        <thead><tr><th>Package</th><th>Version</th><th>From</th><th>Why</th></tr></thead>
+        ${body}
+      </table></div>
+    </section>
+    <section>
+      <h3>Serves</h3>
+      ${serves}
+    </section>`;
+}
+
+function render() { renderFx(); renderList(); renderDetail(); }
+
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-fx],[data-remote],[data-open],[data-go],a');
+  if (!t) return;
+  if (t.dataset.fx) { state.fx = t.dataset.fx; state.remote = DATA[state.fx][0].name; state.open = null; }
+  else if (t.dataset.remote) { state.remote = t.dataset.remote; state.open = null; }
+  else if (t.dataset.go) { e.preventDefault(); e.stopPropagation(); state.remote = t.dataset.go; state.open = null; }
+  else if (t.tagName === 'A') { e.preventDefault(); return; }
+  else if (t.dataset.open) { state.open = state.open === t.dataset.open ? null : t.dataset.open; }
+  render();
+});
+document.addEventListener('keydown', (e) => {
+  const t = e.target.closest?.('[data-open]');
+  if (t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); t.click(); }
+});
+document.getElementById('theme').addEventListener('click', () => {
+  const root = document.documentElement;
+  const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  root.dataset.theme = dark ? 'light' : 'dark';
+});
+
+state.fx = 'pool-showcase';
+state.remote = 'dashboard';
+render();
+</script>
+</body>
+</html>
