@@ -1,12 +1,56 @@
+:host {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  min-width: 0;
+}
+
 .detail-name {
-  margin: 0 0 4px;
+  margin: 0;
   font-size: 12px;
   font-family: var(--nf-font-mono);
+}
+
+.detail-meta {
+  margin: -12px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  color: var(--nf-color-text-muted);
+}
+
+.detail-meta a,
+.pool-link,
+.entrypoints a {
+  color: var(--nf-color-accent);
+  text-decoration: none;
+}
+
+.detail-meta a:hover,
+.pool-link:hover,
+.entrypoints a:hover {
+  text-decoration: underline;
+}
+
+.entry-url {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-sep {
+  margin-right: 2px;
 }
 
 .mono {
   font-family: var(--nf-font-mono);
   font-size: 11px;
+}
+
+.muted {
+  color: var(--nf-color-text-muted);
 }
 
 /* Tooltip affordance (shell convention): dotted underline + help cursor. */
@@ -16,340 +60,321 @@
   cursor: help;
 }
 
-/* Colon meta (7.6 convention): identity facts and the capabilities line. */
-.detail-meta {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin: 0;
-  color: var(--nf-color-text-muted);
+.chip-link {
+  color: inherit;
+  text-decoration: none;
 }
 
-.meta-sep {
-  color: var(--nf-color-text-muted);
-}
-
-/* Section headers share one visual grammar with the Packages detail.
- * Bold + full text color (screenshot review 4): at 10px caps, weight
- * alone barely renders, and the muted tone drowns among muted content —
- * color is what separates a header from tip-underlined body text. */
-.group-label {
-  margin: 14px 0 2px;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--nf-color-text);
-}
-
-/* One-line muted sub-bucket note (deps-note precedent). */
-.deps-note {
+h3 {
   margin: 0 0 4px;
+  width: fit-content;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--nf-color-text-muted);
 }
 
-.file-list,
-.provides-blocks,
-.relation-list,
-.unresolved-list,
+h3[data-tip] {
+  cursor: help;
+}
+
+.warnings {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.warning {
+  padding: 0 6px;
+  border: 1px solid var(--nf-color-warning-border);
+  border-radius: 3px;
+  background: var(--nf-color-warning-bg);
+  color: var(--nf-color-warning-text);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: help;
+}
+
+/* --- run kinds: colour only off the norm ------------------------------- */
+
+.tally {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+
+.kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--nf-color-text-muted);
+}
+
+.kind-own,
+.kind-off,
+.kind-unresolved,
+.kind-owner,
+.kind-subpool {
+  font-weight: 600;
+}
+
+.kind-own::before,
+.kind-off::before,
+.kind-unresolved::before,
+.kind-owner::before,
+.kind-subpool::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.kind-own {
+  color: var(--nf-color-isolated-text);
+}
+
+.kind-off,
+.kind-unresolved {
+  color: var(--nf-color-conflict-text);
+}
+
+.kind-owner,
+.kind-subpool {
+  color: var(--nf-color-subpool-text);
+}
+
+/* --- runs table -------------------------------------------------------- */
+
+.table-scroll {
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.runs-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.runs-table th,
+.runs-table td {
+  padding: 4px 12px 4px 0;
+  text-align: left;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
+.runs-table th:first-child,
+.runs-table td:first-child {
+  padding-left: 6px;
+}
+
+.runs-table thead th {
+  border-bottom: 1px solid var(--nf-color-border);
+  color: var(--nf-color-text-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.runs-table thead th[data-tip] {
+  cursor: help;
+}
+
+tbody.run + tbody.run td,
+tbody.dive + tbody.run td {
+  border-top: 1px solid var(--nf-color-border);
+}
+
+tbody.run {
+  cursor: pointer;
+}
+
+tbody.run:hover td,
+tbody.run.open td,
+tbody.dive td {
+  background: var(--nf-color-surface);
+}
+
+tbody.run:focus-visible {
+  outline: 2px solid var(--nf-color-focus-ring);
+  outline-offset: -2px;
+}
+
+.caret {
+  display: inline-block;
+  width: 1em;
+  color: var(--nf-color-text-muted);
+  font-size: 10px;
+}
+
+.scope-label {
+  margin-left: 6px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--nf-color-surface);
+  color: var(--nf-color-text-muted);
+}
+
+.run-tag {
+  font-family: var(--nf-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+tbody.calm .run-tag {
+  font-weight: 400;
+}
+
+.from {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* A short label; the full reason is its tooltip and the opened row's Why. */
+.runs-table td.why {
+  width: 100%;
+}
+
+.why-text {
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  color: var(--nf-color-text);
+  font-weight: 600;
+}
+
+.why-full {
+  color: var(--nf-color-text-muted);
+}
+
+tbody.dive td {
+  padding: 4px 16px 12px 26px;
+  white-space: normal;
+}
+
+.facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 3px 16px;
+}
+
+.facts dt {
+  color: var(--nf-color-text-muted);
+}
+
+.facts dd {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+}
+
+.entrypoints {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 1px;
+}
+
+.entrypoints li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+}
+
+.entry-note {
+  color: var(--nf-color-warning-text);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pool-orphan {
+  color: var(--nf-color-warning-text);
+}
+
+.serves-hint {
+  font-size: 11px;
+  color: var(--nf-color-text-muted);
+}
+
+/* --- the occasional sections -------------------------------- */
+
 .scoped-list,
+.relation-list,
 .chunk-packages,
 .chunk-list {
   margin: 0;
   padding: 0;
   list-style: none;
+  display: grid;
+  gap: 4px;
 }
 
-/* --- file lines (exposes + provides, Packages grammar) ----------------- */
-
-.file-line,
-.relation-item,
 .scoped-item,
-.unresolved-row {
+.relation-item,
+.chunk-head {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
   flex-wrap: wrap;
-  padding: 1px 0;
-}
-
-.file-line-indented {
-  padding-left: 12px;
-}
-
-.file-specifier {
-  color: var(--nf-color-text-muted);
-}
-
-.file-name,
-.expose-name {
-  overflow-wrap: anywhere;
-}
-
-.file-name {
-  color: var(--nf-color-text-muted);
-}
-
-.file-sri {
-  padding: 0 4px;
-  border: 1px solid var(--nf-color-border);
-  border-radius: 3px;
-  font-size: 10px;
-  color: var(--nf-color-text-muted);
-}
-
-/* Missing SRI stays visible but quiet — an observation, not an alarm. */
-.file-sri-missing {
-  border-style: dashed;
-  opacity: 0.7;
-}
-
-/* --- provides blocks ---------------------------------------------------- */
-
-/* Tile separation (screenshot review 2): thicker rail + wider gap — with
- * a 2px rail and 8px gaps adjacent blocks read as one continuous strip. */
-.provides-block {
-  margin-top: 14px;
-  padding: 2px 0 2px 8px;
-  border-left: 3px solid var(--nf-color-border);
-}
-
-.copy-head {
-  display: flex;
   align-items: baseline;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin: 0 0 2px;
+  gap: 4px 8px;
 }
 
-.copy-tag {
-  font-family: var(--nf-font-mono);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.head-declared {
-  color: var(--nf-color-text-muted);
-  white-space: nowrap;
-}
-
-/* A configuration fact, not a problem — muted, never warning-colored. */
-.head-strict,
-.consumer-strict {
-  color: var(--nf-color-text-muted);
-  font-size: 9px;
-  letter-spacing: 0.04em;
-}
-
-/* Deviation chips of a copy head — dashed marks the qualified statement. */
-.copy-fact {
-  padding: 0 4px;
-  border: 1px dashed var(--nf-color-border);
-  border-radius: 3px;
-  font-size: 10px;
-  color: var(--nf-color-text-muted);
-  white-space: nowrap;
-}
-
-/* Secondary registry keys, compact under their name-derived parent. */
-.sub-row {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin: 0;
-  padding: 1px 0 1px 12px;
-}
-
-.sub-glyph {
-  color: var(--nf-color-text-muted);
-}
-
-/* A secondary's file lines indent one step deeper than its head. */
-.sub-file-line {
-  padding-left: 28px;
-}
-
-.pkg-link {
-  font-family: var(--nf-font-mono);
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.dep-scope {
-  padding: 0 4px;
-  border: 1px solid var(--nf-color-border);
-  border-radius: 3px;
-  font-size: 10px;
-  color: var(--nf-color-text-muted);
-  font-family: var(--nf-font-mono);
-  text-decoration: underline dotted;
-  text-underline-offset: 2px;
-  cursor: help;
-}
-
-/* --- consumes rows ------------------------------------------------------ */
-
-/* Two-line mini-block in the provides grammar (screenshot review 3) — no
- * ownership rail: the copy lives on another remote. */
-.consumes-row {
-  margin-top: 8px;
-}
-
-.consumer-via {
-  color: var(--nf-color-text-muted);
-  font-size: 10px;
-}
-
-.consumer-declared {
-  color: var(--nf-color-text-muted);
-  white-space: nowrap;
-}
-
-/* `from` + source on the winner file line (Packages source grammar). */
-.source-word {
-  color: var(--nf-color-text-muted);
-  font-size: 10px;
-}
-
-/* Remote-less qualified provider — muted text, never a second chip: the
- * qualifier's chip form already sits in the head's state chips. */
-.source-provider {
-  font-size: 11px;
-  color: var(--nf-color-text-muted);
-}
-
-/* Mapping-state chip — same look as the Packages detail (T7 vocabulary). */
 .state-chip {
   padding: 0 4px;
   border: 1px solid var(--nf-color-border);
   border-radius: 3px;
-  font-size: 10px;
-  color: var(--nf-color-text-muted);
-  white-space: nowrap;
-}
-
-.offered-chip {
-  font-size: 10px;
-  font-style: italic;
-  color: var(--nf-color-text-muted);
-  white-space: nowrap;
-}
-
-/* Anchors wrapping a participant chip: the chip IS the link — never an
- * underline through the chip text (hover accent lives in the chip's css). */
-.chip-link {
-  text-decoration: none !important;
-}
-
-.relation-binding,
-.scoped-file,
-.scoped-specifier {
-  overflow-wrap: anywhere;
+  font-size: 11px;
   color: var(--nf-color-text-muted);
 }
 
-.relation-note {
-  font-size: 10px;
-  color: var(--nf-color-text-muted);
+.view-observation {
+  margin: 0;
 }
 
-.scoped-tag {
-  padding: 0 4px;
-  border: 1px solid var(--nf-color-border);
-  border-radius: 3px;
-  font-size: 10px;
-  color: var(--nf-color-text-muted);
+.chunk-count {
+  margin-left: 4px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
 }
-
-/* --- chunks -------------------------------------------------------------- */
 
 .chunk-head {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
   margin: 0;
-  padding: 1px 0;
 }
 
-.chunk-bundle,
-.chunk-count,
-.chunk-serves {
+.chunk-list {
+  padding-left: 12px;
+  gap: 1px;
   color: var(--nf-color-text-muted);
 }
-
-/* Count and serves tail align to the 11px mono bundle name — one text
- * size per chunk row (screenshot review). */
-.chunk-count,
-.chunk-serves {
-  font-size: 11px;
-}
-
-/* Qualified bundle-claim status — dashed border marks the uncertainty. */
-.chunk-status {
-  padding: 0 4px;
-  border: 1px dashed var(--nf-color-border);
-  border-radius: 3px;
-  font-size: 10px;
-  color: var(--nf-color-text-muted);
-}
-
-.chunk-list li {
-  padding: 1px 0 1px 12px;
-}
-
-.chunk-item {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
-  color: var(--nf-color-text-muted);
-}
-
-/* --- diagnostics footer --------------------------------------------------- */
 
 .diagnostics-footer {
-  margin-top: 14px;
   padding-top: 6px;
-  border-top: 1px dashed var(--nf-color-border);
+  border-top: 1px solid var(--nf-color-border);
+  color: var(--nf-color-text-muted);
 }
 
-.diagnostics-item {
+.diagnostics-footer p {
   margin: 0;
-  padding: 1px 0;
-  font-size: 10px;
-  color: var(--nf-color-text-muted);
+  width: fit-content;
 }
 
-/* Navigating elements: pointer + hover accent (shell affordance rule). */
-a {
-  color: var(--nf-color-accent);
-  cursor: pointer;
-}
-
-a:not(.tip) {
-  text-decoration: none;
-}
-
-a:hover {
-  text-decoration: underline;
-}
-
-/* A declaration's explicit pool tag; an orphan tag (joined nothing) warns. */
-.pool-chip {
-  padding: 0 4px;
-  border: 1px solid var(--nf-color-border);
-  border-radius: 3px;
-  font-size: 10px;
-  color: var(--nf-color-text-muted);
-  font-family: var(--nf-font-mono);
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
   white-space: nowrap;
-}
-
-.pool-chip-orphan {
-  border-color: var(--nf-color-warning-border);
-  background: var(--nf-color-warning-bg);
-  color: var(--nf-color-warning-text);
 }

@@ -35,9 +35,9 @@ guesses.
   version, the resolver's verdict for each remote, and a deep dive into who
   ships it, its entrypoints and its files. Out-of-range remotes, own copies
   and subpools are called out with the reason, not averaged away.
-- 🛰️ **Remotes** — each participant from its own point of view: what it
-  exposes, what it declares, and where every single dependency really
-  resolves.
+- 🛰️ **Remotes** — each participant from its own point of view: where every
+  package it declares runs from — its own build, another remote's, a subpool —
+  and why, plus which other remotes run its builds.
 - 🕸️ **Graph** — remotes, dependency copies, and build files as one
   traceable picture. Hover to trace, tick remotes to include or exclude
   them, group the dependency column by provider, share scope, pool, or build.
@@ -84,11 +84,14 @@ when it isn't strict — the orchestrator stores a plain skip for it.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/remotes-dark.png">
-  <img src="docs/assets/readme/remotes-light.png" alt="The Remotes tab: a remote's exposes with mapped files, what it provides to the federation, and every dependency it consumes from other remotes">
+  <img src="docs/assets/readme/remotes-light.png" alt="The Remotes tab on pool-showcase: dashboard runs two chart packages on its own build because its strict ^2.0.0 range rejects the global 1.1.0, and two form packages from checkout's build">
 </picture>
 
-Exposes, provided packages, and — line by line — which dependency this remote
-consumes from whom, and which own version lost the negotiation.
+One row per package: the version this remote runs, whose build it comes from,
+and — only when it is off the norm — a short reason, explained on hover. Open a
+row for its declared range, pool, entrypoints, and the remotes it serves. A
+warning flags flat externals or flat chunking when the capture proves them; the
+list marks only what is out of range or resolves nowhere.
 
 ## Why a remote left the pool
 
