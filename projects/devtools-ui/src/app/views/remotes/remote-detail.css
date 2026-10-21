@@ -212,19 +212,34 @@ tbody.calm .run-tag {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  cursor: help;
 }
 
+/* One line; the full reason is in the tooltip and the opened row. */
 .runs-table td.why {
   width: 100%;
-  min-width: 200px;
+  max-width: 0;
+  min-width: 160px;
   white-space: normal;
   color: var(--nf-color-text-muted);
 }
 
-.runs-table td.why b {
+.why-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  overflow: hidden;
+  cursor: help;
+}
+
+.runs-table td.why b,
+.why-full b {
   font-weight: 600;
   color: var(--nf-color-text);
+}
+
+.why-full {
+  color: var(--nf-color-text-muted);
 }
 
 tbody.dive td {

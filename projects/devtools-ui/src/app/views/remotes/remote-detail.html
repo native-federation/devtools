@@ -106,7 +106,7 @@
                 </td>
                 <td class="run-tag">{{ row.tag ?? '–' }}</td>
                 <td>
-                  <span class="from" [attr.data-tip]="row.from.note">
+                  <span class="from">
                     @if (row.from.label) {
                       <span [class]="'kind kind-' + row.kind">{{ row.from.label }}</span>
                     }
@@ -123,10 +123,15 @@
                 </td>
                 <td class="why">
                   @if (row.why; as why) {
-                    @if (why.cause) {
-                      <b>{{ why.cause }}</b>
-                    }
-                    {{ why.text }}
+                    <span
+                      class="why-text"
+                      [attr.data-tip]="(why.cause ? why.cause + ': ' : '') + why.text"
+                    >
+                      @if (why.cause) {
+                        <b>{{ why.cause }}</b>
+                      }
+                      {{ why.text }}</span
+                    >
                   }
                 </td>
               </tr>
@@ -136,6 +141,15 @@
                 <tr>
                   <td colspan="4">
                     <dl class="facts">
+                      @if (row.why; as why) {
+                        <dt>Why</dt>
+                        <dd class="why-full">
+                          @if (why.cause) {
+                            <b>{{ why.cause }}</b>
+                          }
+                          {{ why.text }}
+                        </dd>
+                      }
                       <dt>Declares</dt>
                       <dd class="mono">{{ row.declared }}</dd>
                       <dt>Ships</dt>

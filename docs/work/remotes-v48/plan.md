@@ -23,8 +23,9 @@ Status: DONE (see task log).
 ### Instructions
 
 - `remotes-runs-vm.ts` (new): one Runs row per declaration — kind (`self`, `shared`, `subpool`,
-  `owner`, `own`, `off`, `unresolved`, `unknown`), the tag it runs, From (label, remote chip, the
-  verdict note as tooltip), Why only off the norm, and for the opened row: declared range, the
+  `owner`, `own`, `off`, `unresolved`, `unknown`), the tag it runs, From (label, remote chip),
+  Why only off the norm or for a qualified source — one line, the full reason in its tooltip and
+  in the opened row — and for the opened row: declared range, the
   shipped tag, pool link, entrypoints with `not in <build>'s build` / source markers. Flat
   secondaries fold into their name-derived parent when they run the same way. Serves: copies
   sourced by this remote's declarations with their other consumers. A tally line.

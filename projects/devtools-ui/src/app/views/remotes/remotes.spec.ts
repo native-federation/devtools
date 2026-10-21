@@ -301,7 +301,8 @@ describe('RemotesView', () => {
     expect(row.querySelector('.run-tag')?.textContent).toBe('2.0.0');
     const from = row.querySelector<HTMLElement>('.from')!;
     expect(from.querySelector('.kind')).toBeNull();
-    expect(from.dataset['tip']).toBe('>=1.0.0 <3.0.0 accepts 2.0.0 · resolves to the shared copy');
+    expect(from.dataset['tip']).toBeUndefined();
+    expect(row.querySelector('td.why')?.textContent?.trim()).toBe('');
     const link = from.querySelector<HTMLAnchorElement>('a.chip-link')!;
     expect(decodeURIComponent(link.getAttribute('href') ?? '')).toBe('/remotes?select=mfe2');
     expect(el.querySelector('.serves .view-observation')?.textContent).toBe(
@@ -381,7 +382,9 @@ describe('RemotesView', () => {
     expect(row.querySelector('.run-tag')?.textContent).toBe('–');
     const state = row.querySelector<HTMLElement>('.from .kind-unresolved')!;
     expect(state.textContent).toBe('not mapped');
-    expect(row.querySelector<HTMLElement>('.from')?.dataset['tip']).toContain('in this capture');
+    expect(row.querySelector<HTMLElement>('.why-text')?.dataset['tip']).toContain(
+      'in this capture',
+    );
   });
 
   it('renders private registrations in their own section', async () => {
@@ -436,7 +439,7 @@ describe('RemotesView', () => {
 
     const amb = runRow(el, 'amb-lib');
     expect(amb.querySelector('.from .kind-unknown')?.textContent).toBe('ambiguous source');
-    expect(amb.querySelector<HTMLElement>('.from')?.dataset['tip']).toContain(
+    expect(amb.querySelector<HTMLElement>('.why-text')?.dataset['tip']).toBe(
       'ambiguous source: equally specific remote scope prefixes match this target — none is chosen',
     );
     expect(runRow(el, 'alias-lib').querySelector('.from .kind-self')?.textContent).toBe('self');
