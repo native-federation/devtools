@@ -62,25 +62,16 @@ export interface RunsRowVm {
   /** The tag the remote runs; null when nothing resolves. */
   tag: string | null;
   from: { label: string | null; remote: RemoteRefVm | null };
-  /** Shown only off the norm: the reason, its cause set off. */
-  why: { cause: string | null; text: string } | null;
+  /** Only off the norm: a short label, the full reason as its tooltip. */
+  why: { label: string; note: string } | null;
   /** `^1.0.0 · strict`, or `exact 1.2.0` in the strict scope. */
   declared: string;
   /** The tag of the remote's own registration. */
   ships: string;
   pool: PoolChipVm | null;
   entrypoints: RunsEntrypointVm[];
-}
-
-export interface ServesRowVm {
-  key: string;
-  packageName: string;
-  packageSelect: string;
-  scopeLabel: string | null;
-  tag: string | null;
-  /** The build serves a subpool of its pool. */
-  subpool: boolean;
-  to: RemoteRefVm[];
+  /** Other remotes running this remote's build of the package. */
+  servedTo: RemoteRefVm[];
 }
 
 export interface RunsTallyVm {
@@ -90,7 +81,6 @@ export interface RunsTallyVm {
 
 export interface RunsVm {
   rows: RunsRowVm[];
-  serves: ServesRowVm[];
   tally: RunsTallyVm[];
 }
 
@@ -105,8 +95,8 @@ const ORDER: Record<RunsKind, number> = {
   self: 7,
 };
 
-/** Kinds the list names next to a remote; the rest reads as `ok`. */
-export const LISTED_KINDS: Partial<Record<RunsKind, string>> = {
+/** Tally words for the kinds off the norm. */
+export const KIND_LABELS: Partial<Record<RunsKind, string>> = {
   unresolved: 'not mapped',
   off: 'out of range',
   own: 'own build',
@@ -122,20 +112,27 @@ const remoteRef = (name: string): RemoteRefVm => ({
 
 const scopeLabelOf = (scope: string) => (scope === GLOBAL_SCOPE ? null : scope);
 
-// `cause: text` from placement-text; a version range never reads as a cause.
-function whyOf(text: string | null): RunsRowVm['why'] {
+// `cause: text` from placement-text; the cause is the label.
+function placementWhy(text: string | null, fallback: string): RunsRowVm['why'] {
   if (text === null) return null;
-  const match = /^([a-z ]{1,24}): (.*)$/s.exec(text);
-  return match ? { cause: match[1], text: match[2] } : { cause: null, text };
+  const match = /^([a-z ]{1,24}): /.exec(text);
+  return { label: match ? match[1] : fallback, note: text };
 }
+
+const QUALIFIER_LABELS: Record<string, string> = {
+  'ambiguous-source': 'several sources match',
+  'observed-target-source': 'matched by scope URL',
+  'unknown-source': 'no source record',
+};
 
 function unresolvedStateOf(
   claim: DeclarationResolutionClaim | undefined,
   indexes: CanonicalIndexes,
-): { label: string; note: string } {
+): { label: string; short: string; note: string } {
   if (claim === undefined) {
     return {
       label: 'declared',
+      short: 'no entrypoints',
       note: 'declaration without entrypoint candidates — no resolution claim derivable',
     };
   }
@@ -144,20 +141,27 @@ function unresolvedStateOf(
     case 'unmapped':
       return {
         label: 'not mapped',
+        short: 'no import-map entry',
         note: 'no applicable import-map binding for this specifier in this capture',
       };
     case 'blocked':
       return {
         label: 'blocked',
+        short: 'entry blocked',
         note: `the matching import-map entry terminally blocks this binding (${resolution.blockedReason})`,
       };
     case 'unknown':
       return {
         label: 'unknown',
+        short: 'evidence missing',
         note: `required evidence missing: ${resolution.unknownReasons.join(', ')}`,
       };
     default:
-      return { label: 'unknown', note: 'mapping state not derivable from the captured evidence' };
+      return {
+        label: 'unknown',
+        short: 'evidence missing',
+        note: 'mapping state not derivable from the captured evidence',
+      };
   }
 }
 
@@ -221,21 +225,36 @@ const isQualified = (copy: ResolvedDependencyCopy) => {
   return qualifier !== 'exact-target-source' && qualifier !== 'explicit-anchor';
 };
 
-function whyTextOf(kind: RunsKind, record: DeclarationVerdictRecord | undefined, ctx: Context) {
-  if (record === undefined) return null;
-  const verdicts = ctx.verdictsByDeclaration.get(record.declarationId);
-  const reason = record.reason === null ? null : placementReasonText(record.reason);
-  switch (kind) {
-    case 'own':
-      return reason ?? (verdicts ? ownCopyFallbackOf(record, verdicts) : null);
-    case 'owner':
-    case 'subpool':
-      return reason ?? subpoolWhereOf(record);
-    case 'off':
-      return `${record.requiredVersion} rejects ${verdicts?.electedTag} · not strict, runs it anyway`;
-    default:
-      return null;
+function whyOf(
+  kind: RunsKind,
+  record: DeclarationVerdictRecord | undefined,
+  copy: ResolvedDependencyCopy,
+  ctx: Context,
+): RunsRowVm['why'] {
+  const verdicts = record && ctx.verdictsByDeclaration.get(record.declarationId);
+  const reason = record?.reason ? placementReasonText(record.reason) : null;
+  if (record !== undefined) {
+    switch (kind) {
+      case 'own':
+        return placementWhy(
+          reason ?? (verdicts ? ownCopyFallbackOf(record, verdicts) : null),
+          record.strictVersion && record.acceptsElected === false
+            ? 'strict range'
+            : 'no reason stored',
+        );
+      case 'owner':
+      case 'subpool':
+        return placementWhy(reason ?? subpoolWhereOf(record), 'no reason stored');
+      case 'off':
+        return {
+          label: `${record.requiredVersion} rejects ${verdicts?.electedTag}`,
+          note: `${record.requiredVersion} rejects ${verdicts?.electedTag} · not strict, runs it anyway — the orchestrator stores a plain skip`,
+        };
+    }
   }
+  const source = copySourceVmOf(copy);
+  const label = QUALIFIER_LABELS[source.qualifier];
+  return label === undefined ? null : { label, note: `${source.label}: ${source.note}` };
 }
 
 function declaredOf(declaration: ParticipantDeclaration, scope: string, tag: string): string {
@@ -278,6 +297,7 @@ function rowOf(declaration: ParticipantDeclaration, ctx: Context): RunsRowVm | n
     declared: declaredOf(declaration, external.shareScope, registration.tag),
     ships: registration.tag,
     pool: poolChipOf(declaration, ctx.model.resolutionProjection),
+    servedTo: [],
   };
 
   if (mainCopy === undefined) {
@@ -287,7 +307,7 @@ function rowOf(declaration: ParticipantDeclaration, ctx: Context): RunsRowVm | n
       kind: 'unresolved',
       tag: null,
       from: { label: state.label, remote: null },
-      why: { cause: null, text: state.note },
+      why: { label: state.short, note: state.note },
       entrypoints: claims.map((claim) => ({
         specifier: claim.specifier,
         file: null,
@@ -306,11 +326,7 @@ function rowOf(declaration: ParticipantDeclaration, ctx: Context): RunsRowVm | n
     kind,
     tag: mainCopy.resolvedTag ?? record?.runsTag ?? null,
     from: fromOf(kind, record, mainCopy, ctx),
-    why:
-      whyOf(whyTextOf(kind, record, ctx)) ??
-      (isQualified(mainCopy)
-        ? { cause: copySourceVmOf(mainCopy).label, text: copySourceVmOf(mainCopy).note }
-        : null),
+    why: whyOf(kind, record, mainCopy, ctx),
     entrypoints: claims.map((claim) => {
       const copy = copyOf(claim);
       if (copy === undefined) {
@@ -349,7 +365,7 @@ const sameOutcome = (a: RunsRowVm, b: RunsRowVm) =>
   a.tag === b.tag &&
   a.from.label === b.from.label &&
   a.from.remote?.select === b.from.remote?.select &&
-  a.why?.text === b.why?.text;
+  a.why?.note === b.why?.note;
 
 /**
  * Flat externals register each secondary entrypoint as its own package. A secondary folds into
@@ -374,50 +390,36 @@ function foldSecondaries(rows: RunsRowVm[]): RunsRowVm[] {
   return kept;
 }
 
-function servesOf(rows: readonly RunsRowVm[], ctx: Context): ServesRowVm[] {
+// Every copy sourced by this remote's declarations lands on its package's row, with its other consumers.
+function attachServes(rows: readonly RunsRowVm[], ctx: Context): void {
   const { remote, model, indexes } = ctx;
-  const serves = new Map<string, ServesRowVm>();
-  const kindByDeclaration = new Map(rows.map((row) => [row.key, row.kind]));
   for (const copy of model.resolutionProjection.copies) {
     if (copy.source.kind !== 'shared-declaration') continue;
     const declaration = indexes.declarationById.get(copy.source.declarationId);
     if (declaration?.participant !== remote.name) continue;
-    const to = (indexes.relationsByCopy.get(copy.id) ?? [])
-      .map((relation) => relation.consumerRemote)
-      .filter((consumer) => consumer !== remote.name);
-    if (to.length === 0) continue;
     const registration = indexes.registrationById.get(declaration.versionRegistrationId);
     const external = registration && indexes.sharedExternalById.get(registration.sharedExternalId);
     if (external === undefined) continue;
-    const packageName = foldedName(external.packageName, external.shareScope, rows);
-    const key = `${external.shareScope}|${packageName}|${copy.resolvedTag}`;
-    const row = serves.get(key) ?? {
-      key,
-      packageName,
-      packageSelect: packageId(external.shareScope, packageName),
-      scopeLabel: scopeLabelOf(external.shareScope),
-      tag: copy.resolvedTag,
-      subpool: kindByDeclaration.get(declaration.id) === 'owner',
-      to: [],
-    };
-    for (const consumer of to) {
-      if (!row.to.some((ref) => ref.select === consumer)) row.to.push(remoteRef(consumer));
+    const row = rowOfPackage(external.packageName, external.shareScope, rows);
+    if (row === undefined) continue;
+    for (const relation of indexes.relationsByCopy.get(copy.id) ?? []) {
+      const consumer = relation.consumerRemote;
+      if (consumer !== remote.name && !row.servedTo.some((ref) => ref.select === consumer)) {
+        row.servedTo.push(remoteRef(consumer));
+      }
     }
-    serves.set(key, row);
   }
-  return [...serves.values()].sort((a, b) => a.packageName.localeCompare(b.packageName));
 }
 
-// A served secondary reads under the row it folded into.
-function foldedName(packageName: string, scope: string, rows: readonly RunsRowVm[]): string {
+// A served secondary lands on the row it folded into.
+function rowOfPackage(packageName: string, scope: string, rows: readonly RunsRowVm[]) {
   const label = scopeLabelOf(scope);
-  const row = rows.find(
+  return rows.find(
     (r) =>
       r.scopeLabel === label &&
       (r.packageName === packageName ||
         r.entrypoints.some((entrypoint) => entrypoint.specifier === packageName)),
   );
-  return row?.packageName ?? packageName;
 }
 
 function tallyOf(rows: readonly RunsRowVm[]): RunsTallyVm[] {
@@ -428,7 +430,7 @@ function tallyOf(rows: readonly RunsRowVm[]): RunsTallyVm[] {
         ? `${row.kind === 'subpool' ? 'subpool of' : 'from'} ${row.from.remote?.name ?? row.from.label}`
         : row.kind === 'unknown'
           ? 'unknown source'
-          : (LISTED_KINDS[row.kind] ?? row.from.label ?? row.kind);
+          : (KIND_LABELS[row.kind] ?? row.from.label ?? row.kind);
     const entry = tally.get(what) ?? { kind: row.kind, label: what, count: 0 };
     entry.count += 1;
     tally.set(what, entry);
@@ -456,5 +458,6 @@ export function buildRuns(
       .map((declaration) => rowOf(declaration, ctx))
       .filter((row): row is RunsRowVm => row !== null),
   ).sort((a, b) => ORDER[a.kind] - ORDER[b.kind] || a.packageName.localeCompare(b.packageName));
-  return { rows, serves: servesOf(rows, ctx), tally: tallyOf(rows) };
+  attachServes(rows, ctx);
+  return { rows, tally: tallyOf(rows) };
 }

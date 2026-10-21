@@ -1,7 +1,7 @@
 /**
  * Remotes view specs — the component half of remotes-v48: the list names what runs off the
- * norm; the detail is one meta line (scope URL, exposes, capabilities), a tally, the Runs table
- * whose rows open onto declaration, pool and entrypoints, Serves, and the occasional sections
+ * norm; the detail is one meta line (remoteEntry URL, exposes), flat-build warnings, a tally, the Runs table
+ * whose rows open onto declaration, pool, who else runs it and entrypoints, and the occasional sections
  * (private registrations, claim-less bindings, collapsed chunks). Tooltips are `data-tip`.
  */
 import { TestBed } from '@angular/core/testing';
@@ -201,11 +201,7 @@ describe('RemotesView', () => {
     );
     expect(el.textContent).not.toContain('cannot enumerate what the capture cannot see');
     // Every live remote runs the norm — each row reads ok.
-    expect(
-      Array.from(el.querySelectorAll('.tree-row .row-marks .mark:first-child')).map(
-        (m) => m.textContent,
-      ),
-    ).toEqual(['ok', 'ok', 'ok']);
+    expect(el.querySelectorAll('.tree-row .mark-off, .tree-row .mark-unresolved')).toHaveLength(0);
 
     // T7.7-AC-02/-AC-04: identity dots from the one sorted-name lookup.
     const chipOf = (name: string) =>
@@ -217,7 +213,7 @@ describe('RemotesView', () => {
     expect(hostChip.querySelector('.dot')).toBeNull();
   });
 
-  it('names what runs off the norm in the list, and whom a remote serves', async () => {
+  it('keeps the list to problems and whom a remote serves', async () => {
     const fixture = await createView({ fixture: 'pool-showcase' });
     const el = fixture.nativeElement as HTMLElement;
     const marksOf = (name: string) =>
@@ -225,15 +221,16 @@ describe('RemotesView', () => {
         .find((row) => row.querySelector('nf-participant-chip')?.textContent?.trim() === name)!
         .querySelector<HTMLElement>('.row-marks')!;
 
-    expect(marksOf('dashboard').querySelector('.mark-own')?.textContent).toBe('2 own build');
-    expect(marksOf('catalog').querySelector('.mark-subpool')?.textContent).toBe('2 subpool');
+    // Own builds and subpools stay off the list.
+    expect(marksOf('dashboard').textContent?.trim()).toBe('');
+    expect(marksOf('catalog').textContent?.trim()).toBe('');
     const serves = marksOf('admin').querySelector<HTMLElement>('.mark.tip')!;
     expect(serves.textContent).toBe('serves 2');
     expect(serves.dataset['tip']).toBe('2 remotes run one of its builds: catalog, checkout');
-    expect(marksOf('host').textContent?.trim()).toBe('ok');
+    expect(marksOf('host').textContent?.trim()).toBe('');
   });
 
-  it('renders identity, exposes and capabilities on one meta line', async () => {
+  it('renders the remoteEntry URL and exposes on one meta line, flat settings as warnings', async () => {
     const fixture = await createView({ fixture: 'frankenstein-live', select: NF_HOST });
     const el = fixture.nativeElement as HTMLElement;
 
@@ -241,28 +238,36 @@ describe('RemotesView', () => {
     expect(name.textContent?.trim()).toBe('host');
     expect(name.dataset['tip']).toBe(NF_HOST);
     const meta = el.querySelector<HTMLElement>('.detail-meta')!;
-    const scope = meta.querySelector<HTMLAnchorElement>('a.mono')!;
-    expect(scope.textContent).toBe('./');
-    expect(scope.dataset['tip']).toBe(
-      'scope URL: ./\nresolved: https://lutzleonhardt.de/frankenstein-meeting-room/',
+    // The remoteEntry.json URL is derived from the scope, as the orchestrator does.
+    const entry = meta.querySelector<HTMLAnchorElement>('a.entry-url')!;
+    expect(entry.textContent).toBe(
+      'https://lutzleonhardt.de/frankenstein-meeting-room/remoteEntry.json',
     );
+    expect(entry.getAttribute('href')).toBe(entry.textContent);
+    expect(entry.dataset['tip']).toContain('scope URL: ./');
+    expect(entry.dataset['tip']).toContain('a custom file name is not recorded');
     expect(meta.textContent).toContain('exposes');
     expect(meta.textContent).toContain('none');
-    const words = Array.from(meta.querySelectorAll<HTMLElement>('span.tip'));
-    expect(words.map((word) => word.textContent)).toEqual(['dense chunking', 'SRI']);
-    expect(words[0].dataset['tip']).toContain('(config: features.denseChunking: true');
+    expect(meta.textContent).not.toContain('capabilities');
+    // Secondaries registered on their own: the one flat setting this host shows.
+    const warnings = Array.from(el.querySelectorAll<HTMLElement>('.warnings .warning'));
+    expect(warnings.map((w) => w.textContent?.trim())).toEqual(['⚠ flat externals']);
+    expect(warnings[0].dataset['tip']).toContain('features.denseExternals: true');
   });
 
   it('renders the dense host as calm runs, one row per package, chunks collapsed', async () => {
     const fixture = await createView({ fixture: 'frankenstein-live', select: NF_HOST });
     const el = fixture.nativeElement as HTMLElement;
 
-    expect(headings(el)).toEqual(['Runs', 'Serves']);
+    expect(headings(el).map((h) => h.split(/\s/)[0])).toEqual(['Runs', 'Chunks']);
     expect(el.querySelector('.tally')?.textContent?.trim()).toBe('5 self');
     const rows = Array.from(el.querySelectorAll<HTMLElement>('tbody.run'));
     expect(rows).toHaveLength(5);
     expect(rows.every((row) => row.classList.contains('calm'))).toBe(true);
-    expect(el.querySelector('td.why b')).toBeNull();
+    expect(el.querySelector('.why-text')).toBeNull();
+    // The Why column has no visible header.
+    expect(el.querySelector('.runs-table thead th:last-child')?.textContent?.trim()).toBe('Why');
+    expect(el.querySelector('.runs-table thead th:last-child .visually-hidden')).not.toBeNull();
     expect(el.querySelector('tbody.dive')).toBeNull();
 
     // A row opens onto its declaration and the secondaries it runs with.
@@ -283,10 +288,9 @@ describe('RemotesView', () => {
     fixture.detectChanges();
     expect(el.querySelector('tbody.dive')).toBeNull();
 
-    // Chunks render once per bundle, behind a closed disclosure.
-    const chunks = el.querySelector<HTMLDetailsElement>('details.chunks')!;
-    expect(chunks.open).toBe(false);
-    expect(chunks.querySelector('summary')?.textContent).toContain('5 bundles');
+    // Chunks render once per bundle, always open.
+    const chunks = el.querySelector<HTMLElement>('section.chunks')!;
+    expect(chunks.querySelector('h3')?.textContent).toContain('5 bundles');
     const bundles = Array.from(chunks.querySelectorAll('.chunk-head > .mono')).map(
       (b) => b.textContent,
     );
@@ -305,23 +309,26 @@ describe('RemotesView', () => {
     expect(row.querySelector('td.why')?.textContent?.trim()).toBe('');
     const link = from.querySelector<HTMLAnchorElement>('a.chip-link')!;
     expect(decodeURIComponent(link.getAttribute('href') ?? '')).toBe('/remotes?select=mfe2');
-    expect(el.querySelector('.serves .view-observation')?.textContent).toBe(
-      "no other remote runs mfe1's builds",
-    );
+    expect(row.querySelector('.serves-hint')).toBeNull();
 
     row.click();
     fixture.detectChanges();
     expect(el.querySelector('tbody.dive')?.textContent).toContain('not used — runs 2.0.0');
   });
 
-  it('lists who runs a remote’s build under Serves', async () => {
+  it('says on the row who else runs a remote’s build', async () => {
     const fixture = await createView({ fixture: 'clean-skip', select: 'mfe2' });
     const el = fixture.nativeElement as HTMLElement;
 
-    const served = el.querySelector<HTMLElement>('.serves-list li')!;
-    expect(served.querySelector('a.mono')?.textContent).toBe('@nf-lab/conflict-lib');
-    expect(served.querySelector('.run-tag')?.textContent).toBe('2.0.0');
-    expect(served.querySelector('a.chip-link .chip')?.textContent).toBe('mfe1');
+    const row = runRow(el, '@nf-lab/conflict-lib');
+    const hint = row.querySelector<HTMLElement>('.serves-hint')!;
+    expect(hint.textContent).toBe('serves 1');
+    expect(hint.dataset['tip']).toBe('also run by: mfe1');
+    row.click();
+    fixture.detectChanges();
+    const facts = el.querySelector<HTMLElement>('tbody.dive .facts')!;
+    expect(facts.querySelector('dt')?.textContent).toBe('Serves');
+    expect(facts.querySelector('dd a.chip-link .chip')?.textContent).toBe('mfe1');
   });
 
   // The case the old provides zone left silent.
@@ -333,9 +340,10 @@ describe('RemotesView', () => {
     const row = runRow(el, '@nf-lab/kit');
     expect(row.classList.contains('calm')).toBe(false);
     expect(row.querySelector('.from .kind-own')?.textContent).toBe('own build');
-    expect(row.querySelector('td.why b')?.textContent).toBe('not covered');
-    expect(row.querySelector('td.why')?.textContent).toContain(
-      'the serving build of host lacks @nf-lab/kit/table, @nf-lab/kit/dialog',
+    const why = row.querySelector<HTMLElement>('.why-text')!;
+    expect(why.textContent).toBe('not covered');
+    expect(why.dataset['tip']).toBe(
+      'not covered: the serving build of host lacks @nf-lab/kit/table, @nf-lab/kit/dialog',
     );
     row.click();
     fixture.detectChanges();
@@ -408,9 +416,9 @@ describe('RemotesView', () => {
     const el = fixture.nativeElement as HTMLElement;
 
     expect(headings(el)).not.toContain('Private registrations');
-    const title = el.querySelector<HTMLElement>('details.chunks .chunks-title')!;
+    const title = el.querySelector<HTMLElement>('section.chunks h3')!;
     expect(title.dataset['tip']).toContain('rule: chunk-pseudo-externals');
-    const labels = Array.from(el.querySelectorAll('details.chunks .chunk-row .mono')).map(
+    const labels = Array.from(el.querySelectorAll('section.chunks .chunk-row .mono')).map(
       (label) => label.textContent,
     );
     expect(labels.some((label) => label?.startsWith('@nf-internal/'))).toBe(true);
@@ -429,7 +437,7 @@ describe('RemotesView', () => {
       'whiteboard/./Bootstrap\nfile: Bootstrap-7COJRA5I.js\nSRI: hash recorded',
     );
     // No chunk evidence: no chunk section at all.
-    expect(el.querySelector('details.chunks')).toBeNull();
+    expect(el.querySelector('section.chunks')).toBeNull();
   });
 
   // T8.6-AC-05 (DOM half): a qualified attribution keeps its qualifier.

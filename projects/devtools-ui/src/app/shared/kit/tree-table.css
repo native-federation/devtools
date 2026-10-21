@@ -31,9 +31,7 @@
    * text with the bg token — re-point bg to the accent so both stay
    * separable on the selected row (both went dark without this). */
   --nf-color-bg: var(--nf-color-accent);
-  --nf-color-isolated-text: var(--nf-color-accent-contrast);
   --nf-color-conflict-text: var(--nf-color-accent-contrast);
-  --nf-color-subpool-text: var(--nf-color-accent-contrast);
 }
 
 .tree-row:focus-visible {

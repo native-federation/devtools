@@ -22,7 +22,6 @@
 
 .detail-meta a,
 .pool-link,
-.serves-list a.mono,
 .entrypoints a {
   color: var(--nf-color-accent);
   text-decoration: none;
@@ -30,9 +29,15 @@
 
 .detail-meta a:hover,
 .pool-link:hover,
-.serves-list a.mono:hover,
 .entrypoints a:hover {
   text-decoration: underline;
+}
+
+.entry-url {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .list-sep {
@@ -71,6 +76,24 @@ h3 {
 }
 
 h3[data-tip] {
+  cursor: help;
+}
+
+.warnings {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.warning {
+  padding: 0 6px;
+  border: 1px solid var(--nf-color-warning-border);
+  border-radius: 3px;
+  background: var(--nf-color-warning-bg);
+  color: var(--nf-color-warning-text);
+  font-size: 11px;
+  font-weight: 600;
   cursor: help;
 }
 
@@ -214,28 +237,17 @@ tbody.calm .run-tag {
   gap: 6px;
 }
 
-/* One line; the full reason is in the tooltip and the opened row. */
+/* A short label; the full reason is its tooltip and the opened row's Why. */
 .runs-table td.why {
   width: 100%;
-  max-width: 0;
-  min-width: 160px;
-  white-space: normal;
-  color: var(--nf-color-text-muted);
 }
 
 .why-text {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-  line-clamp: 1;
-  overflow: hidden;
   cursor: help;
-}
-
-.runs-table td.why b,
-.why-full b {
-  font-weight: 600;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
   color: var(--nf-color-text);
+  font-weight: 600;
 }
 
 .why-full {
@@ -291,9 +303,13 @@ tbody.dive td {
   color: var(--nf-color-warning-text);
 }
 
-/* --- serves and the occasional sections -------------------------------- */
+.serves-hint {
+  font-size: 11px;
+  color: var(--nf-color-text-muted);
+}
 
-.serves-list,
+/* --- the occasional sections -------------------------------- */
+
 .scoped-list,
 .relation-list,
 .chunk-packages,
@@ -305,7 +321,6 @@ tbody.dive td {
   gap: 4px;
 }
 
-.serves-list li,
 .scoped-item,
 .relation-item,
 .chunk-head {
@@ -327,24 +342,11 @@ tbody.dive td {
   margin: 0;
 }
 
-.chunks summary {
-  width: fit-content;
-  cursor: pointer;
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
-}
-
-.chunks-title {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--nf-color-text-muted);
-}
-
-.chunks[open] summary {
-  margin-bottom: 6px;
+.chunk-count {
+  margin-left: 4px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .chunk-head {
@@ -366,4 +368,13 @@ tbody.dive td {
 .diagnostics-footer p {
   margin: 0;
   width: fit-content;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }

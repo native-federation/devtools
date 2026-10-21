@@ -21,8 +21,6 @@
               <span class="row-marks">
                 @for (mark of payload.marks; track mark.kind) {
                   <span [class]="'mark mark-' + mark.kind">{{ mark.label }}</span>
-                } @empty {
-                  <span class="mark">ok</span>
                 }
                 @if (payload.serves; as serves) {
                   <span class="mark tip" [attr.data-tip]="serves.note">{{ serves.label }}</span>

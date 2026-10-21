@@ -18,7 +18,14 @@ phrased by `shared/placement-text.ts`. Nothing re-derives an election.
 
 ## Task 1: Runs, Serves and a list that says what is off
 
-Status: DONE (see task log).
+Status: DONE (see task log). Amendments after review in the panel: Why is a short label (the
+cause, or e.g. `^1.0.0 rejects 2.0.0`) with the full reason as its tooltip and in the opened
+row, under an empty header; From has no tooltip; the Serves section folded into the rows; the
+selected list row re-points `--nf-color-text` so participant chips stay readable. Later: the
+remoteEntry.json URL (derived like the orchestrator's cache check) replaces the scope URL;
+capabilities give way to `flat externals` / `flat chunking` warnings; the list marks only
+out-of-range and unresolved declarations and is narrower (`--nf-master-width`); chunks are an
+open section.
 
 ### Instructions
 
@@ -27,13 +34,13 @@ Status: DONE (see task log).
   Why only off the norm or for a qualified source — one line, the full reason in its tooltip and
   in the opened row — and for the opened row: declared range, the
   shipped tag, pool link, entrypoints with `not in <build>'s build` / source markers. Flat
-  secondaries fold into their name-derived parent when they run the same way. Serves: copies
-  sourced by this remote's declarations with their other consumers. A tally line.
+  secondaries fold into their name-derived parent when they run the same way. A row this remote
+  serves names its other consumers (`serves N`, chips in the opened row). A tally line.
 - The verdict wording moves from Packages to `shared/verdict-text.ts`; both views use it.
 - List: `marks` (`2 own build`, `1 out of range`, `2 subpool`, `2 subpool owner`, `1 not
   mapped`) and `serves N`, replacing `1 expose · 5 declarations` and the `⚠` marker.
-- Detail: one meta line (scope URL, exposes linked to the Import Map, capabilities), tally,
-  Runs table, Serves; private registrations, claim-less bindings and chunks (collapsed) only when
+- Detail: one meta line (remoteEntry.json URL derived from the scope, exposes linked to the Import Map, capabilities), tally,
+  Runs table (Why header left empty); private registrations, claim-less bindings and chunks (collapsed) only when
   present. Pools-style `data-tip` tooltips instead of `title`.
 - Docs: README, `DEVELOPMENT.md`, data model wording; Remotes README and store screenshots.
 
