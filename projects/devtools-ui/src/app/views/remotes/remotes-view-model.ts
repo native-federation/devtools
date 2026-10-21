@@ -78,7 +78,7 @@ export function buildRemotesVm(model: FederationModel, ui: RemotesUiState): Remo
     const runs = buildRuns(remote, model, indexes);
     const counts = new Map<RunsKind, number>();
     for (const row of runs.rows) counts.set(row.kind, (counts.get(row.kind) ?? 0) + 1);
-    // Only problems: own builds and subpools are the Runs table's job.
+    // Only problems: scoped and subpool rows are the Runs table's job.
     const marks = (['unresolved', 'off'] as RunsKind[])
       .filter((kind) => counts.has(kind))
       .map((kind) => ({ kind, label: `${counts.get(kind)} ${KIND_LABELS[kind]}` }));

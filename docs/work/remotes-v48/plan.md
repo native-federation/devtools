@@ -25,7 +25,7 @@ selected list row re-points `--nf-color-text` so participant chips stay readable
 remoteEntry.json URL (derived like the orchestrator's cache check) replaces the scope URL;
 capabilities give way to `flat externals` / `flat chunking` warnings; the list marks only
 out-of-range and unresolved declarations and is narrower (`--nf-master-width`); chunks are an
-open section.
+open section; the own-build kind reads `scoped`, as Packages names a `scope` row.
 
 ### Instructions
 
@@ -46,9 +46,9 @@ open section.
 
 ### Acceptance
 
-- **T1-AC-01** — `strict-uncovered` mfe1: `own build`, why `not covered: the serving build of host
+- **T1-AC-01** — `strict-uncovered` mfe1: `scoped`, why `not covered: the serving build of host
   lacks @nf-lab/kit/table, @nf-lab/kit/dialog`, both entrypoints marked; host serves mfe2 only.
-- **T1-AC-02** — `pool-showcase`: dashboard `2 own build · 2 from checkout` with the version
+- **T1-AC-02** — `pool-showcase`: dashboard `2 scoped · 2 from checkout` with the version
   conflict; catalog `subpool of admin`; admin `subpool owner`, serves catalog and checkout.
 - **T1-AC-03** — `out-of-range-nonstrict` mfe1 `out of range` from host, ships 1.2.0, runs 2.0.0.
 - **T1-AC-04** — qualified sources (ambiguous, observed, unknown) keep their qualifier on From;
