@@ -3,11 +3,11 @@ import { RouterLink } from '@angular/router';
 
 import { ParticipantChip } from '../../shared/kit/participant-chip';
 import { countClaim } from '../../shared/view-conventions';
-import { RemoteChunkSectionVm, RemoteDetailVm } from './remotes-view-model';
+import { RemoteChunkSectionVm, RemoteDetailVm, RunsRowVm } from './remotes-view-model';
 
 /**
  * Detail pane of the Remotes view: identity and exposes on one meta line, where each package
- * runs from (a row opens its declaration, pool and entrypoints), whom its builds serve, then
+ * runs from and who else runs it (a row opens its declaration, pool and entrypoints), then
  * private registrations, claim-less bindings and chunks when the capture has them.
  * Dumb over `RemoteDetailVm`; which row is open is view state.
  */
@@ -45,6 +45,10 @@ export class RemoteDetail {
       event.preventDefault();
       this.toggle(key);
     }
+  }
+
+  protected servedNote(row: RunsRowVm): string {
+    return `${row.kind === 'owner' ? 'its subpool runs' : 'also run by'}: ${row.servedTo.map((r) => r.name).join(', ')}`;
   }
 
   protected chunkCount(chunks: RemoteChunkSectionVm): string {

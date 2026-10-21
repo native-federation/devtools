@@ -1,7 +1,7 @@
 /**
  * Remotes view-model specs — fixture-driven acceptance for the per-remote view (remotes-v48):
  * the list names what runs off the norm; the detail's Runs table says where each declared
- * package runs from and why, Serves says who runs this remote's builds. Capabilities, exposes,
+ * package runs from, why, and which other remotes run this remote's build of it. Capabilities, exposes,
  * chunks, private registrations and claim-less relations carry over from the T8.6 redesign;
  * the T8 seed harness (qualified-source ladder, relation-only, private claims) stays.
  */
@@ -46,12 +46,13 @@ describe('buildRemotesVm — left list', () => {
   });
 
   // remotes-v48: the row says what runs off the norm instead of counting declarations.
-  it('names what runs off the norm per remote, and whom it serves', () => {
+  it('marks only problems per remote, and whom it serves', () => {
     const vm = vmOf('pool-showcase');
     const rows = new Map(vm.rows.map((row) => [row.payload.name, row.payload]));
-    expect(rows.get('catalog')!.marks).toEqual([{ kind: 'subpool', label: '2 subpool' }]);
-    expect(rows.get('dashboard')!.marks).toEqual([{ kind: 'own', label: '2 own build' }]);
-    expect(rows.get('admin')!.marks).toEqual([{ kind: 'owner', label: '2 subpool owner' }]);
+    // Own builds and subpools are the Runs table's job — the list stays quiet.
+    for (const name of ['catalog', 'checkout', 'dashboard', 'admin', NF_HOST]) {
+      expect(rows.get(name)!.marks).toEqual([]);
+    }
     expect(rows.get('admin')!.serves).toEqual({
       label: 'serves 2',
       note: '2 remotes run one of its builds: catalog, checkout',
@@ -60,19 +61,17 @@ describe('buildRemotesVm — left list', () => {
       label: 'serves 1',
       note: '1 remote runs one of its builds: dashboard',
     });
-    // The host serves nobody here and runs everything itself: no marks.
-    expect(rows.get(NF_HOST)!.marks).toEqual([]);
     expect(rows.get(NF_HOST)!.serves).toBeNull();
   });
 
-  it('marks out of range, own builds and declarations that resolve nowhere', () => {
+  it('marks out of range and declarations that resolve nowhere', () => {
     const marksOf = (fixture: keyof typeof FIXTURES) =>
       Object.fromEntries(
         vmOf(fixture).rows.map((row) => [row.payload.name, row.payload.marks.map((m) => m.label)]),
       );
     expect(marksOf('out-of-range-nonstrict')).toEqual({
       mfe1: ['1 out of range'],
-      mfe2: ['1 own build'],
+      mfe2: [],
       mfe3: [],
       [NF_HOST]: [],
     });
@@ -92,7 +91,7 @@ describe('buildRemotesVm — left list', () => {
   });
 });
 
-describe('buildRemoteDetail — identity, selection, capabilities', () => {
+describe('buildRemoteDetail — identity, selection, warnings', () => {
   it('resolves the host selection by the verbatim sentinel, displayed as host', () => {
     const detail = detailOf('frankenstein-live', NF_HOST);
 
@@ -103,6 +102,9 @@ describe('buildRemoteDetail — identity, selection, capabilities', () => {
     // resolved form.
     expect(detail.scopeUrl).toBe('./');
     expect(detail.resolvedScopeUrl).toBe('https://lutzleonhardt.de/frankenstein-meeting-room/');
+    expect(detail.remoteEntryUrl).toBe(
+      'https://lutzleonhardt.de/frankenstein-meeting-room/remoteEntry.json',
+    );
   });
 
   it('yields no detail without a selection or for an unknown remote', () => {
@@ -110,69 +112,38 @@ describe('buildRemoteDetail — identity, selection, capabilities', () => {
     expect(vmOf('frankenstein-live', { selectedName: 'display name' }).detail).toBeNull();
   });
 
-  // T8.6-AC-06: the capability tooltips carry the source-verified
-  // `(config: …)` provenance verbatim (T8.5 amendment). Chunk lists and
-  // `bundle` are both denseChunking facets, so the live host gets one dense
-  // chunking line naming both, and no multi-entry line (v4 `file` spelling).
-  it('grounds the live capability matrix with the verified config provenance', () => {
+  // remotes-v48: capabilities are gone; only what the capture proves flat is flagged.
+  it('flags flat externals when secondaries are registered on their own', () => {
     const host = detailOf('frankenstein-live', NF_HOST);
-    expect(host.capabilities).toEqual([
-      {
-        label: 'dense chunking',
-        note: "the registry records per-bundle chunk lists for this remote; this remote's registrations carry their serving bundle (config: features.denseChunking: true, default false, since core v4.0.0)",
-      },
-      {
-        label: 'SRI',
-        note: `integrity hashes recorded for this remote's files (config: features.integrityHashes: true, default false, since core v4.1.2)`,
-      },
-    ]);
+    expect(host.warnings.map((w) => w.label)).toEqual(['flat externals']);
+    expect(host.warnings[0].note).toContain('registered as their own externals');
+    expect(host.warnings[0].note).toContain('features.denseExternals: true');
+  });
 
-    for (const remote of ['whiteboard', 'mermaid']) {
-      const detail = detailOf('frankenstein-live', remote);
-      expect(detail.capabilities.map((capability) => capability.label)).toEqual(['SRI']);
-    }
+  it('flags flat chunking when no chunk list or bundle is recorded', () => {
+    const whiteboard = detailOf('frankenstein-live', 'whiteboard');
+    expect(whiteboard.warnings.map((w) => w.label)).toContain('flat chunking');
+    expect(whiteboard.warnings.find((w) => w.label === 'flat chunking')!.note).toContain(
+      'features.denseChunking: true',
+    );
   });
 });
 
-// share-pools T1: `bundle` is a denseChunking facet (core
-// `bundle-shared.ts`), and a multi-entry `entries` map is the only stored trace
-// of denseExternals — shared with host-side `convertFlatSharedInfo`.
-describe('buildRemoteDetail — dense capabilities (share-pools T1)', () => {
+// share-pools T2 witnesses: each build flag alone, and both.
+describe('buildRemoteDetail — flat-build warnings', () => {
   const labelsOf = (fixture: keyof typeof FIXTURES, remote: string) =>
-    detailOf(fixture, remote).capabilities.map((capability) => capability.label);
+    detailOf(fixture, remote).warnings.map((warning) => warning.label);
 
-  it('T1-AC-01: bundles with single-entry maps show dense chunking only', () => {
-    for (const remote of ['mfe1', 'mfe2']) {
-      expect(labelsOf('pooling-anchor', remote)).toContain('dense chunking');
-      expect(labelsOf('pooling-anchor', remote)).not.toContain('multi-entry registrations');
-    }
-  });
-
-  it('T1-AC-02: a multi-entry map shows the badge citing both producer flags', () => {
-    const detail = detailOf('synthetic-dense-entries', 'mfe-dense');
-    expect(detail.capabilities).toContainEqual({
-      label: 'multi-entry registrations',
-      note: 'a registration of this remote maps several entrypoints in one entries map (config: features.denseExternals: true at build, default false, since core v4.3.0 — or feature.convertFlatSharedInfo: true on the host, default false; the registry does not record which)',
-    });
-    // Its registrations carry no bundle and the fixture records no chunk lists.
-    expect(labelsOf('synthetic-dense-entries', 'mfe-dense')).not.toContain('dense chunking');
-  });
-
-  // Real witnesses from the nf-lab corpus (share-pools T2): each build flag alone, and both.
   it.each([
-    ['dense-chunking-only', ['dense chunking']],
-    ['dense-externals-only', ['multi-entry registrations']],
-    ['dense-both', ['dense chunking', 'multi-entry registrations']],
-  ] as const)('%s: mfe1 shows exactly its dense capabilities', (fixture, expected) => {
-    expect(labelsOf(fixture, 'mfe1').filter((label) => label !== 'SRI')).toEqual(expected);
+    ['dense-chunking-only', ['flat externals']],
+    ['dense-externals-only', ['flat chunking']],
+    ['dense-both', []],
+  ] as const)('%s: mfe1 warns about exactly what is flat', (fixture, expected) => {
+    expect(labelsOf(fixture, 'mfe1')).toEqual(expected);
   });
 
-  it('T1-AC-03: a flat, bundle-less build shows neither dense capability', () => {
-    for (const remote of modelOf('non-dense').remotes.map((entity) => entity.name)) {
-      const labels = labelsOf('non-dense', remote);
-      expect(labels).not.toContain('dense chunking');
-      expect(labels).not.toContain('multi-entry registrations');
-    }
+  it('warns nothing for a remote that declares no shared packages', () => {
+    expect(detailOf('clean-skip', NF_HOST).warnings).toEqual([]);
   });
 });
 
@@ -231,21 +202,11 @@ describe('buildRemoteDetail — runs (remotes-v48)', () => {
     expect(row.from.label).toBeNull();
     expect(row.from.remote).toEqual({ name: 'mfe2', host: false, select: 'mfe2' });
     expect(row.why).toBeNull();
-    expect(mfe1.runs.serves).toEqual([]);
+    expect(row.servedTo).toEqual([]);
 
     const mfe2 = detailOf('clean-skip', 'mfe2');
     expect(mfe2.runs.rows.map((r) => r.kind)).toEqual(['self']);
-    expect(mfe2.runs.serves).toEqual([
-      {
-        key: '__GLOBAL__|@nf-lab/conflict-lib|2.0.0',
-        packageName: '@nf-lab/conflict-lib',
-        packageSelect: '__GLOBAL__|@nf-lab/conflict-lib',
-        scopeLabel: null,
-        tag: '2.0.0',
-        subpool: false,
-        to: [{ name: 'mfe1', host: false, select: 'mfe1' }],
-      },
-    ]);
+    expect(mfe2.runs.rows[0].servedTo).toEqual([{ name: 'mfe1', host: false, select: 'mfe1' }]);
   });
 
   it('reads a co-declared share from the build the map serves', () => {
@@ -263,8 +224,8 @@ describe('buildRemoteDetail — runs (remotes-v48)', () => {
     expect(row.tag).toBe('1.2.0');
     expect(row.from).toMatchObject({ label: 'own build', remote: null });
     expect(row.why).toEqual({
-      cause: 'not covered',
-      text: 'the serving build of host lacks @nf-lab/kit/table, @nf-lab/kit/dialog',
+      label: 'not covered',
+      note: 'not covered: the serving build of host lacks @nf-lab/kit/table, @nf-lab/kit/dialog',
     });
     expect(
       row.entrypoints.filter((entrypoint) => entrypoint.note).map((e) => [e.specifier, e.note]),
@@ -276,7 +237,7 @@ describe('buildRemoteDetail — runs (remotes-v48)', () => {
 
     // host serves mfe2, not mfe1.
     const host = detailOf('strict-uncovered', NF_HOST);
-    expect(host.runs.serves.map((s) => s.to.map((r) => r.name))).toEqual([['mfe2']]);
+    expect(host.runs.rows[0].servedTo.map((r) => r.name)).toEqual(['mfe2']);
   });
 
   it('pool-showcase: own builds from a pool conflict, a subpool and its owner', () => {
@@ -288,8 +249,8 @@ describe('buildRemoteDetail — runs (remotes-v48)', () => {
       ['@nf-lab/form-dom', 'shared', '1.1.0'],
     ]);
     expect(runOf(dashboard, '@nf-lab/chart-dom').why).toEqual({
-      cause: 'version conflict',
-      text: 'its range ^2.0.0 (strict) rejects the global 1.1.0 of @nf-lab/chart-dom',
+      label: 'version conflict',
+      note: 'version conflict: its range ^2.0.0 (strict) rejects the global 1.1.0 of @nf-lab/chart-dom',
     });
     expect(runOf(dashboard, '@nf-lab/form-core').from.remote?.name).toBe('checkout');
     expect(runOf(dashboard, '@nf-lab/form-core').ships).toBe('1.0.0');
@@ -302,7 +263,10 @@ describe('buildRemoteDetail — runs (remotes-v48)', () => {
     const ui = runOf(catalog, '@nf-lab/ui-core');
     expect(ui.kind).toBe('subpool');
     expect(ui.from).toMatchObject({ label: 'subpool of', remote: { name: 'admin' } });
-    expect(ui.why).toEqual({ cause: 'not covered', text: 'the global map lacks @nf-lab/ui-dom' });
+    expect(ui.why).toEqual({
+      label: 'not covered',
+      note: 'not covered: the global map lacks @nf-lab/ui-dom',
+    });
     expect(ui.pool?.tag).toBe('ui');
 
     const admin = detailOf('pool-showcase', 'admin');
@@ -310,9 +274,11 @@ describe('buildRemoteDetail — runs (remotes-v48)', () => {
       ['owner', 'self · subpool'],
       ['owner', 'self · subpool'],
     ]);
-    expect(admin.runs.serves.map((row) => [row.packageName, row.subpool, row.to.length])).toEqual([
-      ['@nf-lab/ui-core', true, 2],
-      ['@nf-lab/ui-dom', true, 2],
+    expect(
+      admin.runs.rows.map((row) => [row.packageName, row.servedTo.map((r) => r.name)]),
+    ).toEqual([
+      ['@nf-lab/ui-core', ['catalog', 'checkout']],
+      ['@nf-lab/ui-dom', ['catalog', 'checkout']],
     ]);
   });
 
@@ -321,13 +287,10 @@ describe('buildRemoteDetail — runs (remotes-v48)', () => {
     const anchor = runOf(mfe1, '@nf-lab/conflict-lib');
     expect(anchor.kind).toBe('owner');
     expect(anchor.why).toEqual({
-      cause: 'not covered',
-      text: 'every entrypoint is on the global map, but no single build ships @nf-lab/conflict-lib/extra with the rest',
+      label: 'not covered',
+      note: 'not covered: every entrypoint is on the global map, but no single build ships @nf-lab/conflict-lib/extra with the rest',
     });
-    expect(mfe1.runs.serves.map((row) => [row.packageName, row.subpool])).toContainEqual([
-      '@nf-lab/conflict-lib',
-      true,
-    ]);
+    expect(anchor.servedTo.map((r) => r.name)).toEqual(['mfe2']);
 
     const mfe2 = detailOf('pooling-anchor', 'mfe2');
     const member = runOf(mfe2, '@nf-lab/conflict-lib');
@@ -342,8 +305,8 @@ describe('buildRemoteDetail — runs (remotes-v48)', () => {
     expect(row.ships).toBe('1.2.0');
     expect(row.from).toMatchObject({ label: 'out of range', remote: { name: 'host', host: true } });
     expect(row.why).toEqual({
-      cause: null,
-      text: '^1.0.0 rejects 2.0.0 · not strict, runs it anyway',
+      label: '^1.0.0 rejects 2.0.0',
+      note: '^1.0.0 rejects 2.0.0 · not strict, runs it anyway — the orchestrator stores a plain skip',
     });
   });
 
@@ -360,9 +323,10 @@ describe('buildRemoteDetail — runs (remotes-v48)', () => {
       expect(row.tag).toBeNull();
       expect(row.ships).toBe(tag);
       expect(row.from).toEqual({ label: 'not mapped', remote: null });
-      expect(row.why?.text).toBe(
-        'no applicable import-map binding for this specifier in this capture',
-      );
+      expect(row.why).toEqual({
+        label: 'no import-map entry',
+        note: 'no applicable import-map binding for this specifier in this capture',
+      });
     }
   });
 });
@@ -723,8 +687,8 @@ describe('buildRemoteDetail — qualified sources stay qualified (T8.6-AC-05)', 
     expect(row.from.label).toBe('ambiguous source');
     expect(row.from.remote).toBeNull();
     expect(row.why).toEqual({
-      cause: 'ambiguous source',
-      text: 'equally specific remote scope prefixes match this target — none is chosen',
+      label: 'several sources match',
+      note: 'ambiguous source: equally specific remote scope prefixes match this target — none is chosen',
     });
     expect(row.entrypoints[0].file).toBe('b.js');
   });
@@ -734,8 +698,9 @@ describe('buildRemoteDetail — qualified sources stay qualified (T8.6-AC-05)', 
     expect(row.kind).toBe('shared');
     expect(row.from.label).toBe('observed target source');
     expect(row.from.remote).toEqual({ name: 'host', host: true, select: NF_HOST });
-    expect(row.why?.cause).toBe('observed target source');
-    expect(row.why?.text).toContain('host as least-specific fallback');
+    expect(row.why?.label).toBe('matched by scope URL');
+    expect(row.why?.note).toContain('observed target source: ');
+    expect(row.why?.note).toContain('host as least-specific fallback');
   });
 
   it('keeps a source-less foreign target a QUALIFIED unknown source', () => {
@@ -743,8 +708,8 @@ describe('buildRemoteDetail — qualified sources stay qualified (T8.6-AC-05)', 
     expect(row.kind).toBe('unknown');
     expect(row.from.label).toBe('unknown source');
     expect(row.why).toEqual({
-      cause: 'unknown source',
-      text: 'only the resolved URL is evidenced — no source record or scope prefix matches',
+      label: 'no source record',
+      note: 'unknown source: only the resolved URL is evidenced — no source record or scope prefix matches',
     });
   });
 });
@@ -822,7 +787,8 @@ describe('buildRemoteDetail — one declaration, two sources (T8.6-AC-05)', () =
     const [row] = seededDetail(SCOPE_ACTION_SEED, 'r1').runs.rows;
     expect(row.kind).toBe('own');
     expect(row.from.label).toBe('own build');
-    expect(row.why?.text).toContain('keeps its own 1.0.0');
+    expect(row.why?.label).toBe('no reason stored');
+    expect(row.why?.note).toContain('keeps its own 1.0.0');
   });
 });
 
@@ -955,7 +921,8 @@ describe('buildRemoteDetail — relation-only consumers stay visible (T8-H2)', (
     expect(detail.runs.rows).toHaveLength(1);
     expect(detail.runs.rows[0].kind).toBe('unresolved');
     expect(detail.runs.rows[0].from).toEqual({ label: 'declared', remote: null });
-    expect(detail.runs.rows[0].why?.text).toBe(
+    expect(detail.runs.rows[0].why?.label).toBe('no entrypoints');
+    expect(detail.runs.rows[0].why?.note).toBe(
       'declaration without entrypoint candidates — no resolution claim derivable',
     );
 

@@ -15,11 +15,10 @@ import type { TreeTableRow } from '../../shared/kit/tree-table';
 import type { FederationModel } from '../../shared/store/federation-model';
 import { buildCanonicalIndexes, countClaim } from '../../shared/view-conventions';
 import { RemoteDetailVm, buildRemoteDetail } from './remotes-detail-vm';
-import { LISTED_KINDS, RunsKind, buildRuns } from './remotes-runs-vm';
+import { KIND_LABELS, RunsKind, buildRuns } from './remotes-runs-vm';
 
 export type {
   AnnotationVm,
-  CapabilityVm,
   ExposeVm,
   RelationConsumerVm,
   RemoteChunkRowVm,
@@ -35,7 +34,6 @@ export type {
   RunsRowVm,
   RunsTallyVm,
   RunsVm,
-  ServesRowVm,
 } from './remotes-runs-vm';
 
 /** Caller-owned UI state — selection lives in the view. */
@@ -50,7 +48,7 @@ export interface RemoteRowVm {
   /** Verbatim remote name — selection and select payloads match it. */
   name: string;
   host: boolean;
-  /** What runs off the norm (`2 own build`); empty reads as `ok`. */
+  /** Declarations out of range or resolving nowhere (`1 out of range`); usually empty. */
   marks: { kind: RunsKind; label: string }[];
   /** Distinct remotes running one of its builds; null when none does. */
   serves: { label: string; note: string } | null;
@@ -80,10 +78,11 @@ export function buildRemotesVm(model: FederationModel, ui: RemotesUiState): Remo
     const runs = buildRuns(remote, model, indexes);
     const counts = new Map<RunsKind, number>();
     for (const row of runs.rows) counts.set(row.kind, (counts.get(row.kind) ?? 0) + 1);
-    const marks = (Object.keys(LISTED_KINDS) as RunsKind[])
+    // Only problems: own builds and subpools are the Runs table's job.
+    const marks = (['unresolved', 'off'] as RunsKind[])
       .filter((kind) => counts.has(kind))
-      .map((kind) => ({ kind, label: `${counts.get(kind)} ${LISTED_KINDS[kind]}` }));
-    const served = [...new Set(runs.serves.flatMap((row) => row.to.map((ref) => ref.name)))];
+      .map((kind) => ({ kind, label: `${counts.get(kind)} ${KIND_LABELS[kind]}` }));
+    const served = [...new Set(runs.rows.flatMap((row) => row.servedTo.map((ref) => ref.name)))];
     return {
       id: remote.name,
       depth: 0,

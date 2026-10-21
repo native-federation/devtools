@@ -1,5 +1,5 @@
 /**
- * Detail half of the Remotes vm builder: one remote's identity, capabilities and exposes, where
+ * Detail half of the Remotes vm builder: one remote's identity, flat-build warnings and exposes, where
  * each of its packages runs from and whom its builds serve (`remotes-runs-vm.ts`), then what
  * only some captures carry — private registrations, claim-less consumer relations, chunks.
  *
@@ -23,12 +23,6 @@ import { RunsVm, buildRuns } from './remotes-runs-vm';
 export interface AnnotationVm {
   label: string;
   /** Grounded reason (tooltip); every annotation carries one. */
-  note: string;
-}
-
-/** One observed capability of the remote (meta-line word with tooltip). */
-export interface CapabilityVm {
-  label: string;
   note: string;
 }
 
@@ -151,7 +145,10 @@ export interface RemoteDetailVm {
   /** Scope URL as recorded (live registries keep relative URLs). */
   scopeUrl: string;
   resolvedScopeUrl: string;
-  capabilities: CapabilityVm[];
+  /** Derived like the orchestrator does (`join(scopeUrl, 'remoteEntry.json')`): only the scope is stored. */
+  remoteEntryUrl: string;
+  /** Build settings the capture proves are flat; empty when nothing is proven. */
+  warnings: AnnotationVm[];
   exposes: ExposeVm[];
   runs: RunsVm;
   /** Consumer-copy relations without an own claim. */
@@ -164,47 +161,65 @@ export interface RemoteDetailVm {
 
 const CHUNK_EXPLANATION = "code shared between this remote's exposes, plus lazy modules";
 
-// Chunk lists and `bundle` are both written only under `features.denseChunking`; a multi-entry map
-// can come from `features.denseExternals` or host-side `convertFlatSharedInfo`, so that note claims
-// neither (see docs/work/share-pools/plan.md, persisted-evidence table).
-function capabilitiesOf(remote: RemoteEntity, model: FederationModel): CapabilityVm[] {
-  const capabilities: CapabilityVm[] = [];
+// Chunk lists and `bundle` are both written only under `features.denseChunking` (see
+// docs/work/share-pools/plan.md, persisted-evidence table). Flat externals show only when a
+// secondary entrypoint is registered as its own external; single-entry packages look the same
+// either way, so they prove nothing.
+function warningsOf(
+  remote: RemoteEntity,
+  model: FederationModel,
+  indexes: CanonicalIndexes,
+): AnnotationVm[] {
   const evidence = model.registryEvidence;
+  const declarations = evidence.participantDeclarations.filter(
+    (d) => d.participant === remote.name,
+  );
+  if (declarations.length === 0) return [];
+  const warnings: AnnotationVm[] = [];
+
+  const keys = new Set<string>();
+  for (const declaration of declarations) {
+    const registration = indexes.registrationById.get(declaration.versionRegistrationId);
+    const external = registration && indexes.sharedExternalById.get(registration.sharedExternalId);
+    if (external) keys.add(`${external.shareScope}|${external.packageName}`);
+  }
+  const secondaries = [...keys].filter((key) => {
+    for (let i = key.indexOf('/', key.indexOf('|')); i > 0; i = key.indexOf('/', i + 1)) {
+      if (keys.has(key.slice(0, i))) return true;
+    }
+    return false;
+  });
+  if (secondaries.length > 0) {
+    const names = secondaries.map((key) => key.slice(key.indexOf('|') + 1));
+    warnings.push({
+      label: 'flat externals',
+      note: [
+        `${countClaim(names.length, 'secondary entrypoint')} registered as ${names.length === 1 ? 'its own external' : 'their own externals'}: ${names.slice(0, 3).join(', ')}${names.length > 3 ? ', …' : ''}`,
+        'each carries its own version and flags; one that disagrees splits the package, and a split package falls back as a whole (native-federation#176)',
+        'config: features.denseExternals: true, default false, since core v4.3.0',
+      ].join('\n'),
+    });
+  }
+
   const ownRegistrations = [
-    ...evidence.participantDeclarations.filter((d) => d.participant === remote.name),
+    ...declarations,
     ...evidence.privateRegistrations.filter((r) => r.ownerRemote === remote.name),
   ];
-
-  const chunkFacets: string[] = [];
-  if (
+  const chunked =
     model.resolutionProjection.chunkGroups.some(
       (group) => group.emitterRemote === remote.name && group.origin === 'shared-chunks',
-    )
-  ) {
-    chunkFacets.push('the registry records per-bundle chunk lists for this remote');
-  }
-  if (ownRegistrations.some((registration) => registration.bundle !== null)) {
-    chunkFacets.push("this remote's registrations carry their serving bundle");
-  }
-  if (chunkFacets.length > 0) {
-    capabilities.push({
-      label: 'dense chunking',
-      note: `${chunkFacets.join('; ')} (config: features.denseChunking: true, default false, since core v4.0.0)`,
+    ) || ownRegistrations.some((registration) => registration.bundle !== null);
+  if (!chunked) {
+    warnings.push({
+      label: 'flat chunking',
+      note: [
+        'the registry records no chunk lists or bundles for this remote',
+        "its shared chunks can't be attributed to a package",
+        'config: features.denseChunking: true, default false, since core v4.0.0',
+      ].join('\n'),
     });
   }
-  if (ownRegistrations.some((registration) => registration.entrypointCandidateIds.length > 1)) {
-    capabilities.push({
-      label: 'multi-entry registrations',
-      note: 'a registration of this remote maps several entrypoints in one entries map (config: features.denseExternals: true at build, default false, since core v4.3.0 — or feature.convertFlatSharedInfo: true on the host, default false; the registry does not record which)',
-    });
-  }
-  if (Object.keys(remote.integrity).length > 0) {
-    capabilities.push({
-      label: 'SRI',
-      note: `integrity hashes recorded for this remote's files (config: features.integrityHashes: true, default false, since core v4.1.2)`,
-    });
-  }
-  return capabilities;
+  return warnings;
 }
 
 function exposesOf(remote: RemoteEntity): ExposeVm[] {
@@ -533,7 +548,8 @@ export function buildRemoteDetail(
     host: remote.isHost,
     scopeUrl: remote.scopeUrl,
     resolvedScopeUrl: remote.resolvedScopeUrl,
-    capabilities: capabilitiesOf(remote, model),
+    remoteEntryUrl: `${remote.resolvedScopeUrl.replace(/\/?$/, '/')}remoteEntry.json`,
+    warnings: warningsOf(remote, model, indexes),
     exposes: exposesOf(remote),
     runs,
     relationOnly: relationOnlyOf(remote, model, indexes),

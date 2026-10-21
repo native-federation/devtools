@@ -8,6 +8,7 @@
 .remotes-split {
   flex: 1;
   min-height: 0;
+  --nf-master-width: 28%;
 }
 
 .row-marks {
@@ -19,22 +20,16 @@
   color: var(--nf-color-text-muted);
 }
 
-.mark-own,
 .mark-off,
-.mark-unresolved,
-.mark-owner,
-.mark-subpool {
+.mark-unresolved {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-weight: 600;
 }
 
-.mark-own::before,
 .mark-off::before,
-.mark-unresolved::before,
-.mark-owner::before,
-.mark-subpool::before {
+.mark-unresolved::before {
   content: '';
   width: 6px;
   height: 6px;
@@ -42,18 +37,9 @@
   background: currentColor;
 }
 
-.mark-own {
-  color: var(--nf-color-isolated-text);
-}
-
 .mark-off,
 .mark-unresolved {
   color: var(--nf-color-conflict-text);
-}
-
-.mark-owner,
-.mark-subpool {
-  color: var(--nf-color-subpool-text);
 }
 
 /* Capture-boundary claim in the EMPTY state — observation, not error. */

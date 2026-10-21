@@ -37,7 +37,7 @@ guesses.
   and subpools are called out with the reason, not averaged away.
 - 🛰️ **Remotes** — each participant from its own point of view: where every
   package it declares runs from — its own build, another remote's, a subpool —
-  and why, plus which remotes run its builds.
+  and why, plus which other remotes run its builds.
 - 🕸️ **Graph** — remotes, dependency copies, and build files as one
   traceable picture. Hover to trace, tick remotes to include or exclude
   them, group the dependency column by provider, share scope, pool, or build.
@@ -88,9 +88,10 @@ when it isn't strict — the orchestrator stores a plain skip for it.
 </picture>
 
 One row per package: the version this remote runs, whose build it comes from,
-and — only when it is off the norm — why. The list says which remotes run an
-own build, a subpool, or out of range, and whom each one serves. Open a row for
-its declared range, pool, and entrypoints.
+and — only when it is off the norm — a short reason, explained on hover. Open a
+row for its declared range, pool, entrypoints, and the remotes it serves. A
+warning flags flat externals or flat chunking when the capture proves them; the
+list marks only what is out of range or resolves nowhere.
 
 ## Why a remote left the pool
 

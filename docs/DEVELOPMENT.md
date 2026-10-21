@@ -38,10 +38,15 @@ no torn entrypoints; older pages render without them.
 the declaration verdicts Packages uses: one Runs row per declared package with
 the tag it runs, whose build (`self`, a remote, `own build`, `subpool of`,
 `out of range`, `not mapped`) and the reason when off the norm; flat secondaries
-fold into their package when they run the same way. Serves lists the remotes
-running this remote's builds. Exposes, capabilities and the scope URL share one
-meta line; private registrations, claim-less bindings and chunks show only when
-the capture has them.
+fold into their package when they run the same way. A row this remote serves
+says which other remotes run it (`serves 2`, the names in the opened row).
+The remoteEntry.json URL (derived from the scope URL, as the orchestrator does)
+and exposes share one meta line. Instead of capabilities, a warning flags flat
+externals (a secondary entrypoint registered as its own external) or flat
+chunking (no chunk list or bundle recorded) — only what the capture proves. The
+list marks only out-of-range and unresolved declarations. Private
+registrations, claim-less bindings and chunks show only when the capture has
+them.
 
 **Graph** — remotes, dependencies, and build files as one traceable picture:
 tick remotes to include or exclude their consumers, hover to trace a

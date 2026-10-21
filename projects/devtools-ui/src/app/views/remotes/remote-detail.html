@@ -8,12 +8,17 @@
   </h2>
   <p class="detail-meta">
     <a
-      class="mono"
-      [href]="detail.resolvedScopeUrl"
+      class="mono entry-url"
+      [href]="detail.remoteEntryUrl"
       target="_blank"
       rel="noreferrer"
-      [attr.data-tip]="'scope URL: ' + detail.scopeUrl + '\nresolved: ' + detail.resolvedScopeUrl"
-      >{{ detail.scopeUrl }}</a
+      [attr.data-tip]="
+        detail.remoteEntryUrl +
+        '\nscope URL: ' +
+        detail.scopeUrl +
+        '\nderived: the orchestrator stores only the scope and reads remoteEntry.json from it; a custom file name is not recorded'
+      "
+      >{{ detail.remoteEntryUrl }}</a
     >
     <span class="meta-sep">·</span>
     <span class="exposes"
@@ -49,19 +54,14 @@
         none
       }
     </span>
-    <span class="meta-sep">·</span>
-    <span
-      >capabilities:
-      @for (capability of detail.capabilities; track capability.label) {
-        @if (!$first) {
-          <span class="list-sep">,</span>
-        }
-        <span class="tip" [attr.data-tip]="capability.note">{{ capability.label }}</span>
-      } @empty {
-        none recorded
-      }
-    </span>
   </p>
+  @if (detail.warnings.length > 0) {
+    <p class="warnings">
+      @for (warning of detail.warnings; track warning.label) {
+        <span class="warning" [attr.data-tip]="warning.note">⚠ {{ warning.label }}</span>
+      }
+    </p>
+  }
 
   @if (detail.runs.tally.length > 0) {
     <p class="tally">
@@ -81,7 +81,7 @@
               <th>Package</th>
               <th>Version</th>
               <th data-tip="whose build the import map points this remote to">From</th>
-              <th>Why</th>
+              <th><span class="visually-hidden">Why</span></th>
             </tr>
           </thead>
           @for (row of detail.runs.rows; track row.key) {
@@ -119,19 +119,16 @@
                         ><nf-participant-chip [name]="remote.name" [host]="remote.host"
                       /></a>
                     }
+                    @if (row.servedTo.length > 0) {
+                      <span class="serves-hint tip" [attr.data-tip]="servedNote(row)"
+                        >serves {{ row.servedTo.length }}</span
+                      >
+                    }
                   </span>
                 </td>
                 <td class="why">
                   @if (row.why; as why) {
-                    <span
-                      class="why-text"
-                      [attr.data-tip]="(why.cause ? why.cause + ': ' : '') + why.text"
-                    >
-                      @if (why.cause) {
-                        <b>{{ why.cause }}</b>
-                      }
-                      {{ why.text }}</span
-                    >
+                    <span class="why-text" [attr.data-tip]="why.note">{{ why.label }}</span>
                   }
                 </td>
               </tr>
@@ -143,11 +140,19 @@
                     <dl class="facts">
                       @if (row.why; as why) {
                         <dt>Why</dt>
-                        <dd class="why-full">
-                          @if (why.cause) {
-                            <b>{{ why.cause }}</b>
+                        <dd class="why-full">{{ why.note }}</dd>
+                      }
+                      @if (row.servedTo.length > 0) {
+                        <dt>Serves</dt>
+                        <dd>
+                          @for (remote of row.servedTo; track remote.select) {
+                            <a
+                              class="chip-link"
+                              [routerLink]="['/remotes']"
+                              [queryParams]="{ select: remote.select }"
+                              ><nf-participant-chip [name]="remote.name" [host]="remote.host"
+                            /></a>
                           }
-                          {{ why.text }}
                         </dd>
                       }
                       <dt>Declares</dt>
@@ -230,44 +235,6 @@
     }
   </section>
 
-  <section class="serves" aria-label="serves">
-    <h3 data-tip="other remotes the import map points to one of this remote's builds">Serves</h3>
-    @if (detail.runs.serves.length > 0) {
-      <ul class="serves-list">
-        @for (row of detail.runs.serves; track row.key) {
-          <li>
-            <a
-              class="mono"
-              [routerLink]="['/packages']"
-              [queryParams]="{ select: row.packageSelect }"
-              >{{ row.packageName }}</a
-            >
-            @if (row.scopeLabel) {
-              <span class="scope-label mono">{{ row.scopeLabel }}</span>
-            }
-            <span class="mono run-tag">{{ row.tag }}</span>
-            @if (row.subpool) {
-              <span class="kind kind-owner" data-tip="its build serves a subpool of its pool"
-                >subpool</span
-              >
-            }
-            <span class="muted" aria-hidden="true">→</span>
-            @for (remote of row.to; track remote.select) {
-              <a
-                class="chip-link"
-                [routerLink]="['/remotes']"
-                [queryParams]="{ select: remote.select }"
-                ><nf-participant-chip [name]="remote.name" [host]="remote.host"
-              /></a>
-            }
-          </li>
-        }
-      </ul>
-    } @else {
-      <p class="view-observation">no other remote runs {{ detail.display }}'s builds</p>
-    }
-  </section>
-
   @if (detail.scoped.length > 0) {
     <section aria-label="private registrations">
       <h3>Private registrations</h3>
@@ -334,15 +301,10 @@
   }
 
   @if (detail.chunks.level !== 'none') {
-    <details class="chunks">
-      <summary>
-        <span
-          class="chunks-title"
-          [attr.data-tip]="detail.chunks.note + '\nrule: ' + detail.chunks.rule"
-          >Chunks</span
-        >
-        <span class="muted">{{ chunkCount(detail.chunks) }}</span>
-      </summary>
+    <section class="chunks" aria-label="chunks">
+      <h3 [attr.data-tip]="detail.chunks.note + '\nrule: ' + detail.chunks.rule">
+        Chunks <span class="chunk-count">{{ chunkCount(detail.chunks) }}</span>
+      </h3>
       @switch (detail.chunks.level) {
         @case ('bundle-claims') {
           <ul class="chunk-packages">
@@ -391,7 +353,7 @@
           </ul>
         }
       }
-    </details>
+    </section>
   }
 
   @if (detail.diagnostics.length > 0) {
