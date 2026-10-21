@@ -31,10 +31,11 @@ export type DeclarationVerdict =
 
 /**
  * - `shared` / `scoped`: some row of the tag carries action `share` / `scope`
- * - `partly-mapped`: neither, yet a copy of the tag materializes (a subpool's build)
- * - `not-mapped`: no copy of the tag materializes
+ * - `subpool`: neither, yet a copy of the tag materializes for a `servedBy` subpool
+ * - `skipped`: every row is `skip` and no copy of the tag materializes
+ * - `unknown`: a copy no stored row explains, or a row of an unknown action
  */
-export type VersionStatus = 'shared' | 'scoped' | 'partly-mapped' | 'not-mapped';
+export type VersionStatus = 'shared' | 'scoped' | 'subpool' | 'skipped' | 'unknown';
 
 /**
  * Why a declaration is off the global map (orchestrator 4.8): its `own-copy` or `subpool` verdict.
@@ -97,6 +98,8 @@ export interface VersionBuild {
   entryFiles: BuildEntryFile[];
   /** Chunks of the copy's `mapped-source` bundle claims, registry order. */
   chunkFiles: BuildChunkFile[];
+  /** A bundle claim of the copy lists no chunk files: `source-only` or `ambiguous`. */
+  unlistedChunks: boolean;
 }
 
 export interface VersionVerdict {

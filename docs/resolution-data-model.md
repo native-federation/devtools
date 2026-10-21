@@ -763,12 +763,18 @@ and stored cause; otherwise recomputed against the package's stored
 `servingBuild` as `serving.ts` `fallsBack` judges it — a strict range that
 rejects the serving tag, entrypoints the serving build does not publish, or
 the package shipped at two tags (a root and its flat secondaries form one
-package). A placement the stored rows do not explain has no miss. Each registered
-version carries its status (`shared`, `scoped`, `partly-mapped`,
-`not-mapped`) and its builds, the copies that materialize it with their
-entry and chunk files; `merged` marks a shared version the map assembles from
-more than one `share`-row build, which orchestrator 4.8 does only without a
-serving build. Orchestrator 4.8 never fills an entrypoint from another build
+package). A placement the stored rows do not explain has no miss. In the
+`strict` scope orchestrator 4.8 serves each tag from one build (`serving.ts`
+`strictTagScopes`: the lead of the root's `share` row at that tag, or of the
+package's first one) and stores nothing of it; a `share`-row shipper whose
+own specifier resolves to its own copy is an `own-copy`, its reason judged
+against that lead's entrypoints. Each registered version carries its status
+(`shared`, `scoped`, `subpool` — only `skip` rows, yet a copy materializes for
+a `servedBy` subpool —, `skipped` — only `skip` rows and no copy —, or
+`unknown`) and its builds, the copies that materialize it with their entry and
+chunk files; `merged` marks a shared version the map assembles from more than
+one `share`-row build that no `own-copy` shipper runs, which orchestrator 4.8
+does only without a serving build. Orchestrator 4.8 never fills an entrypoint from another build
 (no tear): a copy the serving build does not cover runs from its own build as
 a `scope` row. An unreadable range or a missing election yields `unknown`,
 never a guess.

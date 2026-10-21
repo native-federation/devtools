@@ -182,16 +182,16 @@ describe('PoolsView', () => {
     const rejected = el.querySelector<HTMLElement>('td[data-state="rejected"]')!;
     rejected.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     fixture.detectChanges();
-    const tip = el.querySelector('.pool-tip');
+    const tip = el.querySelector('.nf-tip');
     expect(tip?.getAttribute('role')).toBe('tooltip');
-    expect(tip?.querySelector('.pool-tip-head')?.textContent?.trim()).toBe(
+    expect(tip?.querySelector('.nf-tip-head')?.textContent?.trim()).toBe(
       'legacy · @nf-lab/acme-common 16.2.12',
     );
-    expect(tip?.querySelector('.pool-tip-label')?.textContent?.trim()).toBe('Rejected:');
+    expect(tip?.querySelector('.nf-tip-label')?.textContent?.trim()).toBe('Rejected:');
 
     rejected.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
     fixture.detectChanges();
-    expect(el.querySelector('.pool-tip')).toBeNull();
+    expect(el.querySelector('.nf-tip')).toBeNull();
   });
 
   it("hovering a remote's row lights up its issues in the warning, and back", async () => {

@@ -12,7 +12,9 @@
         <a
           [routerLink]="['/packages']"
           [queryParams]="{ select: parent.packageId }"
-          [title]="'parent association derived from the package name — rule: ' + parent.rule"
+          [attr.data-tip]="
+            'parent association derived from the package name — rule: ' + parent.rule
+          "
           >{{ parent.packageName }}</a
         >
       </span>
@@ -26,7 +28,7 @@
       [attr.aria-label]="'share scope ' + scope.label"
     >
       <div class="scope-head">
-        <span class="scope-tag tip" [title]="scope.note">{{ scope.label }}</span>
+        <span class="scope-tag tip" [attr.data-tip]="scope.note">{{ scope.label }}</span>
         @if (scope.elected; as elected) {
           <span class="scope-elected">
             shares <span class="mono">{{ elected.tag }}</span>
@@ -49,14 +51,14 @@
               class="pool-link"
               [routerLink]="['/pools']"
               [queryParams]="{ select: pool.poolSelect }"
-              [title]="pool.note"
+              [attr.data-tip]="pool.note"
               >{{ pool.label }} →</a
             >
             <a
               class="pool-link"
               [routerLink]="['/graph']"
               [queryParams]="{ group: 'pool', select: pool.poolSelect }"
-              title="open the Graph grouped by pool, with this pool emphasised"
+              data-tip="open the Graph grouped by pool, with this pool emphasised"
               >Graph →</a
             >
           </span>
@@ -69,8 +71,8 @@
             <tr>
               <th>Version</th>
               <th>Status</th>
-              <th title="remotes whose build contains this version">Shipped by</th>
-              <th title="remotes whose bindings resolve to this version">Resolves for</th>
+              <th data-tip="remotes whose build contains this version">Shipped by</th>
+              <th data-tip="remotes whose bindings resolve to this version">Used by</th>
               <th><span class="visually-hidden">Notes</span></th>
             </tr>
           </thead>
@@ -95,19 +97,25 @@
                   @if (version.mapped) {
                     <span
                       class="mapped-dot"
-                      title="mapped — the import map resolves to this version"
+                      data-tip="mapped — the import map resolves to this version"
                     ></span>
                   }
                 </td>
-                <td class="muted">{{ version.status }}</td>
+                <td class="muted">
+                  <span class="tip" [attr.data-tip]="version.status.note">{{
+                    version.status.label
+                  }}</span>
+                </td>
                 <td class="num">{{ version.shippedBy }}</td>
-                <td class="num">{{ version.runsIn || '–' }}</td>
+                <td class="num">{{ version.usedBy || '–' }}</td>
                 <td>
                   <span class="version-notes">
                     @for (note of version.notes; track note.kind) {
-                      <span [class]="'version-note note-' + note.kind" [title]="note.note">{{
-                        note.label
-                      }}</span>
+                      <span
+                        [class]="'version-note note-' + note.kind"
+                        [attr.data-tip]="note.note"
+                        >{{ note.label }}</span
+                      >
                     }
                   </span>
                 </td>
@@ -119,45 +127,67 @@
                   <td colspan="5">
                     <div class="dive-body">
                       <dl class="facts">
-                        <dt>Built by</dt>
+                        <dt data-tip="whose build files the import map points to for this version">
+                          Served from
+                        </dt>
                         <dd>
-                          @for (remote of version.dive.builtBy; track remote.select) {
+                          @for (remote of version.dive.servedFrom; track remote.select) {
                             <a
                               class="chip-link"
                               [routerLink]="['/remotes']"
                               [queryParams]="{ select: remote.select }"
                               ><nf-participant-chip [name]="remote.name" [host]="remote.host"
                             /></a>
+                          } @empty {
+                            <span class="muted">not mapped</span>
                           }
                           @if (version.dive.merged; as merged) {
-                            <span class="merged-word tip" [title]="merged.note">{{
+                            <span class="merged-word tip" [attr.data-tip]="merged.note">{{
                               merged.label
                             }}</span>
                           }
                         </dd>
-                        <dt>Mapped</dt>
-                        <dd>{{ version.dive.mapped }}</dd>
-                        @if (version.dive.why.length > 0) {
-                          <dt>Why</dt>
-                          <dd class="why">
-                            @for (line of version.dive.why; track line.remote.select) {
-                              <span class="why-line"
+                        <dt data-tip="remotes whose build contains this version">Shipped by</dt>
+                        <dd class="shippers">
+                          @for (shipper of version.dive.shippedBy; track shipper.remote.select) {
+                            @if (shipper.pooled && scope.pool) {
+                              <a
+                                class="shipper"
+                                data-tip-head
+                                [attr.data-tip]="shipper.tip + '\nopen its row in the Pools tab'"
+                                [attr.aria-label]="shipper.tip"
+                                [routerLink]="['/pools']"
+                                [queryParams]="{
+                                  select: scope.pool.poolSelect,
+                                  remote: shipper.remote.select,
+                                }"
                                 ><nf-participant-chip
-                                  [name]="line.remote.name"
-                                  [host]="line.remote.host"
-                                />
-                                {{ line.text }}</span
+                                  [name]="shipper.remote.name"
+                                  [host]="shipper.remote.host"
+                                /><span class="shipper-pool">pool →</span></a
                               >
+                            } @else {
+                              <span
+                                class="shipper"
+                                [class.shipper-off]="shipper.verdict.kind === 'out-of-range'"
+                                tabindex="0"
+                                data-tip-head
+                                [attr.data-tip]="shipper.tip"
+                                [attr.aria-label]="shipper.tip"
+                                ><nf-participant-chip
+                                  [name]="shipper.remote.name"
+                                  [host]="shipper.remote.host"
+                              /></span>
                             }
-                          </dd>
-                        }
-                        <dt>Resolves for</dt>
+                          }
+                        </dd>
+                        <dt data-tip="remotes whose bindings resolve to this version">Used by</dt>
                         <dd>
-                          @for (runner of version.dive.runsIn; track runner.remote.select) {
+                          @for (runner of version.dive.usedBy; track runner.remote.select) {
                             <span
                               class="runner"
                               [class.runner-off]="runner.outOfRange"
-                              [title]="runner.note"
+                              [attr.data-tip]="runner.note"
                               ><nf-participant-chip
                                 [name]="runner.remote.name"
                                 [host]="runner.remote.host"
@@ -167,37 +197,13 @@
                               }
                             </span>
                           }
-                          @if (version.dive.runsInEmpty; as empty) {
+                          @if (version.dive.usedByEmpty; as empty) {
                             <span class="muted">{{ empty }}</span>
                           }
                         </dd>
                       </dl>
 
                       <div class="lists">
-                        <section>
-                          <h4>
-                            Shipped by <span>{{ version.dive.shippedBy.length }}</span>
-                          </h4>
-                          <ul class="shipped">
-                            @for (shipper of version.dive.shippedBy; track shipper.remote.select) {
-                              <li>
-                                <nf-participant-chip
-                                  [name]="shipper.remote.name"
-                                  [host]="shipper.remote.host"
-                                />
-                                <span class="mono tip" [title]="shipper.rangeNote">{{
-                                  shipper.range
-                                }}</span>
-                                <span
-                                  [class]="'verdict verdict-' + shipper.verdict.kind"
-                                  [title]="shipper.verdict.note"
-                                  >{{ shipper.verdict.label }}</span
-                                >
-                              </li>
-                            }
-                          </ul>
-                        </section>
-
                         @if (version.dive.entrypoints; as entrypoints) {
                           <section>
                             <h4>
@@ -212,7 +218,13 @@
                               <ul>
                                 @for (item of group.items; track item.specifier) {
                                   <li>
-                                    <span class="mono">{{ item.specifier }}</span>
+                                    <a
+                                      class="spec-link mono"
+                                      data-tip="open this specifier in the Import Map"
+                                      [routerLink]="['/import-map']"
+                                      [queryParams]="{ select: item.specifier }"
+                                      >{{ item.specifier }}</a
+                                    >
                                     @if (item.missing; as missing) {
                                       <span class="missing-note">{{ missing }}</span>
                                     }
@@ -227,10 +239,15 @@
                           <section>
                             <h4>
                               Files <span>{{ files.count }}</span>
+                              @if (files.unlistedChunks; as unlisted) {
+                                <span class="unlisted tip" [attr.data-tip]="unlisted.note">{{
+                                  unlisted.label
+                                }}</span>
+                              }
                               <span
                                 class="sri tip"
                                 [class.sri-complete]="files.sri.complete"
-                                [title]="files.sri.note"
+                                [attr.data-tip]="files.sri.note"
                                 >{{ files.sri.label }}</span
                               >
                             </h4>
@@ -249,7 +266,7 @@
                                         [href]="url"
                                         target="_blank"
                                         rel="noopener"
-                                        [title]="url"
+                                        [attr.data-tip]="url"
                                         >{{ file.name }}</a
                                       >
                                     } @else {
@@ -272,8 +289,13 @@
       </div>
 
       @if (scope.rangeCheck; as check) {
-        <details class="range-check">
-          <summary>Range check · {{ check.summary }}</summary>
+        <section class="range-check" aria-label="compatibility">
+          <h4
+            class="range-check-title"
+            data-tip="whether each declared range accepts each registered version"
+          >
+            Compatibility
+          </h4>
           <div class="table-scroll">
             <table class="range-matrix">
               <thead>
@@ -297,7 +319,7 @@
                         [class.rejects]="cell.accepts === false"
                         [class.elected]="cell.elected"
                         [class.ships]="cell.ships"
-                        [title]="cell.note"
+                        [attr.data-tip]="cell.note"
                       >
                         {{ cell.accepts === null ? '?' : cell.accepts ? '✓' : '✕' }}
                       </td>
@@ -307,23 +329,16 @@
               </tbody>
             </table>
           </div>
-        </details>
+        </section>
       }
 
       @if (scope.bindings; as bindings) {
-        <!-- Opens by itself while declarations resolve nowhere, so none is hidden. -->
-        <details class="bindings" [open]="bindings.unresolved.length > 0">
-          <summary>
-            Bindings per copy
-            @if (bindings.unresolved.length > 0) {
-              <span class="muted">· {{ bindings.unresolved.length }} unresolved</span>
-            }
-            @if (bindings.diagnostics.length > 0) {
-              <span class="muted">· {{ bindings.diagnostics.length }} diagnostics</span>
-            }
-          </summary>
-          <nf-package-detail [detail]="bindings" [embedded]="true" />
-        </details>
+        <!-- Only what the versions leave out: bindings that resolve nowhere and divergences. -->
+        @if (
+          bindings.noCopies || bindings.unresolved.length > 0 || bindings.diagnostics.length > 0
+        ) {
+          <nf-package-detail [detail]="bindings" />
+        }
       }
     </section>
   }

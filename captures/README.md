@@ -128,10 +128,11 @@ Regeneration, from the playground `lab/`:
 
 ## nf-lab placements corpus (pools-v48)
 
-Four scenarios witnessing why orchestrator 4.8 places a pooled remote off
-the global map, listed in `captures/manifest-nf-lab-placements.json`.
-Recorded with the 4.8 recapture of the two corpora above (same runId,
-playground commit and probe).
+Five scenarios witnessing why orchestrator 4.8 places a remote off the
+global map, listed in `captures/manifest-nf-lab-placements.json`. The first
+four were recorded with the 4.8 recapture of the two corpora above (same
+playground commit and probe); `strict-uncovered` was added later from a newer
+playground commit, and its runstamp is the manifest's runId.
 
 | Scenario | Witnesses |
 |---|---|
@@ -139,6 +140,7 @@ playground commit and probe).
 | `pool-incompatible-nonstrict` | the host wins at 2.0.0; mfe1's non-strict `^1.0.0` rejects it (`poolCause: incompatible`); mfe2's wider range runs globally |
 | `pool-unshipped` | mfe1 extends the host's build with ui-dom 2.0.0 (`servingBuild: mfe1`); mfe2 accepts every global tag, but no single build ships the combination (`poolCause: uncovered`) |
 | `own-tag-out-of-range` | the host's `^2.0.0` excludes its own 1.2.0, which is still shared (the orchestrator always accepts a copy's own tag) |
+| `strict-uncovered` | `strict` kit 1.2.0 is one `share` row led by the host; mfe1 ships secondaries the host's build lacks, so the map runs its whole kit from its own build (orchestrator#113); nothing of it is stored. mfe3 ships 1.3.0 beside it |
 
 Regeneration (all three nf-lab corpora), from the playground `lab/`:
 

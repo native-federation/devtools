@@ -29,6 +29,7 @@ import { scopeIsolationFixture } from './scope-isolation.fixture';
 import { scopedFixture } from './scoped.fixture';
 import { strictScopeFixture } from './strict-scope.fixture';
 import { strictSplitFixture } from './strict-split.fixture';
+import { strictUncoveredFixture } from './strict-uncovered.fixture';
 import { syntheticCollisionFixture } from './synthetic-collision.fixture';
 import { syntheticCustomNamespaceFixture } from './synthetic-custom-namespace.fixture';
 import { syntheticCustomStorageFixture } from './synthetic-custom-storage.fixture';
@@ -84,6 +85,7 @@ export const FIXTURES = {
   scoped: scopedFixture,
   'strict-scope': strictScopeFixture,
   'strict-split': strictSplitFixture,
+  'strict-uncovered': strictUncoveredFixture,
   'synthetic-collision': syntheticCollisionFixture,
   'synthetic-dense-entries': syntheticDenseEntriesFixture,
   'synthetic-hostile': syntheticHostileFixture,

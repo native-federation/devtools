@@ -1,12 +1,12 @@
 {
   "schemaVersion": "lab-lossless-corpus/1",
-  "runId": "20261020T085859Z",
-  "createdAt": "2026-10-20T08:59:45.074Z",
+  "runId": "20261021T043652Z",
+  "createdAt": "2026-10-21T04:36:56.030Z",
   "source": {
     "playground": {
       "repository": "native-federation/playground",
       "branch": "lab/grouping-and-pooling",
-      "commit": "a59ce417580d54a03ead6aefd59f20a2e90464d6",
+      "commit": "f1c8fb80cb3df96486f59a4c9f67a79ccb0e3479",
       "runner": "lab/run-scenario.mjs"
     },
     "orchestratorCommit": "4.8.0",
@@ -31,7 +31,8 @@
     "own-tag-out-of-range",
     "pool-incompatible-nonstrict",
     "pool-uncovered-gap",
-    "pool-unshipped"
+    "pool-unshipped",
+    "strict-uncovered"
   ],
   "captures": [
     {
@@ -57,6 +58,12 @@
       "path": "pool-unshipped/20261020T085859Z.json",
       "runstamp": "20261020T085859Z",
       "sha256": "7dea5a227a50dc481c1c46fa91afd2ce854cba7b248edb7c00fc935146d6bfc8"
+    },
+    {
+      "scenario": "strict-uncovered",
+      "path": "strict-uncovered/20261021T043652Z.json",
+      "runstamp": "20261021T043652Z",
+      "sha256": "66d1777e2bc056e59562988697e59378ea25dd3ff826dec01c0bb3303217bd00"
     }
   ]
 }

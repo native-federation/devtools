@@ -71,13 +71,14 @@ the sharing story is visible at a glance.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/packages-dark.png">
-  <img src="docs/assets/readme/packages-light.png" alt="The Packages tab: @angular/core 22.0.8 shared from the host, its deep dive open with the four remotes it resolves for, their ranges and verdicts, its six entrypoints and its files with SRI">
+  <img src="docs/assets/readme/packages-light.png" alt="The Packages tab: @angular/core 22.0.8 shared from the host, its deep dive open: served from the host, shipped by and used by all four remotes, its six entrypoints and its files with SRI">
 </picture>
 
 Four remotes ship `@angular/core` 22.0.8: the host's build is shared, the
 other three resolve to it, and every entrypoint and file is accounted for, SRI
-included. A remote whose range rejects the shared version is flagged even when
-it isn't strict — the orchestrator stores a plain skip for it.
+included. The compatibility matrix shows which declared range accepts which
+version, and a remote whose range rejects the shared version is flagged even
+when it isn't strict — the orchestrator stores a plain skip for it.
 
 ## Every remote, from its own point of view
 

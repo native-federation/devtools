@@ -9,8 +9,8 @@
  * combinable filters (status × participant × search), sort, and the public
  * surface. The halves live beside it — `packages-row-vm.ts` (one row per
  * package across scopes, status marks, copy count) and
- * `packages-detail-vm.ts` (copy blocks, unresolved bucket, diagnostics
- * footer; chunks via `packages-chunk-vm.ts`); shared internals in
+ * `packages-detail-vm.ts` (no-copies line, unresolved bucket, diagnostics
+ * footer); shared internals in
  * `packages-vm-shared.ts`. Views import from here only.
  *
  * Presentation doctrine (packages-verdicts, over the T7 model): the list
@@ -55,15 +55,10 @@ export type {
 } from './packages-row-vm';
 export type {
   AnnotationVm,
-  ConsumerRowVm,
-  CopyBlockVm,
-  CopyFileVm,
-  CopySourceVm,
   DeclaredVm,
   PackageDetailVm,
   UnresolvedRowVm,
 } from './packages-detail-vm';
-export type { ChunkClaimVm } from './packages-chunk-vm';
 export type * from './packages-version-vm';
 
 export type PackagesFilter = 'all' | 'multi' | 'out-of-range' | 'isolated';
@@ -118,7 +113,7 @@ export interface PackagesVm {
   selectedPackage: string | null;
   /** The selected package across its scopes; null without a selection. */
   packageView: PackageViewVm | null;
-  /** The per-copy view of the focused scope (the link's scope, else the first). */
+  /** The bindings of the focused scope (the link's scope, else the first). */
   detail: PackageDetailVm | null;
   /** Honest empty note; null while the list has rows. */
   emptyNote: string | null;

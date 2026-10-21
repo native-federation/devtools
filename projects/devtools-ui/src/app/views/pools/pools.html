@@ -245,28 +245,7 @@
   } @else {
     <p class="view-observation">no captured snapshot to render</p>
   }
-  @if (tip(); as t) {
-    <div
-      class="pool-tip"
-      role="tooltip"
-      [class.pool-tip-above]="t.above"
-      [class.pool-tip-list]="t.list"
-      [style.left.px]="t.x"
-      [style.top.px]="t.y"
-    >
-      @if (t.head) {
-        <div class="pool-tip-head">{{ t.head }}</div>
-      }
-      @for (line of t.lines; track $index) {
-        <div class="pool-tip-line">
-          @if (line.label) {
-            <span class="pool-tip-label">{{ line.label }}:</span>
-          }
-          {{ line.text }}
-        </div>
-      }
-    </div>
-  }
+  <nf-tip />
 </section>
 
 <ng-template #remoteChips let-list>

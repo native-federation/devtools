@@ -452,46 +452,6 @@
   background: color-mix(in srgb, var(--nf-color-accent) 8%, var(--nf-color-surface));
 }
 
-.pool-tip {
-  position: fixed;
-  z-index: 10;
-  max-width: 360px;
-  padding: 6px 8px;
-  border: 1px solid var(--nf-color-border);
-  border-radius: 4px;
-  background: var(--nf-color-bg);
-  box-shadow: 0 4px 12px rgb(0 0 0 / 20%);
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--nf-color-text);
-  pointer-events: none;
-}
-
-.pool-tip-above {
-  transform: translateY(-100%);
-}
-
-.pool-tip-head {
-  margin-bottom: 2px;
-  font-family: var(--nf-font-mono);
-  font-weight: 700;
-}
-
-.pool-tip-line + .pool-tip-line {
-  margin-top: 2px;
-}
-
-.pool-tip-label {
-  font-weight: 600;
-}
-
-/* A long `+N more` list reads in columns. */
-.pool-tip-list {
-  columns: 3 8em;
-  font-family: var(--nf-font-mono);
-  font-size: 11px;
-}
-
 .pool-issues li[data-kind='conflict'] .pool-issue-label {
   color: var(--nf-color-conflict-text);
 }

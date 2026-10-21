@@ -1200,10 +1200,10 @@ describe('buildGraphModel — accordion', () => {
     expect(buildGraphModel(projection, { expandedBuildKey: core.key })).toEqual(open);
   });
 
-  // The "see usage details" link must land on a Packages entry whose detail
-  // lists this very copy — checked against the real Packages VM for every
-  // copy of every fixture, so the two grouping rules cannot drift apart.
-  it('links every expandable copy to the Packages entry that lists it', () => {
+  // The "see usage details" link must land on the Packages scope block that
+  // lists this copy's version as mapped — checked against the real Packages VM
+  // for every copy of every fixture, so the two grouping rules cannot drift apart.
+  it('links every expandable copy to the Packages scope block that lists it', () => {
     let linked = 0;
     for (const fixtureId of Object.keys(FIXTURES) as FixtureId[]) {
       const model = ingestSnapshot(structuredClone(FIXTURES[fixtureId]));
@@ -1215,15 +1215,19 @@ describe('buildGraphModel — accordion', () => {
           continue;
         }
         linked += 1;
-        const detail = buildPackagesVm(model, {
+        const scope = buildPackagesVm(model, {
           filter: 'all',
           selectedParticipant: null,
           selectedId: link.packageSelect,
-        }).detail;
-        expect(
-          detail?.blocks.map((block) => block.copyId),
-          `${fixtureId}: ${copy.id} -> ${link.packageSelect}`,
-        ).toContain(copy.id);
+        }).packageView?.scopes.find((block) => block.focused);
+        const where = `${fixtureId}: ${copy.id} -> ${link.packageSelect}`;
+        expect(scope?.id, where).toBe(link.packageSelect);
+        if (copy.resolvedTag !== null) {
+          expect(
+            scope!.versions.filter((version) => version.mapped).map((version) => version.tag),
+            where,
+          ).toContain(copy.resolvedTag);
+        }
       }
     }
     expect(linked).toBeGreaterThan(0);

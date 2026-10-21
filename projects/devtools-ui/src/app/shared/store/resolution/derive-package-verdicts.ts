@@ -57,6 +57,7 @@ export function derivePackageVerdicts(
   const registrationById = new Map(evidence.versionRegistrations.map((r) => [r.id, r]));
   const declarationById = new Map(evidence.participantDeclarations.map((d) => [d.id, d]));
   const reasonOf = placementReasons(evidence, tagPools, poolFamilies);
+  const strictServingOf = strictServing(evidence);
   const copyById = new Map(copies.map((copy) => [copy.id, copy]));
   const buildOf = buildFactory(resolutions, bundleClaims, chunkGroups, remotes);
 
@@ -86,12 +87,40 @@ export function derivePackageVerdicts(
     const electedTag = elected?.tag ?? null;
     const scopeCopies = copiesByExternal.get(external.id) ?? [];
 
-    const runsTagOf = (declaration: ParticipantDeclaration): string | null => {
+    // The copy the package's own specifier resolves to for this declaration.
+    const runsCopyOf = (declaration: ParticipantDeclaration) => {
       const own = claimsByDeclaration.get(declaration.id) ?? [];
       const claim =
         own.find((c) => c.specifier === external.packageName && c.copyId !== null) ??
         own.find((c) => c.copyId !== null);
-      return claim?.copyId ? (copyById.get(claim.copyId)?.resolvedTag ?? null) : null;
+      return claim?.copyId ? copyById.get(claim.copyId) : undefined;
+    };
+    const runsTagOf = (declaration: ParticipantDeclaration) =>
+      runsCopyOf(declaration)?.resolvedTag ?? null;
+    const runsBuildOf = (declaration: ParticipantDeclaration) => {
+      const copy = runsCopyOf(declaration);
+      return copy ? sourceRemoteOf(copy) : null;
+    };
+
+    // Orchestrator 4.8 serves each strict tag from one build and stores nothing of it: a share-row
+    // shipper counts as off that build only when the map really runs it from its own copy.
+    const strictFallback = (
+      registration: VersionRegistration,
+      declaration: ParticipantDeclaration,
+    ): PlacementReason | null => {
+      if (!strict || registration.action !== 'share') return null;
+      const serving = strictServingOf(external, registration.tag);
+      if (serving === null || serving.build === declaration.participant) return null;
+      if (runsBuildOf(declaration) !== declaration.participant) return null;
+      const missing = serving
+        .specifiersOf(declaration.participant)
+        .filter((specifier) => !serving.surface.has(specifier));
+      return {
+        scope: 'package',
+        build: serving.build,
+        miss: missing.length > 0 ? { kind: 'coverage', missing } : null,
+        storedCause: null,
+      };
     };
 
     const tags = [...new Set(registrations.map((r) => r.tag))].sort((a, b) => compareSemver(b, a));
@@ -102,7 +131,11 @@ export function derivePackageVerdicts(
           electedTag === null
             ? null
             : acceptsTag(electedTag, registration.tag, declaration.requiredVersion);
-        const verdict = verdictOf(registration, declaration, index, electedTag, acceptsElected);
+        const fallback = strictFallback(registration, declaration);
+        const verdict =
+          fallback !== null
+            ? 'own-copy'
+            : verdictOf(registration, declaration, index, electedTag, acceptsElected);
         return {
           declarationId: declaration.id,
           participant: declaration.participant,
@@ -110,9 +143,10 @@ export function derivePackageVerdicts(
           verdict,
           acceptsElected,
           reason:
-            verdict === 'own-copy' || verdict === 'subpool'
+            fallback ??
+            (verdict === 'own-copy' || verdict === 'subpool'
               ? reasonOf(external, declaration.participant)
-              : null,
+              : null),
           subpoolOf: declaration.servedBy,
           runsTag: runsTagOf(declaration),
           requiredVersion: declaration.requiredVersion,
@@ -125,6 +159,9 @@ export function derivePackageVerdicts(
       }),
     );
 
+    const ownBuilds = new Set(
+      declarations.filter((d) => d.verdict === 'own-copy').map((d) => d.participant),
+    );
     const versions: VersionVerdict[] = tags.map((tag) => {
       const rows = registrations.filter((r) => r.tag === tag);
       const tagCopies = scopeCopies.filter((copy) => copy.resolvedTag === tag);
@@ -133,13 +170,20 @@ export function derivePackageVerdicts(
         ...tagCopies.filter((copy) => external.packageName in copy.entrypoints),
         ...tagCopies.filter((copy) => !(external.packageName in copy.entrypoints)),
       ].map(buildOf);
+      const servedBy = rows
+        .flatMap((r) => r.participantDeclarationIds)
+        .some((id) => declarationById.get(id)!.servedBy !== null);
       const status: VersionStatus = rows.some((r) => r.action === 'share')
         ? 'shared'
         : rows.some((r) => r.action === 'scope')
           ? 'scoped'
           : tagCopies.length > 0
-            ? 'partly-mapped'
-            : 'not-mapped';
+            ? servedBy
+              ? 'subpool'
+              : 'unknown'
+            : rows.every((r) => r.action === 'skip')
+              ? 'skipped'
+              : 'unknown';
       return {
         tag,
         status,
@@ -147,7 +191,9 @@ export function derivePackageVerdicts(
         declarationIds: rows.flatMap((r) => r.participantDeclarationIds),
         copyIds: tagCopies.map((copy) => copy.id),
         builds,
-        merged: status === 'shared' && builds.filter((b) => b.fromShareRow).length > 1,
+        merged:
+          status === 'shared' &&
+          builds.filter((b) => b.fromShareRow && !ownBuilds.has(b.sourceRemote ?? '')).length > 1,
       };
     });
 
@@ -283,6 +329,64 @@ function placementReasons(
   };
 }
 
+interface StrictServing {
+  build: string;
+  surface: Set<string>;
+  specifiersOf: (remote: string) => string[];
+}
+
+// `serving.ts` `strictTagScopes` (orchestrator 4.8): per package and tag, the lead of the root's share
+// row, or of the package's first share row when no build ships the root. A root and its flat
+// secondaries form one package.
+function strictServing(
+  evidence: CanonicalRegistryEvidence,
+): (external: SharedExternalRecord, tag: string) => StrictServing | null {
+  const registrationById = new Map(evidence.versionRegistrations.map((r) => [r.id, r]));
+  const declarationById = new Map(evidence.participantDeclarations.map((d) => [d.id, d]));
+  const candidateById = new Map(evidence.entrypointCandidates.map((c) => [c.id, c]));
+  const packageOf = (external: SharedExternalRecord) =>
+    owningPackage(external.packageName) ?? external.packageName;
+  const packages = new Map<string, SharedExternalRecord[]>();
+  for (const external of evidence.sharedExternals) {
+    if (external.shareScope !== STRICT_SCOPE) continue;
+    packages.set(packageOf(external), [...(packages.get(packageOf(external)) ?? []), external]);
+  }
+  const memo = new Map<string, StrictServing | null>();
+
+  return (external, tag) => {
+    const name = packageOf(external);
+    const key = `${name}\n${tag}`;
+    if (memo.has(key)) return memo.get(key)!;
+    const externals = packages.get(name) ?? [];
+    const rows = externals.flatMap((e) =>
+      e.versionRegistrationIds
+        .map((id) => registrationById.get(id)!)
+        .filter((r) => r.action === 'share' && r.tag === tag)
+        .map((registration) => ({ external: e, registration })),
+    );
+    const basis = rows.find((r) => r.external.packageName === name) ?? rows[0];
+    const lead = basis && declarationById.get(basis.registration.participantDeclarationIds[0]);
+    if (lead === undefined) {
+      memo.set(key, null);
+      return null;
+    }
+    const specifiersOf = (remote: string) =>
+      rows.flatMap(({ registration }) =>
+        registration.participantDeclarationIds
+          .map((id) => declarationById.get(id)!)
+          .filter((d) => d.participant === remote)
+          .flatMap((d) => d.entrypointCandidateIds.map((c) => candidateById.get(c)!.specifier)),
+      );
+    const serving = {
+      build: lead.participant,
+      surface: new Set(specifiersOf(lead.participant)),
+      specifiersOf,
+    };
+    memo.set(key, serving);
+    return serving;
+  };
+}
+
 function verdictOf(
   registration: VersionRegistration,
   declaration: ParticipantDeclaration,
@@ -350,8 +454,10 @@ function buildFactory(
       }
     }
     const chunkFiles: BuildChunkFile[] = [];
+    let unlistedChunks = false;
     for (const claimId of copy.bundleClaimIds) {
       const claim = claimById.get(claimId);
+      if (claim !== undefined && claim.status !== 'mapped-source') unlistedChunks = true;
       if (claim?.status !== 'mapped-source') continue;
       for (const group of claim.chunkGroupIds.map((id) => groupById.get(id))) {
         for (const file of group?.files ?? []) {
@@ -370,6 +476,7 @@ function buildFactory(
         hasIntegrity: integrityByTarget.get(url) ?? false,
       })),
       chunkFiles,
+      unlistedChunks,
     };
   };
 }

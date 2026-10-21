@@ -28,10 +28,12 @@ describe('package view — versions table (T5)', () => {
       tag: '2.0.0',
       remote: { name: 'host', host: true, select: NF_HOST },
     });
-    expect(block.versions.map((v) => [v.tag, v.status, v.mapped, v.shippedBy, v.runsIn])).toEqual([
+    expect(
+      block.versions.map((v) => [v.tag, v.status.label, v.mapped, v.shippedBy, v.usedBy]),
+    ).toEqual([
       ['2.0.0', 'shared', true, 2, 3],
       ['1.3.0', 'scoped', true, 1, 1],
-      ['1.2.0', 'not mapped', false, 1, 0],
+      ['1.2.0', 'skipped', false, 1, 0],
     ]);
     expect(block.versions.map((v) => v.notes.map((n) => n.label))).toEqual([
       [],
@@ -45,7 +47,6 @@ describe('package view — versions table (T5)', () => {
 
   it('T5-AC-02 the range check agrees with the published verdicts', () => {
     const block = scopeOf(viewOf('out-of-range-nonstrict', `__GLOBAL__|${KIT}`));
-    expect(block.rangeCheck!.summary).toBe('mfe2, mfe1 reject 2.0.0 · no version fits every range');
     const electedColumn = block.rangeCheck!.versions.findIndex((v) => v.elected);
     const rejecting = block
       .rangeCheck!.rows.filter((row) => row.cells[electedColumn].accepts === false)
@@ -54,9 +55,12 @@ describe('package view — versions table (T5)', () => {
     const notes = block.versions.flatMap((v) => v.notes).filter((n) => n.kind !== 'merged');
     expect(rejecting).toEqual(['mfe1', 'mfe2']);
     expect(notes.map((n) => n.label.split(' ')[0]).sort()).toEqual(rejecting);
-    // No range check without an election, or with a single version.
-    expect(scopeOf(viewOf('multi-scope', `strict|${KIT}`), 'strict').rangeCheck).toBeNull();
-    expect(scopeOf(viewOf('merged-entrypoints', `__GLOBAL__|${KIT}`)).rangeCheck).toBeNull();
+    // Always shown: also without an election (no column marked elected) and with one version.
+    const strict = scopeOf(viewOf('multi-scope', `strict|${KIT}`), 'strict').rangeCheck!;
+    expect(strict.versions.some((v) => v.elected)).toBe(false);
+    expect(strict.rows.length).toBeGreaterThan(0);
+    const single = scopeOf(viewOf('merged-entrypoints', `__GLOBAL__|${KIT}`)).rangeCheck!;
+    expect(single.versions).toEqual([{ tag: '1.2.0', elected: true }]);
   });
 
   it('T5-AC-04 every declaration renders as a shipper, and the bindings keep the rest', () => {
@@ -103,7 +107,7 @@ describe('package view — version deep dive (T6)', () => {
     ).dive;
     // mfe1's copy is scoped, not a second `share` build, so 4.8's 1.2.0 is not merged.
     expect(dive.merged).toBeNull();
-    expect(dive.builtBy.map((r) => r.name)).toEqual(['mfe1', 'host']);
+    expect(dive.servedFrom.map((r) => r.name)).toEqual(['mfe1', 'host']);
     expect(
       dive.entrypoints!.groups.map((g) => [g.build?.name, g.items.map((i) => i.specifier)]),
     ).toEqual([
@@ -123,18 +127,22 @@ describe('package view — version deep dive (T6)', () => {
   it('names who a version resolves for, out of range in red, and why nobody does', () => {
     const block = scopeOf(viewOf('out-of-range-nonstrict', `__GLOBAL__|${KIT}`));
     const elected = versionOf(block, '2.0.0').dive;
-    expect(elected.runsIn.map((r) => [r.remote.name, r.outOfRange])).toEqual([
+    expect(elected.usedBy.map((r) => [r.remote.name, r.outOfRange])).toEqual([
       ['host', false],
       ['mfe3', false],
       ['mfe1', true],
     ]);
     const unused = versionOf(block, '1.2.0').dive;
-    expect(unused.runsIn).toEqual([]);
-    expect(unused.runsInEmpty).toBe('no remote · its shipper resolves to the shared 2.0.0');
+    expect(unused.usedBy).toEqual([]);
+    expect(unused.usedByEmpty).toBe('no remote · its shipper resolves to the shared 2.0.0');
     expect(unused.entrypoints).toBeNull();
-    expect(
-      unused.shippedBy.map((s) => [s.remote.name, s.range, s.rangeNote, s.verdict.label]),
-    ).toEqual([['mfe1', '^1.0.0', '^1.0.0 · strictVersion: false', 'out of range']]);
+    expect(unused.shippedBy.map((s) => [s.remote.name, s.verdict.label])).toEqual([
+      ['mfe1', 'out of range'],
+    ]);
+    expect(unused.shippedBy[0].tip.split('\n').slice(0, 2)).toEqual([
+      'mfe1 · out of range',
+      'range: ^1.0.0 (not strict)',
+    ]);
   });
 
   it('states SRI per build and keeps chunk files apart from it', () => {
@@ -163,15 +171,17 @@ describe('package view — placement reasons (pools-v48 T6)', () => {
     });
   });
 
-  it('the deep dive says why and marks the entrypoints the serving build lacks', () => {
+  it("the shipper's tooltip says why, and the entrypoints the serving build lacks are marked", () => {
     const dive = versionOf(
       scopeOf(viewOf('fallback-uncovered', `__GLOBAL__|${KIT}`)),
       '1.3.0',
     ).dive;
-    expect(dive.why.map((line) => [line.remote.name, line.text])).toEqual([
+    // Heads with the shipper, then its range, then one clause of the reason per line.
+    expect(dive.shippedBy.map((s) => [s.remote.name, s.pooled, s.tip])).toEqual([
       [
         'mfe2',
-        `not covered: the serving build of host lacks ${KIT}/charts, ${KIT}/charts/legend, ${KIT}/date-picker · runs its own 1.3.0 from its own build`,
+        false,
+        `mfe2 · own copy\nrange: ^1.0.0 (strict)\nnot covered: the serving build of host lacks ${KIT}/charts, ${KIT}/charts/legend, ${KIT}/date-picker\nruns its own 1.3.0 from its own build`,
       ],
     ]);
     expect(dive.entrypoints!.groups[0].items).toEqual([
