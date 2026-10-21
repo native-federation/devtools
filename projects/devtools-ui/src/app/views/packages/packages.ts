@@ -4,6 +4,7 @@ import { ActivatedRoute } from '@angular/router';
 
 import { MasterDetail } from '../../shared/kit/master-detail';
 import { ParticipantChip } from '../../shared/kit/participant-chip';
+import { TipHost, TipPopup } from '../../shared/kit/tip';
 import { TreeTable, TreeTableRow } from '../../shared/kit/tree-table';
 import { FederationStore } from '../../shared/store/federation-store';
 import { PackageVersions } from './package-versions';
@@ -27,10 +28,11 @@ import {
  */
 @Component({
   selector: 'nf-packages-view',
-  imports: [TreeTable, MasterDetail, ParticipantChip, PackageVersions],
+  imports: [TreeTable, MasterDetail, ParticipantChip, PackageVersions, TipPopup],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './packages.html',
   styleUrl: './packages.css',
+  hostDirectives: [TipHost],
 })
 export class PackagesView {
   private readonly store = inject(FederationStore);

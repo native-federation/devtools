@@ -439,6 +439,20 @@ const EVIDENCE = {
     const expected = ["__NF-HOST__:1.2.0:share:^2.0.0", "mfe1:1.2.0:share:^1.0.0"];
     if (JSON.stringify(rows) !== JSON.stringify(expected)) issue(loc, `expected kit rows ${expected.join(",")}, saw ${rows.join(",")}`);
   },
+  // strict 1.2.0 is one share row led by the host; mfe1 ships secondaries the host's build lacks, so the
+  // map runs its whole kit from its own build in its scope. Nothing of that is stored.
+  "strict-uncovered": (ns, env, loc) => {
+    const rows = participantRows(ns, "strict")
+      .filter((row) => row.pkg === KIT)
+      .map((row) => `${row.remote.name}:${row.tag}:${row.action}`)
+      .sort();
+    const expected = ["__NF-HOST__:1.2.0:share", "mfe1:1.2.0:share", "mfe2:1.2.0:share", "mfe3:1.3.0:share"];
+    if (JSON.stringify(rows) !== JSON.stringify(expected)) issue(loc, `expected strict kit rows ${expected.join(",")}, saw ${rows.join(",")}`);
+    const scopes = env.channels?.importShim?.data?.map?.scopes ?? {};
+    const mfe1 = Object.entries(scopes).find(([url]) => url.endsWith("/mfe1/"))?.[1] ?? {};
+    if (!String(mfe1[KIT] ?? "").includes("/mfe1/")) issue(loc, "expected mfe1's kit root mapped to its own build");
+    if (!(`${KIT}/table` in mfe1)) issue(loc, "expected mfe1's kit/table in its scope");
+  },
 };
 
 // --- live-capture evidence (frankenstein-live, report rows 12–16) --------

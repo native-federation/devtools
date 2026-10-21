@@ -81,17 +81,21 @@ describe('pool cross-links (share-pools T7)', () => {
     ).toBe(POOL_ID);
   });
 
-  it('T7-AC-02: a Package-detail pool chip links to its pool', async () => {
+  // A shipper its pool placed off the map links to that remote's row in its pool.
+  it('T7-AC-02: a pooled shipper links to the remote in its pool', async () => {
     const harness = await harnessAt(
-      'pool-tag-coherent',
+      'pool-showcase',
       `/packages?select=${encodeURIComponent('__GLOBAL__|@nf-lab/ui-core')}`,
     );
-    const chips = Array.from(harness.routeNativeElement!.querySelectorAll('a.pool-chip'));
-    expect(chips.length).toBe(2);
-    expect(chips.map(hrefOf).sort()).toEqual([
-      `/pools?select=${POOL_ID}&remote=mfe1`,
-      `/pools?select=${POOL_ID}&remote=mfe2`,
-    ]);
+    const el = harness.routeNativeElement!;
+    const version = Array.from(el.querySelectorAll<HTMLElement>('tbody.version')).find(
+      (row) => row.querySelector('.version-tag')?.textContent?.trim() === '1.0.0',
+    )!;
+    version.click();
+    harness.detectChanges();
+    const links = Array.from(el.querySelectorAll('a.shipper')).map(hrefOf);
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) expect(link).toMatch(/^\/pools\?select=[^&]+&remote=\w+$/);
   });
 
   it('T7-AC-03: an unknown select falls back to no emphasis', async () => {
