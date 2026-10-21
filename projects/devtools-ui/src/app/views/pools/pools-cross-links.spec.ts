@@ -111,13 +111,29 @@ describe('pool cross-links (share-pools T7)', () => {
 describe('pool chip → remote row (pools-v48 T8)', () => {
   const markedRows = (el: HTMLElement) => Array.from(el.querySelectorAll('.pool-row.selected'));
   const rowRemote = (row: Element) => row.querySelector('nf-participant-chip')?.textContent?.trim();
+  // The Remotes pool link sits in a run's opened row.
+  const openRuns = (harness: Awaited<ReturnType<typeof harnessAt>>) => {
+    for (const run of Array.from(
+      harness.routeNativeElement!.querySelectorAll<HTMLElement>('tbody.run'),
+    )) {
+      run.click();
+      harness.detectChanges();
+    }
+  };
 
   it('T8-AC-01: a Remotes-detail chip lands on that remote, in that pool', async () => {
     const remotes = await harnessAt('pool-tag-coherent', '/remotes?select=mfe2');
-    const hrefs = Array.from(remotes.routeNativeElement!.querySelectorAll('a.pool-chip')).map(
-      hrefOf,
-    );
-    expect(hrefs.length).toBeGreaterThan(0);
+    const hrefs: (string | null)[] = [];
+    for (const run of Array.from(
+      remotes.routeNativeElement!.querySelectorAll<HTMLElement>('tbody.run'),
+    )) {
+      run.click();
+      remotes.detectChanges();
+      hrefs.push(
+        ...Array.from(remotes.routeNativeElement!.querySelectorAll('a.pool-chip')).map(hrefOf),
+      );
+    }
+    expect(hrefs.length).toBe(2);
     for (const href of hrefs) expect(href).toBe(`/pools?select=${POOL_ID}&remote=mfe2`);
 
     const pools = await harnessAt(
@@ -144,6 +160,7 @@ describe('pool chip → remote row (pools-v48 T8)', () => {
 
   it('T8-AC-03: an own-build remote is marked inside its Own build band, reason included', async () => {
     const remotes = await harnessAt('pool-incompatible-nonstrict', '/remotes?select=mfe1');
+    openRuns(remotes);
     const href = hrefOf(remotes.routeNativeElement!.querySelector('a.pool-chip'));
     expect(href).toMatch(/&remote=mfe1$/);
 

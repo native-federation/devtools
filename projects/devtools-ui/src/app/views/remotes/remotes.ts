@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { ActivatedRoute } from '@angular/router';
 
 import { MasterDetail } from '../../shared/kit/master-detail';
+import { TipHost, TipPopup } from '../../shared/kit/tip';
 import { ParticipantChip } from '../../shared/kit/participant-chip';
 import { TreeTable, TreeTableRow } from '../../shared/kit/tree-table';
 import { FederationStore } from '../../shared/store/federation-store';
@@ -25,10 +26,11 @@ import {
  */
 @Component({
   selector: 'nf-remotes-view',
-  imports: [TreeTable, MasterDetail, ParticipantChip, RemoteDetail],
+  imports: [TreeTable, MasterDetail, ParticipantChip, RemoteDetail, TipPopup],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './remotes.html',
   styleUrl: './remotes.css',
+  hostDirectives: [TipHost],
 })
 export class RemotesView {
   private readonly store = inject(FederationStore);

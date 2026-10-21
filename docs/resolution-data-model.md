@@ -88,7 +88,7 @@ its template. That layer exists for exactly two jobs:
   truth, the projection must stay pivot-neutral — baking any render shape
   into it would color canonical evidence with UI decisions.
 - **Presentation judgements.** Display vocabulary and wording
-  (`skipped own 1.0.0`, `mapped only for X`), deviation-first choices (what
+  (`own build`, `subpool of X`), deviation-first choices (what
   is a chip, what is a tooltip), ordering (elected copy first), and view-level
   indicators such as the resolved-tag-multiplicity glyph are view decisions,
   not domain facts — the actual conflict judgement belongs to diagnostics.
