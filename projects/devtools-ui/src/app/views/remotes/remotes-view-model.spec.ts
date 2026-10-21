@@ -222,7 +222,7 @@ describe('buildRemoteDetail — runs (remotes-v48)', () => {
     const [row] = detail.runs.rows;
     expect(row.kind).toBe('own');
     expect(row.tag).toBe('1.2.0');
-    expect(row.from).toMatchObject({ label: 'own build', remote: null });
+    expect(row.from).toMatchObject({ label: 'scoped', remote: null });
     expect(row.why).toEqual({
       label: 'not covered',
       note: 'not covered: the serving build of host lacks @nf-lab/kit/table, @nf-lab/kit/dialog',
@@ -233,7 +233,7 @@ describe('buildRemoteDetail — runs (remotes-v48)', () => {
       ['@nf-lab/kit/table', "not in host's build"],
       ['@nf-lab/kit/dialog', "not in host's build"],
     ]);
-    expect(detail.runs.tally).toEqual([{ kind: 'own', label: '1 own build' }]);
+    expect(detail.runs.tally).toEqual([{ kind: 'own', label: '1 scoped' }]);
 
     // host serves mfe2, not mfe1.
     const host = detailOf('strict-uncovered', NF_HOST);
@@ -254,10 +254,7 @@ describe('buildRemoteDetail — runs (remotes-v48)', () => {
     });
     expect(runOf(dashboard, '@nf-lab/form-core').from.remote?.name).toBe('checkout');
     expect(runOf(dashboard, '@nf-lab/form-core').ships).toBe('1.0.0');
-    expect(dashboard.runs.tally.map((item) => item.label)).toEqual([
-      '2 own build',
-      '2 from checkout',
-    ]);
+    expect(dashboard.runs.tally.map((item) => item.label)).toEqual(['2 scoped', '2 from checkout']);
 
     const catalog = detailOf('pool-showcase', 'catalog');
     const ui = runOf(catalog, '@nf-lab/ui-core');
@@ -786,7 +783,7 @@ describe('buildRemoteDetail — one declaration, two sources (T8.6-AC-05)', () =
   it('reads a scope registration as its own build', () => {
     const [row] = seededDetail(SCOPE_ACTION_SEED, 'r1').runs.rows;
     expect(row.kind).toBe('own');
-    expect(row.from.label).toBe('own build');
+    expect(row.from.label).toBe('scoped');
     expect(row.why?.label).toBe('no reason stored');
     expect(row.why?.note).toContain('keeps its own 1.0.0');
   });

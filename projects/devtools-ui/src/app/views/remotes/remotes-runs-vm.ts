@@ -26,7 +26,7 @@ import {
  * - `self`: its own build, the one the map serves to everyone
  * - `shared`: another remote's build
  * - `subpool` / `owner`: a subpool runs another remote's build / this remote's build
- * - `own`: its own build, off the shared one
+ * - `own`: its own build, off the shared one (a `scope` row; shown as `scoped`)
  * - `off`: another remote's build, outside its declared range
  * - `unresolved`: no binding resolves
  * - `unknown`: a copy without an evidenced source
@@ -99,7 +99,7 @@ const ORDER: Record<RunsKind, number> = {
 export const KIND_LABELS: Partial<Record<RunsKind, string>> = {
   unresolved: 'not mapped',
   off: 'out of range',
-  own: 'own build',
+  own: 'scoped',
   owner: 'subpool owner',
   subpool: 'subpool',
 };
@@ -202,7 +202,7 @@ function fromOf(
       return { label: 'self', remote: null };
     case 'own':
       return source.remoteSelect === null || source.remoteSelect === ctx.remote.name
-        ? { label: 'own build', remote: null }
+        ? { label: 'scoped', remote: null }
         : { label: 'scoped copy of', remote: sourceRef };
     case 'owner':
       return { label: 'self · subpool', remote: null };

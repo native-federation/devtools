@@ -36,7 +36,7 @@ no torn entrypoints; older pages render without them.
 
 **Remotes** — the same data from each participant's point of view, read from
 the declaration verdicts Packages uses: one Runs row per declared package with
-the tag it runs, whose build (`self`, a remote, `own build`, `subpool of`,
+the tag it runs, whose build (`self`, a remote, `scoped`, `subpool of`,
 `out of range`, `not mapped`) and the reason when off the norm; flat secondaries
 fold into their package when they run the same way. A row this remote serves
 says which other remotes run it (`serves 2`, the names in the opened row).

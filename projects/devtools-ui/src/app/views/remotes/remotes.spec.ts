@@ -336,10 +336,10 @@ describe('RemotesView', () => {
     const fixture = await createView({ fixture: 'strict-uncovered', select: 'mfe1' });
     const el = fixture.nativeElement as HTMLElement;
 
-    expect(el.querySelector('.tally')?.textContent?.trim()).toBe('1 own build');
+    expect(el.querySelector('.tally')?.textContent?.trim()).toBe('1 scoped');
     const row = runRow(el, '@nf-lab/kit');
     expect(row.classList.contains('calm')).toBe(false);
-    expect(row.querySelector('.from .kind-own')?.textContent).toBe('own build');
+    expect(row.querySelector('.from .kind-own')?.textContent).toBe('scoped');
     const why = row.querySelector<HTMLElement>('.why-text')!;
     expect(why.textContent).toBe('not covered');
     expect(why.dataset['tip']).toBe(
