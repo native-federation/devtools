@@ -8,7 +8,7 @@ import type {
   ParticipantDeclaration,
   ResolvedDependencyCopy,
 } from '../../shared/store/resolution';
-import { ownCopyFallbackOf, subpoolWhereOf, verdictNoteOf } from '../../shared/verdict-text';
+import { ownCopyFallbackOf, subpoolWhereOf } from '../../shared/verdict-text';
 import {
   CanonicalIndexes,
   GLOBAL_SCOPE,
@@ -61,7 +61,7 @@ export interface RunsRowVm {
   scopeLabel: string | null;
   /** The tag the remote runs; null when nothing resolves. */
   tag: string | null;
-  from: { label: string | null; remote: RemoteRefVm | null; note: string };
+  from: { label: string | null; remote: RemoteRefVm | null };
   /** Shown only off the norm: the reason, its cause set off. */
   why: { cause: string | null; text: string } | null;
   /** `^1.0.0 · strict`, or `exact 1.2.0` in the strict scope. */
@@ -168,12 +168,6 @@ interface Context {
   verdictsByDeclaration: Map<string, PackageScopeVerdicts>;
 }
 
-function electedRemoteOf(verdicts: PackageScopeVerdicts, indexes: CanonicalIndexes) {
-  return verdicts.electedDeclarationId === null
-    ? null
-    : (indexes.declarationById.get(verdicts.electedDeclarationId)?.participant ?? null);
-}
-
 function kindOf(
   record: DeclarationVerdictRecord | undefined,
   self: string,
@@ -198,38 +192,34 @@ function fromOf(
   ctx: Context,
 ): RunsRowVm['from'] {
   const source = copySourceVmOf(copy);
-  const verdicts = record && ctx.verdictsByDeclaration.get(record.declarationId);
-  const verdictNote =
-    record && verdicts
-      ? verdictNoteOf(record, verdicts, electedRemoteOf(verdicts, ctx.indexes))
-      : 'no verdict is recorded for this declaration';
-  const qualified =
-    source.qualifier !== 'exact-target-source' && source.qualifier !== 'explicit-anchor';
-  const note = qualified ? `${verdictNote}\n${source.label}: ${source.note}` : verdictNote;
   const sourceRef = source.remoteSelect === null ? null : remoteRef(source.remoteSelect);
   switch (kind) {
     case 'self':
-      return { label: 'self', remote: null, note };
+      return { label: 'self', remote: null };
     case 'own':
       return source.remoteSelect === null || source.remoteSelect === ctx.remote.name
-        ? { label: 'own build', remote: null, note }
-        : { label: 'scoped copy of', remote: sourceRef, note };
+        ? { label: 'own build', remote: null }
+        : { label: 'scoped copy of', remote: sourceRef };
     case 'owner':
-      return { label: 'self · subpool', remote: null, note };
+      return { label: 'self · subpool', remote: null };
     case 'subpool':
       return {
         label: 'subpool of',
         remote: record?.subpoolOf ? remoteRef(record.subpoolOf) : sourceRef,
-        note,
       };
     case 'off':
-      return { label: 'out of range', remote: sourceRef, note };
+      return { label: 'out of range', remote: sourceRef };
     case 'shared':
-      return { label: qualified ? source.label : null, remote: sourceRef, note };
+      return { label: isQualified(copy) ? source.label : null, remote: sourceRef };
     default:
-      return { label: source.label, remote: null, note };
+      return { label: source.label, remote: null };
   }
 }
+
+const isQualified = (copy: ResolvedDependencyCopy) => {
+  const { qualifier } = copySourceVmOf(copy);
+  return qualifier !== 'exact-target-source' && qualifier !== 'explicit-anchor';
+};
 
 function whyTextOf(kind: RunsKind, record: DeclarationVerdictRecord | undefined, ctx: Context) {
   if (record === undefined) return null;
@@ -296,7 +286,7 @@ function rowOf(declaration: ParticipantDeclaration, ctx: Context): RunsRowVm | n
       ...base,
       kind: 'unresolved',
       tag: null,
-      from: { label: state.label, remote: null, note: state.note },
+      from: { label: state.label, remote: null },
       why: { cause: null, text: state.note },
       entrypoints: claims.map((claim) => ({
         specifier: claim.specifier,
@@ -316,7 +306,11 @@ function rowOf(declaration: ParticipantDeclaration, ctx: Context): RunsRowVm | n
     kind,
     tag: mainCopy.resolvedTag ?? record?.runsTag ?? null,
     from: fromOf(kind, record, mainCopy, ctx),
-    why: whyOf(whyTextOf(kind, record, ctx)),
+    why:
+      whyOf(whyTextOf(kind, record, ctx)) ??
+      (isQualified(mainCopy)
+        ? { cause: copySourceVmOf(mainCopy).label, text: copySourceVmOf(mainCopy).note }
+        : null),
     entrypoints: claims.map((claim) => {
       const copy = copyOf(claim);
       if (copy === undefined) {

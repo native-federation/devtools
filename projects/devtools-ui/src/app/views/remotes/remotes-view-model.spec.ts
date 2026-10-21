@@ -230,7 +230,6 @@ describe('buildRemoteDetail — runs (remotes-v48)', () => {
     expect(row.declared).toBe('>=1.0.0 <3.0.0');
     expect(row.from.label).toBeNull();
     expect(row.from.remote).toEqual({ name: 'mfe2', host: false, select: 'mfe2' });
-    expect(row.from.note).toBe('>=1.0.0 <3.0.0 accepts 2.0.0 · resolves to the shared copy');
     expect(row.why).toBeNull();
     expect(mfe1.runs.serves).toEqual([]);
 
@@ -360,11 +359,10 @@ describe('buildRemoteDetail — runs (remotes-v48)', () => {
       expect(row.kind).toBe('unresolved');
       expect(row.tag).toBeNull();
       expect(row.ships).toBe(tag);
-      expect(row.from).toEqual({
-        label: 'not mapped',
-        remote: null,
-        note: 'no applicable import-map binding for this specifier in this capture',
-      });
+      expect(row.from).toEqual({ label: 'not mapped', remote: null });
+      expect(row.why?.text).toBe(
+        'no applicable import-map binding for this specifier in this capture',
+      );
     }
   });
 });
@@ -724,9 +722,10 @@ describe('buildRemoteDetail — qualified sources stay qualified (T8.6-AC-05)', 
     expect(row.kind).toBe('unknown');
     expect(row.from.label).toBe('ambiguous source');
     expect(row.from.remote).toBeNull();
-    expect(row.from.note).toContain(
-      'ambiguous source: equally specific remote scope prefixes match this target — none is chosen',
-    );
+    expect(row.why).toEqual({
+      cause: 'ambiguous source',
+      text: 'equally specific remote scope prefixes match this target — none is chosen',
+    });
     expect(row.entrypoints[0].file).toBe('b.js');
   });
 
@@ -735,16 +734,18 @@ describe('buildRemoteDetail — qualified sources stay qualified (T8.6-AC-05)', 
     expect(row.kind).toBe('shared');
     expect(row.from.label).toBe('observed target source');
     expect(row.from.remote).toEqual({ name: 'host', host: true, select: NF_HOST });
-    expect(row.from.note).toContain('host as least-specific fallback');
+    expect(row.why?.cause).toBe('observed target source');
+    expect(row.why?.text).toContain('host as least-specific fallback');
   });
 
   it('keeps a source-less foreign target a QUALIFIED unknown source', () => {
     const [row] = seededDetail(UNKNOWN_SOURCE_SEED, 'r1').runs.rows;
     expect(row.kind).toBe('unknown');
     expect(row.from.label).toBe('unknown source');
-    expect(row.from.note).toContain(
-      'only the resolved URL is evidenced — no source record or scope prefix matches',
-    );
+    expect(row.why).toEqual({
+      cause: 'unknown source',
+      text: 'only the resolved URL is evidenced — no source record or scope prefix matches',
+    });
   });
 });
 
@@ -953,11 +954,10 @@ describe('buildRemoteDetail — relation-only consumers stay visible (T8-H2)', (
     // The candidate-less declaration resolves nowhere of its own…
     expect(detail.runs.rows).toHaveLength(1);
     expect(detail.runs.rows[0].kind).toBe('unresolved');
-    expect(detail.runs.rows[0].from).toEqual({
-      label: 'declared',
-      remote: null,
-      note: 'declaration without entrypoint candidates — no resolution claim derivable',
-    });
+    expect(detail.runs.rows[0].from).toEqual({ label: 'declared', remote: null });
+    expect(detail.runs.rows[0].why?.text).toBe(
+      'declaration without entrypoint candidates — no resolution claim derivable',
+    );
 
     // …while the canonical relation shows where the binding resolves.
     expect(detail.relationOnly).toHaveLength(1);
