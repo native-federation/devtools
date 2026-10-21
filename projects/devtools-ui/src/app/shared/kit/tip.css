@@ -1,0 +1,39 @@
+.nf-tip {
+  position: fixed;
+  z-index: 10;
+  max-width: 360px;
+  padding: 6px 8px;
+  border: 1px solid var(--nf-color-border);
+  border-radius: 4px;
+  background: var(--nf-color-bg);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 20%);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--nf-color-text);
+  pointer-events: none;
+}
+
+.nf-tip-above {
+  transform: translateY(-100%);
+}
+
+.nf-tip-head {
+  margin-bottom: 2px;
+  font-family: var(--nf-font-mono);
+  font-weight: 700;
+}
+
+.nf-tip-line + .nf-tip-line {
+  margin-top: 2px;
+}
+
+.nf-tip-label {
+  font-weight: 600;
+}
+
+/* A long `+N more` list reads in columns. */
+.nf-tip-list {
+  columns: 3 8em;
+  font-family: var(--nf-font-mono);
+  font-size: 11px;
+}

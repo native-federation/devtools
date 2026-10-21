@@ -19,7 +19,7 @@
               class="nf-button filter-button"
               [class.active]="filter() === option.id"
               [attr.aria-pressed]="filter() === option.id"
-              [attr.title]="option.note"
+              [attr.data-tip]="option.note"
               (click)="setFilter(option.id)"
             >
               @if (option.id === 'out-of-range' || option.id === 'isolated') {
@@ -45,7 +45,7 @@
                 class="participant-toggle"
                 [class.active]="selectedParticipant() === participant.name"
                 [attr.aria-pressed]="selectedParticipant() === participant.name"
-                title="show only packages this participant is involved in — combines with the status filter"
+                data-tip="show only packages this participant is involved in — combines with the status filter"
                 (click)="toggleParticipant(participant.name)"
               >
                 <nf-participant-chip [name]="participant.name" [host]="participant.host" />
@@ -59,7 +59,7 @@
               <span
                 class="scope-name"
                 [class.tip]="scope.label !== scope.scope"
-                [attr.title]="scope.label === scope.scope ? null : scope.scope"
+                [attr.data-tip]="scope.label === scope.scope ? null : scope.scope"
                 >{{ scope.label }}</span
               >
               <span class="scope-count">{{ scope.packageCount }}</span>
@@ -86,7 +86,7 @@
             }
             <span
               class="pkg-name"
-              [attr.title]="
+              [attr.data-tip]="
                 payload.linked
                   ? payload.packageName + ' — secondary entry of ' + payload.linked.parentPackage
                   : payload.packageName
@@ -96,17 +96,17 @@
             @if (payload.marks.length > 0) {
               <span class="pkg-marks">
                 @for (mark of payload.marks; track mark.kind) {
-                  <span [class]="'mark-dot mark-' + mark.kind" [title]="mark.note"></span>
+                  <span [class]="'mark-dot mark-' + mark.kind" [attr.data-tip]="mark.note"></span>
                 }
               </span>
             }
             @if (payload.strict; as strict) {
-              <span class="pkg-strict tip" [title]="strict.note">strict</span>
+              <span class="pkg-strict tip" [attr.data-tip]="strict.note">strict</span>
             }
             <span
               class="pkg-copies tip"
               [class.pkg-copies-many]="payload.copies.count > 1"
-              [title]="payload.copies.note"
+              [attr.data-tip]="payload.copies.note"
               >{{ payload.copies.label }}</span
             >
           </ng-template>
@@ -120,4 +120,5 @@
   } @else {
     <p class="view-observation">no captured snapshot to render</p>
   }
+  <nf-tip />
 </section>

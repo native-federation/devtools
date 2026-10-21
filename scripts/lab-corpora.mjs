@@ -72,7 +72,8 @@ export const LAB_CORPORA = [
       "own-tag-out-of-range",
       "pool-incompatible-nonstrict",
       "pool-uncovered-gap",
-      "pool-unshipped"
+      "pool-unshipped",
+      "strict-uncovered"
     ]
   }
 ];

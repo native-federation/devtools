@@ -1,9 +1,8 @@
 /**
  * Shared internals of the Packages vm builder — the canonical (share scope,
  * package) group shape and the ID-keyed store-façade indexes used by the row
- * half (`packages-row-vm.ts`), the detail half (`packages-detail-vm.ts`),
- * and the chunk half (`packages-chunk-vm.ts`). Views import from the
- * `packages-view-model.ts` facade only.
+ * half (`packages-row-vm.ts`) and the detail half (`packages-detail-vm.ts`).
+ * Views import from the `packages-view-model.ts` facade only.
  *
  * Everything here joins the canonical read surface —
  * `model.resolutionProjection`, `model.effectiveConsumerResolutions`, and
@@ -29,16 +28,12 @@ export {
   GLOBAL_SCOPE,
   STRICT_SCOPE,
   buildCanonicalIndexes,
-  chunkFileClaim,
-  copySourceDisplay,
   copySourceRemote,
-  copySourceVmOf,
   isHostRemote,
   packageId,
   participantDisplay,
   targetFileName,
   type CanonicalIndexes,
-  type CopySourceVm,
 } from '../../shared/view-conventions';
 import {
   CanonicalIndexes,

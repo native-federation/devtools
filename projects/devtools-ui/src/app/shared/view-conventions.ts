@@ -183,12 +183,6 @@ export function copySourceRemote(copy: ResolvedDependencyCopy): string | null {
   }
 }
 
-/** Display form of a copy's source remote; null when no source is evidenced. */
-export function copySourceDisplay(copy: ResolvedDependencyCopy): string | null {
-  const remote = copySourceRemote(copy);
-  return remote === null ? null : participantDisplay(remote);
-}
-
 export function isHostRemote(name: string | null): boolean {
   return name === NF_HOST;
 }

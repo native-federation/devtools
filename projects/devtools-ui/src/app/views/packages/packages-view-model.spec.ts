@@ -1,39 +1,23 @@
 /**
- * Packages view-model specs — canonical corpus acceptance of the T7.5
- * copy-block redesign over the T7 model. The builder consumes the Store
+ * Packages view-model specs over the T7 model. The builder consumes the Store
  * façade only (`resolutionProjection`, `effectiveConsumerResolutions`,
  * `registryEvidence`); every pin navigates canonical IDs through that
  * surface:
- *  - T7.5-AC-01: frankenstein-live `/primitives/signals` — exactly one copy
- *    block (21.2.12, host source, mapped file with SRI, `^21.2.0` STRICT
- *    consumer, 5 chunk files); default qualifiers are tooltip data only.
- *  - T7.5-AC-02: clean-skip renders the skip as a `skipped own 1.0.0` row
- *    annotation; co-declared-share renders mfe2 as a `not selected`
- *    consumer row of the single block, never unresolved.
- *  - T7.5-AC-03: strict-split renders two blocks (shared-elected first,
- *    isolated with audience) under the `⚠ 2 resolved versions` header.
- *  - T7.5-AC-04: synthetic-multi-version renders zero blocks, the honest
- *    no-copies line, and the `unresolved` bucket with offered tags.
- *  - T7.5-AC-05: rows are name + resolved versions only; the single-select
- *    participant filter combines with the Conflicts filter.
- *  - T7.5-AC-06: canonical IDs chain through the façade; every annotation
- *    keeps a grounded note; purity.
- *  - T7.9-AC-01/-02: the DECLARED BY outcome notes name the consumer's own
- *    registered file when the claim's candidate evidence carries it; with
- *    the evidence removed the outcome states itself alone.
- *  - T7.10-AC-01/-02/-03/-05: dense secondaries render as entrypoint
- *    sub-rows under their parent leaf (entries-map provenance, excluded
- *    from the package count, parent id as select target); copies without
- *    the package's own specifier carry the `secondary entrypoint only`
- *    head fact; flat-generation captures grow no sub-rows.
+ *  - T7.5-AC-02: resolved bindings (skip, not-selected) never land in the
+ *    `unresolved` bucket.
+ *  - T7.5-AC-04: synthetic-multi-version renders the honest no-copies line
+ *    and the `unresolved` bucket with offered tags.
+ *  - T7.5-AC-05: rows are name + copy count + marks; the single-select
+ *    participant filter combines with the status filters.
+ *  - T7.5-AC-06: every annotation keeps a grounded note; purity.
+ *  - T7.10-AC-01/-05: dense secondaries grow no list rows; flat-generation
+ *    secondaries stay linked rows.
  */
 import { FIXTURES, SnapshotV1 } from 'devtools-bridge';
 
 import type { FederationModel } from '../../shared/store/federation-model';
 import { ingestSnapshot } from '../../shared/store/ingest';
 import {
-  ConsumerRowVm,
-  CopyBlockVm,
   PackageDetailVm,
   PackageRowVm,
   PackagesFilter,
@@ -65,118 +49,25 @@ function countOf(vm: PackagesVm, id: PackagesFilter = 'all'): number {
   return vm.filters.find((option) => option.id === id)!.count;
 }
 
-function consumerOf(block: CopyBlockVm, name: string): ConsumerRowVm {
-  const consumer = block.consumers.find((candidate) => candidate.name === name);
-  if (consumer === undefined) {
-    throw new Error(`no consumer row ${name}`);
-  }
-  return consumer;
-}
-
 /** Every annotation of the detail must carry a grounded note (T7.5-AC-06). */
 function allAnnotationsOf(detail: PackageDetailVm): { label: string; note: string }[] {
   return [
-    ...detail.blocks.flatMap((block) => [
-      ...block.deviations,
-      ...block.consumers.flatMap((consumer) => consumer.deviations),
-    ]),
     ...detail.unresolved.flatMap((row) => [row.state, ...(row.offered ? [row.offered] : [])]),
     ...detail.diagnostics,
-    ...(detail.conflict ? [detail.conflict] : []),
     ...(detail.noCopies ? [detail.noCopies] : []),
   ];
 }
 
 const CONFLICT_LIB = packageId('__GLOBAL__', '@nf-lab/conflict-lib');
 
-describe('buildPackagesVm — one block, consumers as rows (T7.5-AC-02, co-declared)', () => {
-  const model = modelOf('co-declared-share');
-  const vm = buildPackagesVm(model, {
-    filter: 'all',
-    selectedParticipant: null,
-    selectedId: CONFLICT_LIB,
-  });
-
-  it('renders one copy block with mfe1 quiet and mfe2 as a not-selected consumer row', () => {
-    expect(vm.detail!.blocks).toHaveLength(1);
-    const [block] = vm.detail!.blocks;
-    expect(block.resolvedTag).toBe('1.0.0');
-    expect(block.source.display).toBe('mfe1');
-    expect(block.disposition.label).toBe('shared');
-    expect(block.files).toEqual([
-      {
-        specifier: '@nf-lab/conflict-lib',
-        showSpecifier: false,
-        file: '_nf_lab_conflict_lib.JF7uEdSVsN.js',
-        targetUrl: 'http://localhost:4300/mfe1/_nf_lab_conflict_lib.JF7uEdSVsN.js',
-        hasIntegrity: false,
-        importMapSelect: '@nf-lab/conflict-lib',
-      },
-    ]);
-    expect(consumerOf(block, 'mfe1').deviations).toEqual([]);
-    expect(consumerOf(block, 'mfe2').deviations.map((deviation) => deviation.label)).toEqual([
-      'not selected',
-    ]);
-    // Two consumer resolutions, one copy — the not-selected declaration is
-    // a consumer row of the block, NEVER an unresolved entry.
+describe('buildPackagesVm — resolved bindings stay out of the bucket (T7.5-AC-02, co-declared)', () => {
+  it('keeps the not-selected declaration out of the unresolved bucket', () => {
+    const vm = vmOf('co-declared-share', { selectedId: CONFLICT_LIB });
+    // Two consumer resolutions, one copy — the not-selected declaration
+    // resolves, so it is NEVER an unresolved entry.
+    expect(vm.detail!.noCopies).toBeNull();
     expect(vm.detail!.unresolved).toEqual([]);
-    expect(vm.detail!.conflict).toBeNull();
-  });
-
-  it('grounds the not-selected note in the own registered file (T7.9-AC-01)', () => {
-    const [block] = vm.detail!.blocks;
-    // Capture-relative wording: the unselected own copy stays a legitimate
-    // registration that a different composition may select — never dead weight.
-    expect(consumerOf(block, 'mfe2').deviations).toEqual([
-      {
-        label: 'not selected',
-        note: 'own copy _nf_lab_conflict_lib.JF7uEdSVsN.js is registered but not selected in this capture — the binding resolves to this copy; a different composition may select it',
-      },
-    ]);
-  });
-
-  it('chains the block and its consumers to the canonical projection by ID (T7.5-AC-06)', () => {
-    const projection = model.resolutionProjection;
-    expect(vm.detail!.blocks.map((block) => block.copyId)).toEqual(
-      projection.copies.map((copy) => copy.id),
-    );
-    // The not-selected claim references the same copy the block renders.
-    const claim = projection.declarationResolutionClaims.find(
-      (candidate) => candidate.consumerRemote === 'mfe2',
-    )!;
-    expect(claim.copyId).toBe(vm.detail!.blocks[0].copyId);
-    // Consumer rows track by canonical declaration IDs.
-    const declarationIds = new Set(
-      model.registryEvidence.participantDeclarations.map((declaration) => declaration.id),
-    );
-    for (const consumer of vm.detail!.blocks[0].consumers) {
-      expect(declarationIds.has(consumer.declarationId as never)).toBe(true);
-    }
-  });
-});
-
-describe('buildPackagesVm — outcome without an evidenced own file (T7.9-AC-02)', () => {
-  it('renders the outcome note without a file name when no candidate evidence exists', () => {
-    // Seeded absence at the vm boundary: the same capture with its canonical
-    // entrypoint-candidate evidence removed. The outcome must state itself
-    // alone — no file name is ever invented.
-    const base = modelOf('co-declared-share');
-    const model: FederationModel = {
-      ...base,
-      registryEvidence: { ...base.registryEvidence, entrypointCandidates: [] },
-    };
-    const vm = buildPackagesVm(model, {
-      filter: 'all',
-      selectedParticipant: null,
-      selectedId: CONFLICT_LIB,
-    });
-    const [block] = vm.detail!.blocks;
-    expect(consumerOf(block, 'mfe2').deviations).toEqual([
-      {
-        label: 'not selected',
-        note: 'the consumer’s own candidate is not selected in this capture — its binding resolves to this copy',
-      },
-    ]);
+    expect(vm.detail!.diagnostics).toEqual([]);
   });
 });
 
@@ -185,62 +76,10 @@ describe('buildPackagesVm — frankenstein-live /primitives/signals (T7.5-AC-01)
   const vm = vmOf('frankenstein-live', { selectedId: signals });
   const detail = vm.detail!;
 
-  it('renders exactly one copy block with tag, host source, SRI file, STRICT consumer', () => {
-    expect(detail.blocks).toHaveLength(1);
-    const [block] = detail.blocks;
-    expect(block.resolvedTag).toBe('21.2.12');
-    expect(block.source.display).toBe('host');
-    expect(block.source.host).toBe(true);
-    expect(block.disposition.label).toBe('shared');
-    expect(block.files).toEqual([
-      expect.objectContaining({
-        file: '_angular_core_primitives_signals.ePwPWbaXlE.js',
-        showSpecifier: false,
-        hasIntegrity: true,
-      }),
-    ]);
-    expect(block.consumers).toEqual([
-      expect.objectContaining({
-        name: 'host',
-        declared: { text: '^21.2.0', pinned: false },
-        strict: true,
-        deviations: [],
-        viaSpecifiers: [],
-      }),
-    ]);
+  it('renders no bindings section facts for the resolved strict host binding', () => {
+    expect(detail.noCopies).toBeNull();
     expect(detail.unresolved).toEqual([]);
     expect(detail.diagnostics).toEqual([]);
-  });
-
-  it('nests the mapped-source chunk claim with its five files inside the block', () => {
-    const [block] = detail.blocks;
-    expect(block.chunks).toHaveLength(1);
-    expect(block.chunks[0]).toEqual(
-      expect.objectContaining({
-        bundle: 'browser-angular_core',
-        status: 'mapped-source',
-        files: [
-          'chunk-RCIWTGS7.js',
-          'chunk-K6ZMRNMW.js',
-          'chunk-APTZXQMF.js',
-          'chunk-V2SUVJ7R.js',
-          'chunk-2VMXMS7J.js',
-        ],
-        fileClaim: '5 chunk files',
-        showSource: false,
-      }),
-    );
-  });
-
-  it('keeps default qualifiers as tooltip data only (never a visible label)', () => {
-    const [block] = detail.blocks;
-    // The default qualifier and roles stay notes; the visible vocabulary is
-    // `shared` and the source chip.
-    expect(block.source.qualifier).toBe('exact-target-source');
-    expect(block.source.note).toContain('uniquely evidenced source record');
-    expect(block.disposition.note).toContain('registered with action share');
-    expect(block.disposition.note).toContain('ordinary-shared');
-    expect(block.deviations).toEqual([]);
   });
 
   it('keeps the name-derived parent link of the secondary entrypoint', () => {
@@ -252,86 +91,16 @@ describe('buildPackagesVm — frankenstein-live /primitives/signals (T7.5-AC-01)
   });
 });
 
-describe('buildPackagesVm — skip is a row annotation (T7.5-AC-02, clean-skip)', () => {
-  const vm = vmOf('clean-skip', { selectedId: CONFLICT_LIB });
-
-  it('renders one block whose mfe1 row carries skipped own 1.0.0 with a grounded note', () => {
-    expect(vm.detail!.blocks).toHaveLength(1);
-    const [block] = vm.detail!.blocks;
-    expect(block.resolvedTag).toBe('2.0.0');
-    expect(block.source.display).toBe('mfe2');
-    expect(consumerOf(block, 'mfe2').deviations).toEqual([]);
-    const skip = consumerOf(block, 'mfe1').deviations;
-    // T7.9-AC-01: the outcome note names the consumer's own registered file.
-    expect(skip).toEqual([
-      {
-        label: 'skipped own 1.0.0',
-        note: 'own copy _nf_lab_conflict_lib.JF7uEdSVsN.js (1.0.0) is registered with action skip — the consumer resolves to the elected copy',
-      },
-    ]);
-    // No separate skip section, no unresolved entry — the annotation IS the trace.
+describe('buildPackagesVm — skip resolves, never unresolved (T7.5-AC-02, clean-skip)', () => {
+  it('keeps the skipping consumer out of the unresolved bucket', () => {
+    const vm = vmOf('clean-skip', { selectedId: CONFLICT_LIB });
     expect(vm.detail!.unresolved).toEqual([]);
-  });
-
-  it('keeps the source-only chunk claim visibly qualified with the absence wording', () => {
-    const [block] = vm.detail!.blocks;
-    expect(block.chunks).toEqual([
-      expect.objectContaining({
-        bundle: 'browser-shared',
-        status: 'source-only',
-        files: [],
-        fileClaim: 'no chunk list recorded in this capture',
-      }),
-    ]);
+    expect(vm.detail!.diagnostics).toEqual([]);
   });
 });
 
-describe('buildPackagesVm — conflict = visibly two blocks (T7.5-AC-03, strict-split)', () => {
+describe('buildPackagesVm — two resolved versions (T7.5-AC-03, strict-split)', () => {
   const vm = vmOf('strict-split', { selectedId: CONFLICT_LIB });
-  const detail = vm.detail!;
-
-  it('renders the ⚠ 2 resolved versions header and the elected block first', () => {
-    expect(detail.conflict).toEqual({
-      label: '⚠ 2 resolved versions',
-      note: 'more than one distinct version resolves in this share scope (rule: resolved-tag-multiplicity)',
-    });
-    expect(detail.blocks.map((block) => block.resolvedTag)).toEqual(['2.0.0', '1.0.0']);
-  });
-
-  it('renders the shared block with the host source and the mfe1 skip row', () => {
-    const [shared] = detail.blocks;
-    expect(shared.disposition.label).toBe('shared');
-    expect(shared.source.display).toBe('host');
-    expect(shared.source.host).toBe(true);
-    expect(consumerOf(shared, 'host').declared).toEqual({
-      text: '>=1.0.0 <3.0.0',
-      pinned: false,
-    });
-    expect(consumerOf(shared, 'host').deviations).toEqual([]);
-    expect(consumerOf(shared, 'mfe1').declared.text).toBe('~1.0.0');
-    expect(consumerOf(shared, 'mfe1').deviations.map((deviation) => deviation.label)).toEqual([
-      'skipped own 1.0.0',
-    ]);
-  });
-
-  it('renders the isolated block mapped only for mfe3 with STRICT and kept own copy', () => {
-    const [, isolated] = detail.blocks;
-    expect(isolated.disposition.label).toBe('isolated');
-    expect(isolated.disposition.audience).toEqual({
-      label: 'mapped only for mfe3',
-      note: 'the scope registration’s own declarers — the isolated copy is mapped for them alone',
-    });
-    expect(isolated.source.display).toBe('mfe3');
-    const mfe3 = consumerOf(isolated, 'mfe3');
-    expect(mfe3.strict).toBe(true);
-    // T7.9-AC-01: the outcome note names the consumer's own registered file.
-    expect(mfe3.deviations).toEqual([
-      {
-        label: 'kept own copy',
-        note: 'own copy _nf_lab_conflict_lib.JF7uEdSVsN.js is registered with action scope — the consumer keeps it, mapped only for its own declarers',
-      },
-    ]);
-  });
 
   it('reduces the list row to the copy count and its marks', () => {
     const [row] = packageRows(vm);
@@ -348,58 +117,21 @@ describe('buildPackagesVm — conflict = visibly two blocks (T7.5-AC-03, strict-
   });
 });
 
-describe('buildPackagesVm — anchored copies stay qualified (pooling-anchor)', () => {
-  it('renders the anchor block with explicit-anchor source and anchored consumer rows', () => {
-    const vm = vmOf('pooling-anchor', { selectedId: CONFLICT_LIB });
-    const anchor = vm.detail!.blocks.find((block) => block.resolvedTag === '1.0.0')!;
-    expect(anchor.source.qualifier).toBe('explicit-anchor');
-    expect(anchor.source.display).toBe('mfe1');
-    // The skip disposition stays a visibly qualified deviation, verbatim.
-    expect(anchor.disposition.label).toBe('skip-registration');
-    expect(anchor.disposition.note).toContain('anchor-source');
-    for (const name of ['mfe1', 'mfe2']) {
-      const deviations = consumerOf(anchor, name).deviations;
-      expect(deviations.map((deviation) => deviation.label)).toEqual(['anchored']);
-      expect(deviations[0].note).toContain('servedBy anchor: mfe1');
-    }
-  });
-
-  it('renders /extra as one block where mfe2 is a not-selected consumer row', () => {
+describe('buildPackagesVm — anchored bindings resolve (pooling-anchor)', () => {
+  it('keeps /extra’s not-selected mfe2 out of the unresolved bucket', () => {
     const vm = vmOf('pooling-anchor', {
       selectedId: packageId('__GLOBAL__', '@nf-lab/conflict-lib/extra'),
     });
-    expect(vm.detail!.blocks).toHaveLength(1);
-    const [block] = vm.detail!.blocks;
-    expect(block.source.display).toBe('mfe1');
-    expect(consumerOf(block, 'mfe2').deviations.map((deviation) => deviation.label)).toEqual([
-      'not selected',
-    ]);
-    // Only the selected declaration's bundle claim renders (T7-AC-04 kept).
-    expect(block.chunks).toHaveLength(1);
-    expect(block.chunks[0].status).toBe('source-only');
     expect(vm.detail!.unresolved).toEqual([]);
   });
 });
 
 describe('buildPackagesVm — strict scope shares side by side (T7.5-AC-03)', () => {
-  it('renders two quiet shared blocks with pinned declared tags and no conflict', () => {
+  it('marks nothing and counts no multiple versions in the strict scope', () => {
     const vm = vmOf('strict-scope', { selectedId: packageId('strict', '@nf-lab/conflict-lib') });
     const detail = vm.detail!;
-    expect(detail.conflict).toBeNull();
-    expect(detail.strictScope).toBe(true);
-    expect(detail.blocks.map((block) => block.resolvedTag)).toEqual(['1.0.0', '2.0.0']);
-    expect(detail.blocks.map((block) => block.disposition.label)).toEqual(['shared', 'shared']);
-    expect(consumerOf(detail.blocks[0], 'mfe1').declared).toEqual({
-      text: '1.0.0',
-      pinned: true,
-    });
-    expect(consumerOf(detail.blocks[1], 'mfe2').declared).toEqual({
-      text: '2.0.0',
-      pinned: true,
-    });
-    expect(
-      detail.blocks.flatMap((block) => block.consumers).every((c) => !c.deviations.length),
-    ).toBe(true);
+    expect(detail.scope).toBe('strict');
+    expect(detail.unresolved).toEqual([]);
     const [row] = packageRows(vm);
     expect(row.marks).toEqual([]);
     expect(row.strict).not.toBeNull();
@@ -411,8 +143,7 @@ describe('buildPackagesVm — honest empty + unresolved bucket (T7.5-AC-04)', ()
   const uiLib = packageId('__GLOBAL__', 'ui-lib');
   const vm = vmOf('synthetic-multi-version', { selectedId: uiLib });
 
-  it('renders zero blocks and the no-copies line for the map-less capture', () => {
-    expect(vm.detail!.blocks).toEqual([]);
+  it('renders the no-copies line for the map-less capture', () => {
     expect(vm.detail!.noCopies).toEqual({
       label: 'no resolved copies in this capture',
       note: 'declared, but no import-map binding resolves this package in this capture',
@@ -525,7 +256,7 @@ const SEED_REMOTES = {
 /**
  * Equal-tag seed: two share registrations of the SAME tag (and action —
  * canonical ordinals keep them distinct), each consumer's scoped map
- * selecting its own copy — two blocks, one resolved tag, no conflict.
+ * selecting its own copy — two copies, one resolved tag, no conflict.
  */
 const EQUAL_TAG_SEED = seedSnapshot({
   remotes: SEED_REMOTES,
@@ -556,7 +287,7 @@ const EQUAL_TAG_SEED = seedSnapshot({
   ],
 });
 
-describe('buildPackagesVm — equal-tag copies are two blocks, no conflict', () => {
+describe('buildPackagesVm — equal-tag copies are no conflict', () => {
   const model = ingestSnapshot(EQUAL_TAG_SEED);
   const vm = buildPackagesVm(model, {
     filter: 'all',
@@ -564,77 +295,11 @@ describe('buildPackagesVm — equal-tag copies are two blocks, no conflict', () 
     selectedId: packageId('__GLOBAL__', 'ui-lib'),
   });
 
-  it('renders two blocks with one resolved tag and no conflict indicator', () => {
-    expect(vm.detail!.blocks).toHaveLength(2);
-    expect(new Set(vm.detail!.blocks.map((block) => block.resolvedTag))).toEqual(
-      new Set(['1.0.0']),
-    );
-    expect(vm.detail!.conflict).toBeNull();
+  it('counts one resolved tag and raises no multiple-versions mark', () => {
     const [row] = packageRows(vm);
     expect(row.copies).toMatchObject({ count: 1, label: '1 copy' });
     expect(row.marks).toEqual([]);
     expect(countOf(vm, 'multi')).toBe(0);
-  });
-
-  it('tracks blocks and consumer rows by canonical IDs (equal keys never collide)', () => {
-    expect(new Set(vm.detail!.blocks.map((block) => block.copyId)).size).toBe(2);
-    const declarationIds = vm.detail!.blocks.flatMap((block) =>
-      block.consumers.map((consumer) => consumer.declarationId),
-    );
-    expect(new Set(declarationIds).size).toBe(2);
-  });
-});
-
-/** Same package name in TWO share scopes — blocks must stay scope-specific. */
-const MULTI_SCOPE_SEED = seedSnapshot({
-  remotes: SEED_REMOTES,
-  sharedExternals: {
-    __GLOBAL__: {
-      'ui-lib': {
-        dirty: false,
-        versions: [
-          {
-            tag: '1.0.0',
-            action: 'share',
-            host: false,
-            remotes: [declarationOf('mfe1', { 'ui-lib': 'ui-lib.AAAA.js' })],
-          },
-        ],
-      },
-    },
-    team: {
-      'ui-lib': {
-        dirty: false,
-        versions: [
-          {
-            tag: '2.0.0',
-            action: 'share',
-            host: false,
-            remotes: [declarationOf('mfe2', { 'ui-lib': 'ui-lib.BBBB.js' })],
-          },
-        ],
-      },
-    },
-  },
-  scopes: [
-    { scope: './mfe1/', imports: [{ specifier: 'ui-lib', target: './mfe1/ui-lib.AAAA.js' }] },
-    { scope: './mfe2/', imports: [{ specifier: 'ui-lib', target: './mfe2/ui-lib.BBBB.js' }] },
-  ],
-});
-
-describe('buildPackagesVm — scope-specific blocks', () => {
-  const model = ingestSnapshot(MULTI_SCOPE_SEED);
-  const build = (selectedId: string) =>
-    buildPackagesVm(model, { filter: 'all', selectedParticipant: null, selectedId });
-
-  it('keeps each share scope of an equally named package to its own blocks', () => {
-    const globalDetail = build(packageId('__GLOBAL__', 'ui-lib')).detail!;
-    expect(globalDetail.blocks.map((block) => block.source.display)).toEqual(['mfe1']);
-    expect(globalDetail.blocks.map((block) => block.resolvedTag)).toEqual(['1.0.0']);
-
-    const teamDetail = build(packageId('team', 'ui-lib')).detail!;
-    expect(teamDetail.blocks.map((block) => block.source.display)).toEqual(['mfe2']);
-    expect(teamDetail.blocks.map((block) => block.resolvedTag)).toEqual(['2.0.0']);
   });
 });
 
@@ -712,7 +377,7 @@ describe('buildPackagesVm — deep subpath chains keep every row', () => {
 /**
  * Two equally specific remote scope prefixes match the resolved target and
  * no exact candidate does — the canonical attribution is `ambiguous-scope`
- * (remote: null) and must render as an ambiguous source, never "unknown".
+ * (remote: null), so the copy's tag stays unknown.
  */
 const AMBIGUOUS_SCOPE_SEED = seedSnapshot({
   remotes: {
@@ -738,23 +403,12 @@ const AMBIGUOUS_SCOPE_SEED = seedSnapshot({
   imports: [{ specifier: 'amb-lib', target: './shared/b.js' }],
 });
 
-describe('buildPackagesVm — ambiguous scope attribution stays ambiguous', () => {
+describe('buildPackagesVm — ambiguous scope attribution leaves the tag unknown', () => {
   const model = ingestSnapshot(AMBIGUOUS_SCOPE_SEED);
   const vm = buildPackagesVm(model, {
     filter: 'all',
     selectedParticipant: null,
     selectedId: packageId('__GLOBAL__', 'amb-lib'),
-  });
-
-  it('qualifies the block source as ambiguous and the tag as unknown', () => {
-    const [block] = vm.detail!.blocks;
-    expect(block.source.qualifier).toBe('ambiguous-source');
-    expect(block.source.display).toBeNull();
-    expect(block.source.note).toContain('equally specific remote scope prefixes');
-    expect(block.disposition.label).toBe('target-only');
-    expect(block.resolvedTag).toBeNull();
-    expect(block.unknownTagNote).toBe('no uniquely evidenced source tag for this copy');
-    expect(consumerOf(block, 'r1').name).toBe('r1');
   });
 
   it('surfaces the unknown-tag residual on the row and in the diagnostics footer', () => {
@@ -804,19 +458,14 @@ const MULTI_ENTRY_SEED = seedSnapshot({
 });
 
 describe('buildPackagesVm — multi-entrypoint declarations keep every claim', () => {
-  it('renders the resolved main claim as a row and the unmapped secondary in the bucket', () => {
+  it('lists the unmapped secondary claim in the bucket, not the resolved main claim', () => {
     const model = ingestSnapshot(MULTI_ENTRY_SEED);
     const vm = buildPackagesVm(model, {
       filter: 'all',
       selectedParticipant: null,
       selectedId: packageId('__GLOBAL__', 'ui-lib'),
     });
-    const [block] = vm.detail!.blocks;
-    expect(consumerOf(block, 'mfe1').deviations).toEqual([]);
-    expect(consumerOf(block, 'mfe1').viaSpecifiers).toEqual([]);
-    // The unmapped secondary claim materializes no file line …
-    expect(block.files.map((file) => file.specifier)).toEqual(['ui-lib']);
-    // … and stays visible as its own unresolved entry with its specifier.
+    // Only the unmapped secondary claim is an unresolved entry, with its specifier.
     expect(vm.detail!.unresolved).toEqual([
       expect.objectContaining({
         name: 'mfe1',
@@ -883,7 +532,6 @@ describe('buildPackagesVm — missing source copy is not a missing binding', () 
       selectedId: packageId('__GLOBAL__', 'lib-a'),
     });
     const detail = vm.detail!;
-    expect(detail.blocks).toEqual([]);
     expect(detail.noCopies).toEqual({
       label: 'no resolved copies in this capture',
       note: 'no source copy is attributed to this package — its bindings resolve to copies of other packages',
@@ -902,90 +550,6 @@ describe('buildPackagesVm — missing source copy is not a missing binding', () 
       label: 'no copy',
       note: 'no source copy is attributed to this package — its bindings resolve to copies of other packages',
     });
-  });
-
-  it('keeps the cross-package consumer visible under the copy it resolves to', () => {
-    const model = ingestSnapshot(CROSS_SOURCE_SEED);
-    const vm = buildPackagesVm(model, {
-      filter: 'all',
-      selectedParticipant: null,
-      selectedId: packageId('__GLOBAL__', 'lib-b'),
-    });
-    // mfe1 declares under lib-a, resolves to lib-b's copy — it counts as
-    // involvement, so it must render as a consumer row of that block, with
-    // the foreign registry package named instead of posing as a declarer.
-    const block = vm.detail!.blocks.find((candidate) =>
-      candidate.files.some((file) => file.file === 'shared.js'),
-    )!;
-    expect(block.consumers.map((consumer) => consumer.name)).toEqual(['mfe2', 'mfe1']);
-    const foreign = block.consumers[1];
-    expect(foreign.declared).toEqual({ text: '^1.0.0', pinned: false });
-    expect(foreign.deviations[0]).toEqual({
-      label: 'declared under lib-a',
-      note: 'this consumer declares the specifier under another registry package — its binding still resolves to this copy',
-    });
-    // The copy merges by its unique source (mfe2's declaration owns both
-    // entrypoints), so the local declarer's claims include the package's
-    // own specifier — its row stays quiet, the file lines carry lib-a.
-    expect(block.consumers[0].viaSpecifiers).toEqual([]);
-    expect(block.files.map((file) => file.specifier).sort()).toEqual(['lib-a', 'lib-b']);
-  });
-});
-
-/**
- * Isolated copy with an anchored external consumer (the spec's canonical
- * `isolated-own` + `anchor-source` coexistence): the audience wording must
- * not claim "mapped only for" while an external consumer resolves there.
- */
-const SCOPE_ANCHOR_SEED = seedSnapshot({
-  remotes: SEED_REMOTES,
-  sharedExternals: {
-    __GLOBAL__: {
-      'iso-lib': {
-        dirty: false,
-        versions: [
-          {
-            tag: '1.0.0',
-            action: 'scope',
-            host: false,
-            remotes: [declarationOf('mfe1', { 'iso-lib': 'iso.js' })],
-          },
-          {
-            tag: '1.0.0',
-            action: 'skip',
-            host: false,
-            remotes: [declarationOf('mfe2', { 'iso-lib': 'iso-b.js' }, null, 'mfe1')],
-          },
-        ],
-      },
-    },
-  },
-  scopes: [
-    { scope: './mfe1/', imports: [{ specifier: 'iso-lib', target: './mfe1/iso.js' }] },
-    { scope: './mfe2/', imports: [{ specifier: 'iso-lib', target: './mfe1/iso.js' }] },
-  ],
-});
-
-describe('buildPackagesVm — isolated audience stays honest under external consumers', () => {
-  it('drops the "only" wording when consumers beyond the declarers resolve to the copy', () => {
-    const model = ingestSnapshot(SCOPE_ANCHOR_SEED);
-    const vm = buildPackagesVm(model, {
-      filter: 'all',
-      selectedParticipant: null,
-      selectedId: packageId('__GLOBAL__', 'iso-lib'),
-    });
-    const [block] = vm.detail!.blocks;
-    expect(block.disposition.label).toBe('isolated');
-    expect(block.disposition.audience).toEqual({
-      label: 'mapped for mfe1',
-      note: 'the scope registration’s own declarers — consumers beyond them also resolve to this copy in this capture',
-    });
-    expect(consumerOf(block, 'mfe1').deviations.map((deviation) => deviation.label)).toEqual([
-      'kept own copy',
-    ]);
-    expect(consumerOf(block, 'mfe2').deviations.map((deviation) => deviation.label)).toEqual([
-      'anchored',
-    ]);
   });
 });
 
@@ -1062,14 +626,10 @@ describe('buildPackagesVm — flat list, links, filter, scopes (structure preser
     expect(vm.scopes).toEqual([{ scope: '__GLOBAL__', label: 'global', packageCount: 1 }]);
     const detail = vmOf('clean-skip', { selectedId: CONFLICT_LIB }).detail!;
     expect(detail.scope).toBe('__GLOBAL__');
-    expect(detail.scopeDisplay).toBe('global');
   });
 });
 
-describe('buildPackagesVm — dense secondaries and the secondary-only head fact (T7.10)', () => {
-  const DENSE_LIB = packageId('__GLOBAL__', '@nf-lab/dense-lib');
-  const SPLIT_LIB = packageId('__GLOBAL__', '@nf-lab/split-lib');
-
+describe('buildPackagesVm — dense secondaries (T7.10)', () => {
   it('lists one row per registry package; dense secondaries grow no list rows', () => {
     // Secondaries of an entries map are not registry keys: they live in the
     // version deep dive (packages-verdicts T6), never in the list.
@@ -1097,22 +657,6 @@ describe('buildPackagesVm — dense secondaries and the secondary-only head fact
       selectedId: null,
     });
     expect(unfiltered.rows.map((row) => row.id).sort()).toEqual(['lib-a', 'lib-b']);
-  });
-
-  it('flags copies without the package’s own specifier on the head (T7.10-AC-03)', () => {
-    const split = vmOf('synthetic-dense-entries', { selectedId: SPLIT_LIB }).detail!;
-    const secondary = split.blocks.find((block) => block.resolvedTag === '3.1.4')!;
-    expect(secondary.deviations).toEqual([
-      {
-        label: 'secondary entrypoint only',
-        note: 'this copy serves @nf-lab/split-lib/secondary — the package’s own specifier @nf-lab/split-lib does not resolve to it in this capture; the tag names the entrypoint’s registration, not a version of the whole package',
-      },
-    ]);
-    expect(split.blocks.find((block) => block.resolvedTag === '3.0.0')!.deviations).toEqual([]);
-    // The happy dense block (parent + secondary in one copy) carries no fact.
-    const dense = vmOf('synthetic-dense-entries', { selectedId: DENSE_LIB }).detail!;
-    expect(dense.blocks).toHaveLength(1);
-    expect(dense.blocks[0].deviations).toEqual([]);
   });
 
   it('keeps the linked presentation of flat-generation secondaries (T7.10-AC-05)', () => {
@@ -1156,46 +700,6 @@ describe('buildPackagesVm — grounded annotations and purity (T7.5-AC-06)', () 
 
     expect(second).toEqual(first);
     expect(JSON.stringify(model)).toBe(modelBefore);
-  });
-});
-
-// share-pools T5: a declaration's explicit pool tag renders as a
-// chip; an orphan tag (joined nothing) is flagged. Untagged rows get none.
-describe('buildPackageDetail — pool chips (share-pools T5)', () => {
-  const chipsOf = (fixture: keyof typeof FIXTURES, pkg: string) => {
-    const detail = vmOf(fixture, { selectedId: `__GLOBAL__|${pkg}` }).detail!;
-    return detail.blocks
-      .flatMap((block) => block.consumers)
-      .map((consumer) => ({ name: consumer.name, pool: consumer.pool }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  };
-
-  it('T5-AC-01: both family members carry the tag for both remotes', () => {
-    for (const pkg of ['@nf-lab/ui-core', '@nf-lab/ui-dom']) {
-      const chips = chipsOf('pool-tag-coherent', pkg);
-      expect(chips.map((chip) => chip.name)).toEqual(['mfe1', 'mfe2']);
-      for (const { name, pool } of chips) {
-        expect(pool).toEqual({
-          tag: 'ui',
-          note: 'explicit pool tag declared by this remote (config: pool on the shared external) — member of pool ui',
-          orphan: false,
-          poolQuery: { select: 'tag-pool:["__GLOBAL__","@nf-lab/ui-core",0]', remote: name },
-        });
-      }
-    }
-  });
-
-  it('T5-AC-01: an orphan tag warns; an untagged declaration shows no chip', () => {
-    const chips = chipsOf('pool-tag-orphan', '@nf-lab/ui-core');
-    expect(chips.find((chip) => chip.name === 'mfe1')!.pool).toMatchObject({
-      tag: 'ui',
-      orphan: true,
-      poolQuery: null,
-    });
-    expect(chips.find((chip) => chip.name === 'mfe1')!.pool!.note).toContain(
-      'likely a typo or a missing sibling',
-    );
-    expect(chips.find((chip) => chip.name === 'mfe2')!.pool).toBeNull();
   });
 });
 
