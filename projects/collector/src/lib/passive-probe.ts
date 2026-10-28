@@ -151,6 +151,7 @@ export const PASSIVE_PROBE_SOURCE = `(() => {
     fields: {
       bundle: schemas.string,
       cached: schemas.boolean,
+      dense: schemas.boolean,
       entries: schemas.fileEntries,
       file: schemas.string,
       name: schemas.string,

@@ -38,6 +38,7 @@ import type {
   SharedRowFacts,
 } from './derived-model';
 import { resolveUrl } from './merge-document-maps';
+import { packageRuleOf, type PackageOf } from './resolution';
 
 /** The strict share scope's registry name (spec-pinned). */
 const STRICT_SCOPE = 'strict';
@@ -61,12 +62,13 @@ export function deriveFederation(model: FederationModel): DerivedFederation {
     names.add(row.packageName);
   }
 
+  const packageOf = packageRuleOf(model.registryEvidence);
   const sharedRowFacts: SharedRowFacts[] = model.sharedRows.map((row) => ({
     row,
     arrow: deriveArrow(row, shareRowsByPackage.get(packageKey(row)) ?? []),
     provider:
       row.resolution === null ? null : (providerByTarget.get(row.resolution.targetUrl) ?? null),
-    parentLink: deriveParentLink(row, packagesByScope),
+    parentLink: deriveParentLink(row, packagesByScope, packageOf),
     strictPinned: row.scope === STRICT_SCOPE ? { rule: 'strict-scope-policy' } : null,
     declaredNotMapped: deriveDeclaredNotMapped(row, model, mapTargets),
   }));
@@ -156,23 +158,17 @@ function servedFileOf(row: SharedParticipantRow): string | null {
   return match?.file ?? row.servedFiles[0]?.file ?? null;
 }
 
-/**
- * `pkg/subpath` → parent package of the same share scope. The base is the
- * first two segments for scoped names ('@angular/common/http' →
- * '@angular/common', also multi-segment and file-shaped subpaths), the
- * first segment for unscoped names ('rxjs/operators' → 'rxjs').
- */
+// `pkg/subpath` → its package in the same share scope, by the orchestrator's package rule: the npm name
+// ('@angular/common/http' → '@angular/common'), or a package a 4.9 dense build declared deeper.
 function deriveParentLink(
   row: SharedParticipantRow,
   packagesByScope: Map<string, Set<string>>,
+  packageOf: (shareScope: string) => PackageOf,
 ): ParentLink | null {
-  const segments = row.packageName.split('/');
-  const baseLength = row.packageName.startsWith('@') ? 2 : 1;
-  if (segments.length <= baseLength) {
-    return null;
-  }
-  const parentPackage = segments.slice(0, baseLength).join('/');
-  return packagesByScope.get(row.scope)?.has(parentPackage)
+  const parentPackage = packageOf(row.scope)(row.packageName);
+  return parentPackage !== row.packageName &&
+    row.packageName.startsWith(`${parentPackage}/`) &&
+    packagesByScope.get(row.scope)?.has(parentPackage)
     ? { parentPackage, rule: 'name-derived' }
     : null;
 }
