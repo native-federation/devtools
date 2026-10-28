@@ -13,15 +13,19 @@ export function npmPackageOf(name: string): string {
   return name.slice(0, cut);
 }
 
-/**
- * The orchestrator's package rule per share scope (4.9 `externals/specifier.ts` `packageOfIn`): a copy
- * stored `dense` whose record is deeper than its npm name declares a package of its own; records that
- * share a name or a specifier merge, named by the shortest name. Without such a copy, which is every
- * capture before 4.9, it is the npm name.
- */
+// Orchestrator 4.9 `externals/specifier.ts` `packageOfIn`, per share scope; see docs/resolution-data-model.md
+// (package verdicts).
 export function packageRuleOf(
   evidence: CanonicalRegistryEvidence,
 ): (shareScope: string) => PackageOf {
+  let rule = rulesByEvidence.get(evidence);
+  if (rule === undefined) rulesByEvidence.set(evidence, (rule = buildRule(evidence)));
+  return rule;
+}
+
+const rulesByEvidence = new WeakMap<CanonicalRegistryEvidence, (shareScope: string) => PackageOf>();
+
+function buildRule(evidence: CanonicalRegistryEvidence): (shareScope: string) => PackageOf {
   const registrationById = new Map(evidence.versionRegistrations.map((r) => [r.id, r]));
   const declarationById = new Map(evidence.participantDeclarations.map((d) => [d.id, d]));
   const candidateById = new Map(evidence.entrypointCandidates.map((c) => [c.id, c]));
@@ -56,9 +60,11 @@ export function packageRuleOf(
       }
     }
     // An unlisted specifier joins whatever its npm name joined.
+    const listed = (specifier: string) =>
+      components.has(specifier) ? shortest.get(components.find(specifier)) : undefined;
     return (specifier) => {
       const npm = npmPackageOf(specifier);
-      return shortest.get(components.find(specifier)) ?? shortest.get(components.find(npm)) ?? npm;
+      return listed(specifier) ?? listed(npm) ?? npm;
     };
   };
 
@@ -75,6 +81,10 @@ function shorter(a: string, b: string): string {
 
 export class UnionFind {
   private readonly parent = new Map<string, string>();
+
+  has(key: string): boolean {
+    return this.parent.has(key);
+  }
 
   add(key: string): void {
     if (!this.parent.has(key)) this.parent.set(key, key);
