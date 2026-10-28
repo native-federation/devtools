@@ -88,6 +88,8 @@ export interface ParticipantDeclaration {
   strictVersion: boolean;
   bundle: string | null;
   cached: boolean;
+  /** Stored `dense` (orchestrator v4.9+); false when absent, which before 4.9 says nothing. */
+  dense: boolean;
   generation: GenerationV1;
   /** Direct snapshot pool label, or null when the raw key is absent; never inferred. */
   pool: string | null;

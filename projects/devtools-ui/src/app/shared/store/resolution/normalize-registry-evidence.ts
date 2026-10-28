@@ -191,6 +191,7 @@ export function normalizeRegistryEvidence(
             strictVersion: participant.strictVersion,
             bundle: participant.bundle,
             cached: participant.cached,
+            dense: participant.dense === true,
             generation: participant.generation,
             pool: pool.value,
             servedBy: servedBy.value,

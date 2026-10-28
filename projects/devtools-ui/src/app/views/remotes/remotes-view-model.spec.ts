@@ -142,6 +142,30 @@ describe('buildRemoteDetail — flat-build warnings', () => {
     expect(labelsOf(fixture, 'mfe1')).toEqual(expected);
   });
 
+  // Orchestrator 4.9 stores `dense` per copy, which tells a flat secondary from a declared package.
+  const storedDense = (fixture: keyof typeof FIXTURES, remote: string, names: string[]) => {
+    const snapshot = structuredClone(FIXTURES[fixture]) as SnapshotV1;
+    for (const name of names)
+      for (const version of snapshot.runtime!.sharedExternals['__GLOBAL__'][name].versions)
+        for (const copy of version.remotes) if (copy.name === remote) copy.dense = true;
+    return buildRemotesVm(ingestSnapshot(snapshot), { selectedName: remote }).detail!;
+  };
+
+  it('4.9: a dense record deeper than its npm name is a declared package, not flat externals', () => {
+    // dense-chunking-only's records, stored dense: a build declaring `@nf-lab/dense-lib/extra` on its own.
+    const detail = storedDense('dense-chunking-only', 'mfe1', [
+      '@nf-lab/dense-lib',
+      '@nf-lab/dense-lib/extra',
+    ]);
+    expect(detail.warnings.map((w) => w.label)).toEqual([]);
+  });
+
+  it('4.9: a secondary stored without dense is flat', () => {
+    const detail = storedDense('dense-chunking-only', 'mfe1', ['@nf-lab/utils']);
+    expect(detail.warnings.map((w) => w.label)).toEqual(['flat externals']);
+    expect(detail.warnings[0].note).toContain('@nf-lab/dense-lib/extra');
+  });
+
   it('warns nothing for a remote that declares no shared packages', () => {
     expect(detailOf('clean-skip', NF_HOST).warnings).toEqual([]);
   });

@@ -790,6 +790,7 @@ function toExternalRemotes(
       file,
       entries,
       cached: dataValue(remoteRaw, 'cached') === true,
+      ...(dataValue(remoteRaw, 'dense') === true ? { dense: true as const } : {}),
       bundle: typeof bundle === 'string' ? bundle : null,
       ...(typeof pool === 'string' ? { pool } : {}),
       ...(typeof servedBy === 'string' ? { servedBy } : {}),

@@ -58,6 +58,7 @@ function evidenceFor(claims: readonly Claim[]): CanonicalRegistryEvidence {
         strictVersion: false,
         bundle: null,
         cached: false,
+        dense: false,
         generation: 'v4.5',
         pool: null,
         servedBy: null,

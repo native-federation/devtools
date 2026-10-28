@@ -95,6 +95,8 @@ export interface ExternalRemoteV1 {
   /** v4.5 spelling: entry name → file name. */
   entries: Record<string, string> | null;
   cached: boolean;
+  /** The remoteEntry published this copy dense (orchestrator v4.9+); absent when flat or before. */
+  dense?: true;
   /** Bundle name (join key into shared-chunks); optional in both generations. */
   bundle: string | null;
   /** Raw participant pool label when the runtime declaration carries one. */

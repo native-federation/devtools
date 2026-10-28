@@ -168,6 +168,15 @@ function registerAnchorProjectionTests(
       expect(hasOwn(dropped, 'servingBuild')).toBe(false);
     });
 
+    // Orchestrator v4.9 stores `dense: true` on a copy its remoteEntry published dense, and nothing on a flat one.
+    it('keeps v4.9 dense only when it is true', () => {
+      expect(capturedAnchor(capture(makeAnchorParticipant({ dense: true }))).dense).toBe(true);
+      expect(hasOwn(capturedAnchor(capture(makeAnchorParticipant())), 'dense')).toBe(false);
+      expect(
+        hasOwn(capturedAnchor(capture(makeAnchorParticipant({ dense: 'yes' }))), 'dense'),
+      ).toBe(false);
+    });
+
     it.each(ANCHOR_FIELDS)('omits a non-string %s without coercion', (field: AnchorField) => {
       let coercionCalls = 0;
       const coercedSecret = `coerced-${field}-secret`;

@@ -2,7 +2,7 @@ import { compareSemver } from '../semver-compare';
 import { acceptsTag } from '../semver-range';
 import type { BundleClaim, ChunkGroupProjection } from './bundle-claims-model';
 import type { DeclarationResolutionClaim } from './claims-model';
-import { owningPackage } from './derive-grouping-facets';
+import { packageRuleOf } from './package-rule';
 import type { TagPool } from './grouping-model';
 import type { ResolvedDependencyCopy } from './copies-model';
 import { registryEvidenceId } from './ids';
@@ -226,8 +226,8 @@ interface PlacedCopy {
   specifiers: string[];
 }
 
-// Per (share scope, remote): why its copies are off the global map. Packages group a root and its
-// flat secondaries by name, as the orchestrator does (`packageOf`).
+// Per (share scope, remote): why its copies are off the global map. Packages follow the orchestrator's
+// package rule (`package-rule.ts`).
 function placementReasons(
   evidence: CanonicalRegistryEvidence,
   tagPools: readonly TagPool[],
@@ -236,8 +236,9 @@ function placementReasons(
   const registrationById = new Map(evidence.versionRegistrations.map((r) => [r.id, r]));
   const declarationById = new Map(evidence.participantDeclarations.map((d) => [d.id, d]));
   const candidateById = new Map(evidence.entrypointCandidates.map((c) => [c.id, c]));
+  const packageRule = packageRuleOf(evidence);
   const packageOf = (external: SharedExternalRecord) =>
-    `${external.shareScope}\n${owningPackage(external.packageName) ?? external.packageName}`;
+    `${external.shareScope}\n${packageRule(external.shareScope)(external.packageName)}`;
   const packages = new Map<string, SharedExternalRecord[]>();
   for (const external of evidence.sharedExternals)
     packages.set(packageOf(external), [...(packages.get(packageOf(external)) ?? []), external]);
@@ -335,17 +336,16 @@ interface StrictServing {
   specifiersOf: (remote: string) => string[];
 }
 
-// `serving.ts` `strictTagScopes` (orchestrator 4.8): per package and tag, the lead of the root's share
-// row, or of the package's first share row when no build ships the root. A root and its flat
-// secondaries form one package.
+// `serving.ts` `strictTagScopes` (orchestrator 4.9): per package and tag, the lead of the root's share
+// row, or of the package's first share row when no build ships the root.
 function strictServing(
   evidence: CanonicalRegistryEvidence,
 ): (external: SharedExternalRecord, tag: string) => StrictServing | null {
   const registrationById = new Map(evidence.versionRegistrations.map((r) => [r.id, r]));
   const declarationById = new Map(evidence.participantDeclarations.map((d) => [d.id, d]));
   const candidateById = new Map(evidence.entrypointCandidates.map((c) => [c.id, c]));
-  const packageOf = (external: SharedExternalRecord) =>
-    owningPackage(external.packageName) ?? external.packageName;
+  const packageRule = packageRuleOf(evidence)(STRICT_SCOPE);
+  const packageOf = (external: SharedExternalRecord) => packageRule(external.packageName);
   const packages = new Map<string, SharedExternalRecord[]>();
   for (const external of evidence.sharedExternals) {
     if (external.shareScope !== STRICT_SCOPE) continue;
@@ -364,7 +364,17 @@ function strictServing(
         .filter((r) => r.action === 'share' && r.tag === tag)
         .map((registration) => ({ external: e, registration })),
     );
-    const basis = rows.find((r) => r.external.packageName === name) ?? rows[0];
+    // 4.9: a dense build names the record of secondaries it does not declare by npm name, without the root.
+    const basis =
+      rows.find(
+        (r) =>
+          r.external.packageName === name &&
+          r.registration.participantDeclarationIds.some((id) =>
+            declarationById
+              .get(id)!
+              .entrypointCandidateIds.some((c) => candidateById.get(c)!.specifier === name),
+          ),
+      ) ?? rows[0];
     const lead = basis && declarationById.get(basis.registration.participantDeclarationIds[0]);
     if (lead === undefined) {
       memo.set(key, null);

@@ -1,7 +1,7 @@
 import { acceptsTag } from '../semver-range';
-import { owningPackage } from './derive-grouping-facets';
 import type { TagPool } from './grouping-model';
 import type { CanonicalRegistryEvidence, VersionRegistration } from './model';
+import { packageRuleOf, type PackageOf } from './package-rule';
 import type {
   PoolBuildBand,
   PoolConsumer,
@@ -37,15 +37,19 @@ interface MemberRow {
 class SpecifierTags extends Map<string, string> {
   private readonly packages = new Map<string, string>();
 
+  constructor(private readonly packageOf: PackageOf) {
+    super();
+  }
+
   override set(specifier: string, tag: string): this {
     super.set(specifier, tag);
-    const pkg = owningPackage(specifier) ?? specifier;
-    if (!this.packages.has(pkg)) this.packages.set(pkg, tag);
+    const pkg = this.packageOf(specifier);
+    if (pkg === specifier || !this.packages.has(pkg)) this.packages.set(pkg, tag);
     return this;
   }
 
   pinnedTag(specifier: string): string | undefined {
-    return this.get(specifier) ?? this.packages.get(owningPackage(specifier) ?? specifier);
+    return this.get(specifier) ?? this.packages.get(this.packageOf(specifier));
   }
 }
 
@@ -64,8 +68,10 @@ export function derivePoolFamilies(
   const registrationById = new Map(evidence.versionRegistrations.map((r) => [r.id, r]));
   const declarationById = new Map(evidence.participantDeclarations.map((d) => [d.id, d]));
   const candidateById = new Map(evidence.entrypointCandidates.map((c) => [c.id, c]));
+  const packageRule = packageRuleOf(evidence);
 
   return tagPools.map((pool) => {
+    const packageOf = packageRule(pool.shareScope);
     const externals = pool.sharedExternalIds.map((id) => externalById.get(id)!);
     const rowsByMember = new Map<string, MemberRow[]>();
     const surface: PoolSurfaceEntry[] = [];
@@ -112,7 +118,7 @@ export function derivePoolFamilies(
         surface.push({ specifier, member, tag: shared.tag, build });
     }
 
-    const surfaceTags = new SpecifierTags();
+    const surfaceTags = new SpecifierTags(packageOf);
     for (const entry of surface)
       if (!surfaceTags.has(entry.specifier)) surfaceTags.set(entry.specifier, entry.tag);
     const memberSurface = new Map<string, { tag: string; build: string }>();
@@ -125,7 +131,7 @@ export function derivePoolFamilies(
         return row === undefined ? [] : [row];
       });
     const builds = pool.remotes.map((remote) => {
-      const tags = new SpecifierTags();
+      const tags = new SpecifierTags(packageOf);
       for (const row of rowsOf(remote))
         for (const specifier of row.specifiers)
           if (!tags.has(specifier)) tags.set(specifier, row.tag);
@@ -134,12 +140,12 @@ export function derivePoolFamilies(
 
     const members: PoolFamilyMember[] = pool.members.map((packageName) => {
       const rows = rowsByMember.get(packageName) ?? [];
-      const owner = owningPackage(packageName);
+      const owner = packageOf(packageName);
       return {
         packageName,
         followsPackage:
           rows.every((row) => row.poolTag === null) &&
-          owner !== undefined &&
+          owner !== packageName &&
           pool.members.includes(owner)
             ? owner
             : null,

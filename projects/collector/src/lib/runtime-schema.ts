@@ -53,6 +53,7 @@ const remoteProvider: SchemaNode = {
   fields: {
     bundle: string,
     cached: boolean,
+    dense: boolean,
     entries: fileEntries,
     file: url,
     name: string,

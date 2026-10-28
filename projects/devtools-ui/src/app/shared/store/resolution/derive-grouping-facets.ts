@@ -11,6 +11,7 @@ import type {
 } from './grouping-model';
 import { registryEvidenceId } from './ids';
 import type { CanonicalRegistryEvidence, SharedExternalId, SharedExternalRecord } from './model';
+import { packageRuleOf, UnionFind } from './package-rule';
 
 const STRICT_SCOPE = 'strict';
 
@@ -27,6 +28,7 @@ interface PoolCandidate {
 export function deriveTagPools(evidence: CanonicalRegistryEvidence): TagPoolDerivation {
   const registrationById = new Map(evidence.versionRegistrations.map((r) => [r.id, r]));
   const declarationById = new Map(evidence.participantDeclarations.map((d) => [d.id, d]));
+  const packageRule = packageRuleOf(evidence);
 
   const declarationsOf = (external: SharedExternalRecord) =>
     external.versionRegistrationIds.flatMap((id) =>
@@ -84,9 +86,11 @@ export function deriveTagPools(evidence: CanonicalRegistryEvidence): TagPoolDeri
       for (const pool of candidate.storedPoolNames)
         components.union(extNode(name), JSON.stringify(['stored', pool]));
     }
+    // v4.8+ joins an entrypoint to its package's node even when no record holds the package; v4.7 only to a record.
+    const packageOf = packageRule(shareScope);
     for (const name of candidates.keys()) {
-      const owner = owningPackage(name);
-      if (owner !== undefined && candidates.has(owner))
+      const owner = packageOf(name);
+      if (owner !== name && (perLabel || candidates.has(owner)))
         components.union(extNode(name), extNode(owner));
     }
 
@@ -180,39 +184,6 @@ export function deriveCopyGroupingFacets(
 
 function tagPoolId(shareScope: string, name: string): TagPoolId {
   return registryEvidenceId('tag-pool', [shareScope, name], 0);
-}
-
-// `pool-graph.ts` `owningPackage`: an npm name carries at most one `/` after an optional `@scope`.
-export function owningPackage(name: string): string | undefined {
-  const depth = name.startsWith('@') ? 2 : 1;
-  let cut = -1;
-  for (let seen = 0; seen < depth; seen++) {
-    cut = name.indexOf('/', cut + 1);
-    if (cut === -1) return undefined;
-  }
-  return name.slice(0, cut);
-}
-
-class UnionFind {
-  private readonly parent = new Map<string, string>();
-
-  add(key: string): void {
-    if (!this.parent.has(key)) this.parent.set(key, key);
-  }
-
-  find(key: string): string {
-    this.add(key);
-    let root = key;
-    while (this.parent.get(root) !== root) root = this.parent.get(root)!;
-    this.parent.set(key, root);
-    return root;
-  }
-
-  union(a: string, b: string): void {
-    const rootA = this.find(a);
-    const rootB = this.find(b);
-    if (rootA !== rootB) this.parent.set(rootB, rootA);
-  }
 }
 
 function compareTags(a: PoolTagDeclaration, b: PoolTagDeclaration): number {
