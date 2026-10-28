@@ -1,6 +1,7 @@
 import { SnapshotV1 } from '../snapshot-v1';
 import { cleanSkipFixture } from './clean-skip.fixture';
 import { coDeclaredShareFixture } from './co-declared-share.fixture';
+import { declaredPackagesFixture } from './declared-packages.fixture';
 import { denseBothFixture } from './dense-both.fixture';
 import { denseChunkingOnlyFixture } from './dense-chunking-only.fixture';
 import { denseExternalsOnlyFixture } from './dense-externals-only.fixture';
@@ -58,6 +59,7 @@ export const FIXTURES = {
   'frankenstein-live': frankensteinLiveFixture,
   'clean-skip': cleanSkipFixture,
   'co-declared-share': coDeclaredShareFixture,
+  'declared-packages': declaredPackagesFixture,
   'dense-both': denseBothFixture,
   'dense-chunking-only': denseChunkingOnlyFixture,
   'dense-externals-only': denseExternalsOnlyFixture,

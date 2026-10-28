@@ -142,6 +142,20 @@ playground commit, and its runstamp is the manifest's runId.
 | `own-tag-out-of-range` | the host's `^2.0.0` excludes its own 1.2.0, which is still shared (the orchestrator always accepts a copy's own tag) |
 | `strict-uncovered` | `strict` kit 1.2.0 is one `share` row led by the host; mfe1 ships secondaries the host's build lacks, so the map runs its whole kit from its own build (orchestrator#113); nothing of it is stored. mfe3 ships 1.3.0 beside it |
 
+## nf-lab declared corpus (packages-v49)
+
+One scenario witnessing orchestrator 4.9's declared packages, listed in
+`captures/manifest-nf-lab-declared.json`. Recorded on orchestrator **v4.9.0**
+(core 4.9.0) from a newer playground commit, so the records carry `dense: true`.
+
+| Scenario | Witnesses |
+|---|---|
+| `declared-packages` | `@nf-lab/ws`, `@nf-lab/ws/table` (with `/sort`) and `@nf-lab/ws/dialog` are workspace libs each declared with `mappingsFromWorkspace().package()` and published dense: three packages under one npm name. Base and table run from the host's build for both; mfe1's strict dialog 2.0.0 rejects the host's 1.0.0 and runs its own build (`scope`). By npm name they would be one package `@nf-lab/ws` |
+
+The playground lab moved to 4.9.0 with this corpus. The three corpora above
+stay 4.8.0 captures: regenerate them from the playground commit their
+manifests pin, not from the lab's head.
+
 Regeneration (all three nf-lab corpora), from the playground `lab/`:
 
 1. `node capture-all.mjs ../../devtools/captures <runstamp>` (delete the
@@ -150,6 +164,10 @@ Regeneration (all three nf-lab corpora), from the playground `lab/`:
    `nf-lab`, `nf-lab-verdicts` and `nf-lab-placements`,
 3. `node scripts/validate-lab-corpus.mjs`,
 4. `node scripts/derive-fixtures.mjs`.
+
+`nf-lab-declared` the same way from the lab's head:
+`node run-scenario.mjs declared-packages --capture ../../devtools/captures/declared-packages/<runstamp>.json`,
+then steps 2–4 with `--corpus nf-lab-declared`.
 
 Coverage note (storage discovery): every scenario in every corpus keeps its
 registry on the default `globalThis.__NATIVE_FEDERATION__`. The current lab probe

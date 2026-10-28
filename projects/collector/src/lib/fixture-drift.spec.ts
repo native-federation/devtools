@@ -28,8 +28,9 @@ describe('corpus-derived fixtures equal fresh pipeline output (T5-AC-01, T2.1-AC
 
   // Every scenario of scripts/lab-corpora.mjs + the live capture.
   it('covers every lab scenario of every corpus plus the live capture', () => {
-    expect(derivedIds).toHaveLength(30);
+    expect(derivedIds).toHaveLength(31);
     expect(derivedIds).toContain('pool-unshipped');
+    expect(derivedIds).toContain('declared-packages');
     expect(derivedIds).toContain('co-declared-share');
     expect(derivedIds).toContain('pooling-anchor');
     expect(derivedIds).toContain('pool-tag-anchored');

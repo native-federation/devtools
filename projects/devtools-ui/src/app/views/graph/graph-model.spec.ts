@@ -1166,6 +1166,17 @@ describe('buildGraphModel — accordion', () => {
     ).toEqual(['no secondary entrypoints', 'see usage details']);
   });
 
+  // declared-packages (orchestrator 4.9): `/table` and `/dialog` are packages of their own, not
+  // secondaries of `@nf-lab/ws`; table's own `/sort` entry still is one.
+  it('lists no declared package under the open dependency above it', () => {
+    const items = (label: string) =>
+      buildGraphModel(projectionOf('declared-packages'), {
+        expandedCopyId: copyIdOf('declared-packages', label),
+      }).listItems.map((item) => item.text);
+    expect(items('@nf-lab/ws')).toEqual(['no secondary entrypoints', 'see usage details']);
+    expect(items('@nf-lab/ws/table')).toEqual(['@nf-lab/ws/table/sort', 'see usage details']);
+  });
+
   it('collapses build groups to summary rows; one open group shows its files', () => {
     const projection = projectionOf('frankenstein-live');
     const collapsed = buildGraphModel(projection, { expandedBuildKey: null });

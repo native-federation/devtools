@@ -75,6 +75,17 @@ export const LAB_CORPORA = [
       "pool-unshipped",
       "strict-uncovered"
     ]
+  },
+  {
+    // Orchestrator 4.9 declared packages (core `mappingsFromWorkspace().package()`, stored `dense`).
+    id: "nf-lab-declared",
+    manifest: "manifest-nf-lab-declared.json",
+    repository: "native-federation/playground",
+    runner: "lab/run-scenario.mjs",
+    probe: "scripts/lab-capture-dump.js",
+    collector: { kind: "playwright-cdp", interface: "headless-chromium", webMcpUsed: false },
+    live: false,
+    scenarios: ["declared-packages"]
   }
 ];
 

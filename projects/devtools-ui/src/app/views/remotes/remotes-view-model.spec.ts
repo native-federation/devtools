@@ -171,6 +171,50 @@ describe('buildRemoteDetail — flat-build warnings', () => {
   });
 });
 
+// declared-packages (orchestrator 4.9.0, core 4.9.0): `@nf-lab/ws`, `@nf-lab/ws/table` and
+// `@nf-lab/ws/dialog` are three packages a dense build declared. Stripping the stored `dense` reads the
+// same capture as every orchestrator before 4.9 grouped it: one npm package `@nf-lab/ws`.
+describe('buildRemoteDetail — declared packages (orchestrator 4.9)', () => {
+  const withoutDense = () => {
+    const snapshot = structuredClone(FIXTURES['declared-packages']) as SnapshotV1;
+    for (const external of Object.values(snapshot.runtime!.sharedExternals['__GLOBAL__']))
+      for (const version of external.versions)
+        for (const copy of version.remotes) delete copy.dense;
+    return ingestSnapshot(snapshot);
+  };
+  const runsOf = (detail: RemoteDetailVm) =>
+    detail.runs.rows.map((row) => [row.packageName, row.kind, row.why?.label ?? null]);
+
+  it('gives each declared package its own row; only the dialog conflict runs scoped', () => {
+    const mfe1 = detailOf('declared-packages', 'mfe1');
+    expect(runsOf(mfe1)).toEqual([
+      ['@nf-lab/ws/dialog', 'own', 'version conflict'],
+      ['@nf-lab/ws', 'shared', null],
+      ['@nf-lab/ws/table', 'shared', null],
+    ]);
+    expect(runsOf(detailOf('declared-packages', NF_HOST)).map(([name]) => name)).toEqual([
+      '@nf-lab/ws',
+      '@nf-lab/ws/dialog',
+      '@nf-lab/ws/table',
+    ]);
+  });
+
+  it('flags no flat externals on dense records that nest by name', () => {
+    expect(detailOf('declared-packages', 'mfe1').warnings.map((w) => w.label)).toEqual([
+      'flat chunking',
+    ]);
+  });
+
+  it('without the stored dense, folds them into @nf-lab/ws and reads them as flat', () => {
+    const mfe1 = buildRemotesVm(withoutDense(), { selectedName: 'mfe1' }).detail!;
+    expect(runsOf(mfe1)).toEqual([
+      ['@nf-lab/ws/dialog', 'own', 'version conflict'],
+      ['@nf-lab/ws', 'shared', null],
+    ]);
+    expect(mfe1.warnings.map((w) => w.label)).toEqual(['flat externals', 'flat chunking']);
+  });
+});
+
 describe('buildRemoteDetail — runs (remotes-v48)', () => {
   it('folds flat secondaries into the package they run with', () => {
     const detail = detailOf('frankenstein-live', NF_HOST);

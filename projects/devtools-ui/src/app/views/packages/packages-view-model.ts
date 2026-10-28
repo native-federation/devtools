@@ -44,6 +44,7 @@ import {
   noCopyNoteOf,
   packageId,
   participantDisplay,
+  samePackageIn,
 } from './packages-vm-shared';
 
 export { packageId } from './packages-vm-shared';
@@ -182,7 +183,8 @@ export function buildPackagesVm(model: FederationModel, ui: PackagesUiState): Pa
     .filter((entry) => keeps(ui.filter, entry))
     .filter((entry) => query === '' || entry.packageName.toLowerCase().includes(query))
     .sort(sorter(ui.sort ?? 'name'));
-  const rows = buildRows(visible);
+  const samePackage = samePackageIn(model.registryEvidence);
+  const rows = buildRows(visible, samePackage);
 
   const selection = parseSelection(ui.selectedId);
   const selectedEntry =
@@ -190,7 +192,7 @@ export function buildPackagesVm(model: FederationModel, ui: PackagesUiState): Pa
   const focusedGroup =
     selectedEntry?.groups.find((group) => group.scope === selection?.scope) ??
     selectedEntry?.groups[0];
-  const detail = buildDetail(groups, indexes, focusedGroup?.id ?? null);
+  const detail = buildDetail(groups, indexes, focusedGroup?.id ?? null, samePackage);
 
   let emptyNote: string | null = null;
   if (groups.length === 0) {
@@ -215,7 +217,7 @@ export function buildPackagesVm(model: FederationModel, ui: PackagesUiState): Pa
     packageView:
       selectedEntry === undefined
         ? null
-        : buildPackageView(selectedEntry, groups, indexes, selection?.scope ?? null),
+        : buildPackageView(selectedEntry, groups, indexes, selection?.scope ?? null, samePackage),
     detail,
     emptyNote,
   };

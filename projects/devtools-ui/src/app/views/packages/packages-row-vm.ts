@@ -11,7 +11,12 @@
  */
 import type { TreeTableRow } from '../../shared/kit/tree-table';
 import type { PackageScopeVerdicts } from '../../shared/store/resolution';
-import { GLOBAL_SCOPE, STRICT_SCOPE, type PackageGroup } from './packages-vm-shared';
+import {
+  GLOBAL_SCOPE,
+  STRICT_SCOPE,
+  type PackageGroup,
+  type SamePackage,
+} from './packages-vm-shared';
 
 export type PackageMarkKind = 'out-of-range' | 'isolated';
 
@@ -119,12 +124,24 @@ function rowOf(entry: PackageEntry, linked: { parentPackage: string } | null): P
   };
 }
 
-/** Name-derived parent among the given packages: the longest `/`-prefix that is a package. */
-function parentNameOf(name: string, names: ReadonlySet<string>): string | null {
+/**
+ * Name-derived parent among the given packages: the longest `/`-prefix that is a package, in the
+ * same package in every scope of the entry.
+ */
+function parentNameOf(
+  entry: PackageEntry,
+  names: ReadonlySet<string>,
+  samePackage: SamePackage,
+): string | null {
+  const name = entry.packageName;
   let index = name.lastIndexOf('/');
   while (index > 0) {
     const candidate = name.slice(0, index);
-    if (names.has(candidate) && candidate !== name) {
+    if (
+      names.has(candidate) &&
+      candidate !== name &&
+      entry.groups.every((group) => samePackage(group.scope, name, candidate))
+    ) {
       // Scoped names (`@scope/pkg`) never parent on the bare scope.
       return candidate.startsWith('@') && !candidate.includes('/') ? null : candidate;
     }
@@ -138,12 +155,15 @@ function parentNameOf(name: string, names: ReadonlySet<string>): string | null {
  * its parent when both are visible; with its parent filtered out it stands
  * on its own row.
  */
-export function buildRows(entries: readonly PackageEntry[]): TreeTableRow<PackagesRowPayload>[] {
+export function buildRows(
+  entries: readonly PackageEntry[],
+  samePackage: SamePackage,
+): TreeTableRow<PackagesRowPayload>[] {
   const visible = new Set(entries.map((entry) => entry.packageName));
   const children = new Map<string, PackageEntry[]>();
   const bases: PackageEntry[] = [];
   for (const entry of entries) {
-    const parent = parentNameOf(entry.packageName, visible);
+    const parent = parentNameOf(entry, visible, samePackage);
     if (parent === null) {
       bases.push(entry);
     } else {

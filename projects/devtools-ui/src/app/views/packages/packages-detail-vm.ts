@@ -21,6 +21,7 @@ import {
   isHostRemote,
   noCopyNoteOf,
   parentOf,
+  type SamePackage,
   participantDisplay,
   targetFileName,
 } from './packages-vm-shared';
@@ -131,13 +132,14 @@ export function buildDetail(
   groups: PackageGroup[],
   indexes: CanonicalIndexes,
   selectedId: string | null,
+  samePackage: SamePackage,
 ): PackageDetailVm | null {
   const group = selectedId === null ? null : (groups.find((g) => g.id === selectedId) ?? null);
   if (group === null) {
     return null;
   }
   const byId = new Map(groups.map((g) => [g.id, g]));
-  const parent = parentOf(group, byId);
+  const parent = parentOf(group, byId, samePackage);
 
   // Every (registration, declaration) with its claims, registry order — the
   // one spine the bucket and the diagnostics read from.

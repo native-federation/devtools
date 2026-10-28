@@ -16,12 +16,14 @@
  * file display) lifted there with their second consumer (T8 Remotes); the
  * re-exports keep this module's import sites stable.
  */
-import type {
-  DeclarationResolutionClaim,
-  ParticipantDeclaration,
-  ResolvedDependencyCopy,
-  SharedExternalId,
-  VersionRegistration,
+import {
+  packageRuleOf,
+  type CanonicalRegistryEvidence,
+  type DeclarationResolutionClaim,
+  type ParticipantDeclaration,
+  type ResolvedDependencyCopy,
+  type SharedExternalId,
+  type VersionRegistration,
 } from '../../shared/store/resolution';
 
 export {
@@ -90,20 +92,35 @@ export function mainClaimOf(
   return claims.find((claim) => claim.specifier === packageName) ?? claims[0] ?? null;
 }
 
+// Whether `name` is a subpath of `parent` in the orchestrator's package rule, not a package a 4.9 dense
+// build declared on its own.
+export type SamePackage = (scope: string, name: string, parent: string) => boolean;
+
+export function samePackageIn(evidence: CanonicalRegistryEvidence): SamePackage {
+  const packageRule = packageRuleOf(evidence);
+  return (scope, name, parent) => packageRule(scope)(name) === packageRule(scope)(parent);
+}
+
 /**
  * Base package the group's name extends (`name-derived`): the SHORTEST
- * same-scope prefix that exists as a group. The shortest existing prefix has
- * no existing prefix itself, so every linked subpath — however deep — hangs
- * directly under a base row and the flat two-level list loses no package.
+ * same-scope prefix that exists as a group in the same package. The shortest
+ * existing prefix has no existing prefix itself, so every linked subpath —
+ * however deep — hangs directly under a base row and the flat two-level list
+ * loses no package.
  */
 export function parentOf(
   group: PackageGroup,
   byId: ReadonlyMap<string, PackageGroup>,
+  samePackage: SamePackage,
 ): PackageGroup | null {
   let index = group.packageName.indexOf('/');
   while (index > 0 && index < group.packageName.length - 1) {
     const candidate = byId.get(packageId(group.scope, group.packageName.slice(0, index)));
-    if (candidate !== undefined && candidate !== group) {
+    if (
+      candidate !== undefined &&
+      candidate !== group &&
+      samePackage(group.scope, group.packageName, candidate.packageName)
+    ) {
       return candidate;
     }
     index = group.packageName.indexOf('/', index + 1);
