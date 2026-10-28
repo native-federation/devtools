@@ -1,12 +1,13 @@
 import { placementReasonText } from '../../shared/placement-text';
 import { PoolChipVm, poolChipOf } from '../../shared/pool-chip';
 import type { FederationModel, RemoteEntity } from '../../shared/store/federation-model';
-import type {
-  DeclarationResolutionClaim,
-  DeclarationVerdictRecord,
-  PackageScopeVerdicts,
-  ParticipantDeclaration,
-  ResolvedDependencyCopy,
+import {
+  packageRuleOf,
+  type DeclarationResolutionClaim,
+  type DeclarationVerdictRecord,
+  type PackageScopeVerdicts,
+  type ParticipantDeclaration,
+  type ResolvedDependencyCopy,
 } from '../../shared/store/resolution';
 import { ownCopyFallbackOf, subpoolWhereOf } from '../../shared/verdict-text';
 import {
@@ -369,17 +370,23 @@ const sameOutcome = (a: RunsRowVm, b: RunsRowVm) =>
 
 /**
  * Flat externals register each secondary entrypoint as its own package. A secondary folds into
- * its name-derived parent (the shortest same-scope prefix that has a row) when it runs the same
- * way; one that runs differently keeps its own row.
+ * its name-derived parent (the shortest same-scope prefix that has a row, in the same package)
+ * when it runs the same way; one that runs differently keeps its own row. A package a 4.9 dense
+ * build declared is never a secondary of the name above it.
  */
-function foldSecondaries(rows: RunsRowVm[]): RunsRowVm[] {
-  const byName = new Map(rows.map((row) => [`${row.scopeLabel}|${row.packageName}`, row]));
+function foldSecondaries(rows: { row: RunsRowVm; pkg: string }[]): RunsRowVm[] {
+  const byName = new Map(
+    rows.map((entry) => [`${entry.row.scopeLabel}|${entry.row.packageName}`, entry]),
+  );
   const kept: RunsRowVm[] = [];
-  for (const row of rows) {
+  for (const { row, pkg } of rows) {
     let parent: RunsRowVm | undefined;
     for (let i = row.packageName.indexOf('/'); i > 0; i = row.packageName.indexOf('/', i + 1)) {
-      parent = byName.get(`${row.scopeLabel}|${row.packageName.slice(0, i)}`);
-      if (parent !== undefined) break;
+      const candidate = byName.get(`${row.scopeLabel}|${row.packageName.slice(0, i)}`);
+      if (candidate?.pkg === pkg) {
+        parent = candidate.row;
+        break;
+      }
     }
     if (parent !== undefined && parent !== row && sameOutcome(parent, row)) {
       parent.entrypoints.push(...row.entrypoints);
@@ -452,11 +459,18 @@ export function buildRuns(
     }
   }
   const ctx: Context = { remote, model, indexes, verdictsByDeclaration };
+  const packageRule = packageRuleOf(model.registryEvidence);
   const rows = foldSecondaries(
     model.registryEvidence.participantDeclarations
       .filter((declaration) => declaration.participant === remote.name)
-      .map((declaration) => rowOf(declaration, ctx))
-      .filter((row): row is RunsRowVm => row !== null),
+      .flatMap((declaration) => {
+        const row = rowOf(declaration, ctx);
+        const registration = indexes.registrationById.get(declaration.versionRegistrationId);
+        const external =
+          registration && indexes.sharedExternalById.get(registration.sharedExternalId);
+        if (row === null || external === undefined) return [];
+        return [{ row, pkg: packageRule(external.shareScope)(external.packageName) }];
+      }),
   ).sort((a, b) => ORDER[a.kind] - ORDER[b.kind] || a.packageName.localeCompare(b.packageName));
   attachServes(rows, ctx);
   return { rows, tally: tallyOf(rows) };

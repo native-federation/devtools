@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "lab-lossless-corpus/1",
+  "runId": "20261028T164503Z",
+  "createdAt": "2026-10-28T16:45:04.511Z",
+  "source": {
+    "playground": {
+      "repository": "native-federation/playground",
+      "branch": "lab/grouping-and-pooling",
+      "commit": "392668cc7690f9603ad778f66c6832ad2890a285",
+      "runner": "lab/run-scenario.mjs"
+    },
+    "orchestratorCommit": "4.9.0",
+    "probe": {
+      "file": "scripts/lab-capture-dump.js",
+      "schemaVersion": "lab-lossless-capture/1",
+      "sha256": "58fa54295b66e6e24d8c1a49e0b8f0cf0e16907a6a4eb3aaed2de05f0eafe51f"
+    }
+  },
+  "collector": {
+    "kind": "playwright-cdp",
+    "interface": "headless-chromium",
+    "webMcpUsed": false,
+    "sanitization": "lossless"
+  },
+  "serving": {
+    "mode": "run-scenario-single-origin",
+    "origin": "http://localhost:4300",
+    "cacheControl": "no-store"
+  },
+  "expectedScenarios": [
+    "declared-packages"
+  ],
+  "captures": [
+    {
+      "scenario": "declared-packages",
+      "path": "declared-packages/20261028T164503Z.json",
+      "runstamp": "20261028T164503Z",
+      "sha256": "50098d1785d3dc9f0d197387aad37321337856148de3d59d3d9dbbaf3e68f721"
+    }
+  ]
+}

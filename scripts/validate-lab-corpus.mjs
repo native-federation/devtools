@@ -453,6 +453,25 @@ const EVIDENCE = {
     if (!String(mfe1[KIT] ?? "").includes("/mfe1/")) issue(loc, "expected mfe1's kit root mapped to its own build");
     if (!(`${KIT}/table` in mfe1)) issue(loc, "expected mfe1's kit/table in its scope");
   },
+  // Orchestrator 4.9 declared packages: three dense records under one npm name, served as three packages.
+  "declared-packages": (ns, env, loc) => {
+    const rows = participantRows(ns)
+      .map((row) => `${row.pkg}:${row.remote.name}:${row.tag}:${row.action}:${row.remote.dense === true}`)
+      .sort();
+    const expected = [
+      "@nf-lab/ws/dialog:__NF-HOST__:1.0.0:share:true",
+      "@nf-lab/ws/dialog:mfe1:2.0.0:scope:true",
+      "@nf-lab/ws/table:__NF-HOST__:1.0.0:share:true",
+      "@nf-lab/ws/table:mfe1:1.0.0:share:true",
+      "@nf-lab/ws:__NF-HOST__:1.0.0:share:true",
+      "@nf-lab/ws:mfe1:1.0.0:share:true",
+    ];
+    if (JSON.stringify(rows) !== JSON.stringify(expected)) issue(loc, `expected rows ${expected.join(",")}, saw ${rows.join(",")}`);
+    const scopes = env.channels?.importShim?.data?.map?.scopes ?? {};
+    const mfe1 = Object.entries(scopes).find(([url]) => url.endsWith("/mfe1/"))?.[1] ?? {};
+    if (JSON.stringify(Object.keys(mfe1)) !== JSON.stringify(["@nf-lab/ws/dialog"]))
+      issue(loc, `expected only mfe1's dialog in its scope, saw ${Object.keys(mfe1).join(",")}`);
+  },
 };
 
 // --- live-capture evidence (frankenstein-live, report rows 12–16) --------

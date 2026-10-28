@@ -147,6 +147,7 @@ export function deriveCopyGroupingFacets(
   const externalById = new Map(evidence.sharedExternals.map((e) => [e.id, e]));
   const registrationById = new Map(evidence.versionRegistrations.map((r) => [r.id, r]));
   const declarationById = new Map(evidence.participantDeclarations.map((d) => [d.id, d]));
+  const packageRule = packageRuleOf(evidence);
   const poolByExternal = new Map<SharedExternalId, TagPoolId>();
   for (const pool of tagPools)
     for (const id of pool.sharedExternalIds) poolByExternal.set(id, pool.id);
@@ -171,9 +172,18 @@ export function deriveCopyGroupingFacets(
       ...new Set(registrationIds.map((id) => registrationById.get(id)!.sharedExternalId)),
     ];
     const scopes = [...new Set(externalIds.map((id) => externalById.get(id)!.shareScope))];
+    const packages = [
+      ...new Set(
+        externalIds.map((id) => {
+          const external = externalById.get(id)!;
+          return packageRule(external.shareScope)(external.packageName);
+        }),
+      ),
+    ];
     return {
       copyId: copy.id,
       shareScope: scopes.length === 1 ? scopes[0] : null,
+      package: packages.length === 1 ? packages[0] : null,
       tagPoolId: externalIds.length === 1 ? (poolByExternal.get(externalIds[0]) ?? null) : null,
       builds: [...(buildsByCopy.get(copy.id)?.values() ?? [])].sort(
         (a, b) => compareText(a.remote ?? '', b.remote ?? '') || compareText(a.bundle, b.bundle),

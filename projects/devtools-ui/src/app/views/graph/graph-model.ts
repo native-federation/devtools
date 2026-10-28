@@ -192,7 +192,12 @@ export function buildGraphModel(
       dependencyHueByCopyId.set(entry.copy.id, colorIndex);
       nodeY += NODE_H + NODE_VGAP;
       if (expanded) {
-        const rows = secondaryEntrypointsOf(entry.copy, entry.fullLabel, projection.copies);
+        const rows = secondaryEntrypointsOf(
+          entry.copy,
+          entry.fullLabel,
+          projection.copies,
+          facetsByCopyId,
+        );
         const packageSelect = packageSelectOf(entry.copy, facetsByCopyId.get(entry.copy.id));
         if (packageSelect !== null) {
           rows.push({ text: 'see usage details', tooltip: 'open in Packages', packageSelect });
@@ -688,14 +693,16 @@ function fileNameOf(url: string): string {
 /**
  * Rows of an expanded dependency: entrypoints of its own `entries` map beyond
  * the package itself (dense builds), then sibling copies registered under a
- * secondary name of the package by the same source (flat builds; the
- * name-derived parent rule of Packages).
+ * secondary name of the package by the same source, in the same package
+ * (flat builds; the name-derived parent rule of Packages).
  */
 function secondaryEntrypointsOf(
   copy: ResolvedDependencyCopy,
   label: string,
   copies: readonly ResolvedDependencyCopy[],
+  facetsByCopyId: ReadonlyMap<string, CopyGroupingFacets>,
 ): Pick<GraphListItem, 'text' | 'tooltip' | 'packageSelect'>[] {
+  const packageOf = (c: ResolvedDependencyCopy) => facetsByCopyId.get(c.id)?.package ?? null;
   const rows = new Map<string, Pick<GraphListItem, 'text' | 'tooltip' | 'packageSelect'>>();
   for (const specifier of Object.keys(copy.entrypoints).sort(compareStrings)) {
     if (specifier !== label) {
@@ -713,6 +720,7 @@ function secondaryEntrypointsOf(
       other.id !== copy.id &&
       name !== null &&
       name.startsWith(`${label}/`) &&
+      packageOf(other) === packageOf(copy) &&
       !rows.has(name) &&
       copySourceRemote(other) === source
     ) {
