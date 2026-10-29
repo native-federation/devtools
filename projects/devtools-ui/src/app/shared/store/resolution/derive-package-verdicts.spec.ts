@@ -138,12 +138,43 @@ describe('derivePackageVerdicts — version statuses', () => {
     });
   });
 
+  // Orchestrator 4.8 (#113) serves strict 1.2.0 from the host's build and runs mfe1, whose
+  // secondaries that build lacks, from its own. The record keeps one share row; the map shows it.
+  it('strict-uncovered: a shipper the strict tag serving build does not cover runs its own copy', () => {
+    const kit = entry('strict-uncovered', 'strict', KIT);
+    expect(byRemote(kit)).toMatchObject({
+      [NF_HOST]: { verdict: 'provides', reason: null },
+      mfe2: { verdict: 'same-version', reason: null },
+      mfe3: { verdict: 'provides', reason: null },
+      mfe1: {
+        verdict: 'own-copy',
+        reason: {
+          scope: 'package',
+          build: NF_HOST,
+          miss: { kind: 'coverage', missing: [`${KIT}/table`, `${KIT}/dialog`] },
+          storedCause: null,
+        },
+      },
+    });
+    const version = kit.versions.find((v) => v.tag === '1.2.0')!;
+    expect(version.status).toBe('shared');
+    expect(version.merged).toBe(false);
+  });
+
+  // Before 4.8 the strict map stitched entrypoints; no shipper resolves to its own copy there.
+  it('strict-scope (4.6): no strict shipper reads as falling back', () => {
+    const strict = verdictsOf(FIXTURES['strict-scope']).filter((v) => v.shareScope === 'strict');
+    expect(strict.flatMap((v) => v.declarations).filter((d) => d.verdict === 'own-copy')).toEqual(
+      [],
+    );
+  });
+
   it('lists every registered tag semver descending', () => {
     const kit = entry('out-of-range-nonstrict', '__GLOBAL__', KIT);
     expect(kit.versions.map((v) => `${v.tag}:${v.status}`)).toEqual([
       '2.0.0:shared',
       '1.3.0:scoped',
-      '1.2.0:not-mapped',
+      '1.2.0:skipped',
     ]);
   });
 });

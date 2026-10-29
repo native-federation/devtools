@@ -1,11 +1,11 @@
 /**
  * Detail half of the Packages vm builder (packages-verdicts T5/T6): one
  * block per share scope of the selected package, each with the versions
- * table (one row per registered version, deviations as notes), the range
- * check, and per version the deep dive (who ships it, who
- * it resolves for, its entrypoints and files). Every fact comes from the
- * projection's `packageScopeVerdicts`; the existing copy blocks stay
- * available per scope as the collapsed bindings section.
+ * table (one row per registered version, deviations as notes), the
+ * compatibility matrix, and per version the deep dive (whose build serves it,
+ * who ships and uses it, its entrypoints and files). Every fact comes from the
+ * projection's `packageScopeVerdicts`; bindings that resolve nowhere and
+ * divergences come from the per-scope detail.
  */
 import type {
   DeclarationVerdict,
@@ -53,10 +53,11 @@ export interface VerdictVm extends LabelNoteVm {
 
 export interface ShipperVm {
   remote: RemoteRefVm;
-  range: string;
-  /** `strictVersion` of the declaration (tooltip on the range). */
-  rangeNote: string;
   verdict: VerdictVm;
+  /** Its pool placed it off the global map: the chip opens its row in the Pools tab. */
+  pooled: boolean;
+  /** Range, strictness and verdict, as tooltip lines under a `<remote> · <verdict>` head. */
+  tip: string;
 }
 
 export interface RunnerVm {
@@ -83,14 +84,12 @@ export interface FileVm {
 }
 
 export interface DeepDiveVm {
-  builtBy: RemoteRefVm[];
-  /** Why each shipper runs its own copy or a subpool, one line each. */
-  why: { remote: RemoteRefVm; text: string }[];
+  /** Remotes whose build files the import map points to for this version; empty when none does. */
+  servedFrom: RemoteRefVm[];
   merged: LabelNoteVm | null;
-  mapped: string;
-  runsIn: RunnerVm[];
+  usedBy: RunnerVm[];
   /** Why no binding resolves to it; null while some do. */
-  runsInEmpty: string | null;
+  usedByEmpty: string | null;
   shippedBy: ShipperVm[];
   /** Null for a version none of whose builds materialize. */
   entrypoints: {
@@ -102,16 +101,18 @@ export interface DeepDiveVm {
     /** Entry files first, then chunks, per build. */
     groups: BuildGroupVm<FileVm>[];
     sri: LabelNoteVm & { complete: boolean };
+    /** Set when a build's bundle registers no chunk list, so its chunks are not listed. */
+    unlistedChunks: LabelNoteVm | null;
   } | null;
 }
 
 export interface VersionRowVm {
   tag: string;
-  status: string;
+  status: LabelNoteVm;
   /** A copy of this version materializes in the import map. */
   mapped: boolean;
   shippedBy: number;
-  runsIn: number;
+  usedBy: number;
   notes: VersionNoteVm[];
   dive: DeepDiveVm;
 }
@@ -124,7 +125,6 @@ export interface RangeCellVm {
 }
 
 export interface RangeCheckVm {
-  summary: string;
   versions: { tag: string; elected: boolean }[];
   rows: { remote: RemoteRefVm; range: string; cells: RangeCellVm[] }[];
 }
@@ -143,7 +143,7 @@ export interface ScopeBlockVm {
   pool: { label: string; note: string; poolSelect: string } | null;
   versions: VersionRowVm[];
   rangeCheck: RangeCheckVm | null;
-  /** The existing per-copy view of this scope (bindings, unresolved, diagnostics). */
+  /** Unresolved bindings, the no-copies line and diagnostics of this scope. */
   bindings: PackageDetailVm | null;
 }
 
@@ -164,9 +164,13 @@ const remoteRef = (name: string): RemoteRefVm => ({
 const STATUS_LABELS: Record<VersionVerdict['status'], string> = {
   shared: 'shared',
   scoped: 'scoped',
-  'partly-mapped': 'partly mapped',
-  'not-mapped': 'not mapped',
+  subpool: 'subpool',
+  skipped: 'skipped',
+  unknown: 'unknown',
 };
+
+const names = (records: readonly DeclarationVerdictRecord[]) =>
+  [...new Set(records.map((d) => participantDisplay(d.participant)))].join(', ');
 
 const VERDICT_LABELS: Record<DeclarationVerdict, string> = {
   provides: 'provides',
@@ -335,20 +339,6 @@ function diveOf(
     for (const specifier of miss.missing) lacking.set(specifier, where);
   }
 
-  const mapped =
-    version.status === 'shared'
-      ? elected === null
-        ? 'for the remotes that ship it'
-        : 'for every remote in this scope'
-      : version.status === 'scoped'
-        ? `only for ${shippers
-            .filter((d) => d.verdict === 'own-copy')
-            .map((d) => participantDisplay(d.participant))
-            .join(', ')}`
-        : version.status === 'partly-mapped'
-          ? 'only for the remotes its build serves'
-          : 'not mapped';
-
   const entrypoints =
     builds.length === 0
       ? null
@@ -375,63 +365,109 @@ function diveOf(
             ],
           })),
           sri: sriOf(version),
+          unlistedChunks: unlistedChunksOf(builds),
         };
 
   return {
-    builtBy:
-      builds.length > 0
-        ? builds.flatMap((b) => (b.sourceRemote ? [remoteRef(b.sourceRemote)] : []))
-        : shippers.map((d) => remoteRef(d.participant)),
-    why: offMap.map((d) => ({
-      remote: remoteRef(d.participant),
-      text: verdictNoteOf(d, verdicts, electedRemote),
-    })),
+    servedFrom: builds.flatMap((b) => (b.sourceRemote ? [remoteRef(b.sourceRemote)] : [])),
     merged: version.merged ? { label: 'merged', note: mergedNoteOf(version) } : null,
-    mapped,
-    runsIn: runners.map((d) => ({
+    usedBy: runners.map((d) => ({
       remote: remoteRef(d.participant),
       outOfRange: d.verdict === 'out-of-range',
       note: verdictNoteOf(d, verdicts, electedRemote),
     })),
-    runsInEmpty:
+    usedByEmpty:
       runners.length > 0
         ? null
         : elected === null || version.tag === elected
           ? 'no remote resolves to it in this capture'
           : `no remote · ${shippers.length === 1 ? 'its shipper resolves' : 'its shippers resolve'} to the shared ${elected}`,
-    shippedBy: shippers.map((d) => ({
-      remote: remoteRef(d.participant),
-      range: d.requiredVersion,
-      rangeNote:
+    shippedBy: shippers.map((d) => {
+      const note = verdictNoteOf(d, verdicts, electedRemote);
+      const range =
         elected === null
-          ? 'strict scope · the exact version, the configured range is not stored'
-          : `${d.requiredVersion} · strictVersion: ${d.strictVersion}`,
-      verdict: {
-        kind: d.verdict,
-        label: VERDICT_LABELS[d.verdict],
-        note: verdictNoteOf(d, verdicts, electedRemote),
-      },
-    })),
+          ? `range: exact ${d.tag} (strict scope stores no configured range)`
+          : `range: ${d.requiredVersion} (${d.strictVersion ? 'strict' : 'not strict'})`;
+      return {
+        remote: remoteRef(d.participant),
+        verdict: { kind: d.verdict, label: VERDICT_LABELS[d.verdict], note },
+        pooled: d.reason?.scope === 'pool',
+        tip: [
+          `${participantDisplay(d.participant)} · ${VERDICT_LABELS[d.verdict]}`,
+          range,
+          ...note.split(' · '),
+        ].join('\n'),
+      };
+    }),
     entrypoints,
     files,
   };
 }
 
+function unlistedChunksOf(builds: VersionVerdict['builds']): LabelNoteVm | null {
+  const unlisted = builds.filter((b) => b.unlistedChunks);
+  if (unlisted.length === 0) return null;
+  const whose = unlisted.map((b) =>
+    b.sourceRemote ? participantDisplay(b.sourceRemote) : 'a build',
+  );
+  return {
+    label: 'no chunk list',
+    note: `the capture registers no chunk list for the bundle of ${whose.join(', ')}\nits chunk files are not listed here`,
+  };
+}
+
+function mappedOf(
+  version: VersionVerdict,
+  verdicts: PackageScopeVerdicts,
+  shippers: DeclarationVerdictRecord[],
+): string {
+  const own = shippers.filter((d) => d.verdict === 'own-copy');
+  switch (version.status) {
+    case 'shared': {
+      const who =
+        verdicts.electedTag === null ? 'the remotes that ship it' : 'every remote in this scope';
+      return own.length === 0 ? `for ${who}` : `for ${who} but ${names(own)}`;
+    }
+    case 'scoped':
+      return `only for ${names(own)}`;
+    case 'subpool': {
+      const owners = new Set(shippers.map((d) => d.subpoolOf).filter((o) => o !== null));
+      const members = verdicts.declarations.filter(
+        (d) => d.subpoolOf !== null && owners.has(d.subpoolOf),
+      );
+      return `only for the subpool of ${[...owners].map(participantDisplay).join(', ')}: ${names(members)}`;
+    }
+    case 'skipped':
+      return 'not mapped';
+    case 'unknown':
+      return version.copyIds.length > 0 ? 'mapped, but no stored row says for whom' : 'not mapped';
+  }
+}
+
+function statusNoteOf(
+  version: VersionVerdict,
+  verdicts: PackageScopeVerdicts,
+  shippers: DeclarationVerdictRecord[],
+): string {
+  const mapped = mappedOf(version, verdicts, shippers);
+  switch (version.status) {
+    case 'shared':
+      return `a share row\nthe map publishes it ${mapped}`;
+    case 'scoped':
+      return `a scope row\nmapped ${mapped}, from its own build`;
+    case 'subpool':
+      return `every row is a skip, yet a subpool runs it\nmapped ${mapped}`;
+    case 'skipped':
+      return 'every row is a skip\nno copy of it is mapped';
+    case 'unknown':
+      return `the stored rows do not explain this version\n${mapped}`;
+  }
+}
+
 function rangeCheckOf(verdicts: PackageScopeVerdicts): RangeCheckVm | null {
   const elected = verdicts.electedTag;
-  if (elected === null || verdicts.versions.length < 2) return null;
-  const rejecting = verdicts.declarations.filter((d) => d.acceptsElected === false);
-  const universal = verdicts.versions
-    .map((v) => v.tag)
-    .filter((tag) =>
-      verdicts.declarations.every((d) => d.acceptance.find((a) => a.tag === tag)?.accepts === true),
-    );
-  const summary =
-    rejecting.length === 0
-      ? `every range accepts ${elected}`
-      : `${rejecting.map((d) => participantDisplay(d.participant)).join(', ')} ${rejecting.length === 1 ? 'rejects' : 'reject'} ${elected}${universal.length === 0 ? ' · no version fits every range' : ''}`;
+  if (verdicts.declarations.length === 0) return null;
   return {
-    summary,
     versions: verdicts.versions.map((v) => ({ tag: v.tag, elected: v.tag === elected })),
     rows: verdicts.declarations.map((d) => ({
       remote: remoteRef(d.participant),
@@ -494,10 +530,13 @@ export function buildPackageView(
         const shippers = version.declarationIds.map((id) => recordById.get(id)!).filter(Boolean);
         return {
           tag: version.tag,
-          status: STATUS_LABELS[version.status],
+          status: {
+            label: STATUS_LABELS[version.status],
+            note: statusNoteOf(version, verdicts, shippers),
+          },
           mapped: version.copyIds.length > 0,
           shippedBy: shippers.length,
-          runsIn: verdicts.declarations.filter((d) => d.runsTag === version.tag).length,
+          usedBy: verdicts.declarations.filter((d) => d.runsTag === version.tag).length,
           notes: notesOf(version, verdicts, shippers),
           dive: diveOf(version, verdicts, shippers, electedRemote),
         };

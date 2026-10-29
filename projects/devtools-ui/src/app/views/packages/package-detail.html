@@ -1,232 +1,9 @@
 @if (detail(); as detail) {
-  @if (!embedded()) {
-    <h2 class="detail-name">
-      <span class="detail-name-text tip" [title]="'registry key in share scope ' + detail.scope">{{
-        detail.packageName
-      }}</span>
-      @if (detail.conflict; as conflict) {
-        <span class="detail-conflict tip" [title]="conflict.note">{{ conflict.label }}</span>
-      }
-    </h2>
-    <p class="detail-meta">
-      <span class="detail-scope"
-        >share scope:
-        <span
-          class="mono tip"
-          [attr.title]="
-            detail.scopeDisplay === detail.scope
-              ? 'configured via shareScope: ' + detail.scope
-              : detail.scope + ' — the default share scope (no shareScope configured)'
-          "
-          >{{ detail.scopeDisplay }}</span
-        ></span
-      >
-      @if (detail.strictScope) {
-        <span
-          class="detail-strict"
-          title="special strict share scope — no election, every exact version is shared side by side (config: shareScope: 'strict')"
-          >pinned scope</span
-        >
-      }
-      @if (detail.parent) {
-        <span class="detail-parent">
-          secondary entry of
-          <a
-            [routerLink]="['/packages']"
-            [queryParams]="{ select: detail.parent.packageId }"
-            [title]="
-              'parent association derived from the package name — rule: ' + detail.parent.rule
-            "
-            >{{ detail.parent.packageName }}</a
-          >
-        </span>
-      }
+  @if (detail.noCopies; as noCopies) {
+    <p class="view-observation no-copies tip" [attr.data-tip]="noCopies.note">
+      {{ noCopies.label }}
     </p>
   }
-
-  @if (detail.noCopies; as noCopies) {
-    <p class="view-observation no-copies tip" [title]="noCopies.note">{{ noCopies.label }}</p>
-  }
-
-  <ul class="copy-blocks">
-    @for (block of detail.blocks; track block.copyId) {
-      <li class="copy-block">
-        <p class="copy-head">
-          @if (block.resolvedTag !== null) {
-            <span class="copy-tag">{{ block.resolvedTag }}</span>
-          } @else {
-            <span class="view-observation tip" [title]="block.unknownTagNote">unknown tag</span>
-          }
-          <span class="copy-disposition tip" [title]="block.disposition.note">{{
-            block.disposition.label
-          }}</span>
-          @if (block.disposition.audience; as audience) {
-            <span class="copy-audience tip" [title]="audience.note">{{ audience.label }}</span>
-          }
-          @if (block.source.remoteSelect !== null) {
-            <span
-              class="source-word"
-              [class.tip]="block.source.qualifier === 'exact-target-source'"
-              [attr.title]="
-                block.source.qualifier === 'exact-target-source'
-                  ? block.source.label + ' — ' + block.source.note
-                  : null
-              "
-              >from</span
-            >
-            <a
-              class="chip-link"
-              [routerLink]="['/remotes']"
-              [queryParams]="{ select: block.source.remoteSelect }"
-              ><nf-participant-chip [name]="block.source.remoteSelect" [host]="block.source.host"
-            /></a>
-          }
-          @if (block.source.qualifier === 'ambiguous-source') {
-            <nf-state-badge kind="ambiguous" [note]="block.source.note" />
-          } @else if (block.source.qualifier !== 'exact-target-source') {
-            <span class="source-qualifier tip" [title]="block.source.note">{{
-              block.source.label
-            }}</span>
-          }
-          @for (deviation of block.deviations; track deviation.label) {
-            <span class="copy-fact tip" [title]="deviation.note">{{ deviation.label }}</span>
-          }
-        </p>
-        @if (block.files.length > 0) {
-          <p class="group-label">files</p>
-          <ul class="file-list">
-            @for (file of block.files; track file.specifier) {
-              <li class="file-line">
-                @if (file.showSpecifier) {
-                  <span class="file-specifier mono">{{ file.specifier }}</span>
-                }
-                <span class="file-name mono">{{ file.file }}</span>
-                <a
-                  class="file-mapped"
-                  [routerLink]="['/import-map']"
-                  [queryParams]="{ select: file.importMapSelect }"
-                  [title]="file.targetUrl"
-                  >mapped</a
-                >
-                @if (file.hasIntegrity) {
-                  <span class="file-sri tip" title="the mapped target carries an SRI hash"
-                    >SRI ✓</span
-                  >
-                } @else {
-                  <span
-                    class="file-sri file-sri-missing tip"
-                    title="the mapped target carries no SRI hash in the captured import map"
-                    >no SRI</span
-                  >
-                }
-              </li>
-            }
-          </ul>
-        }
-        @if (block.consumers.length > 0) {
-          <p class="group-label">
-            <span
-              class="tip"
-              title="participants that declared this dependency and their requirements — the registration itself is the version row under the registry key"
-              >declared by</span
-            >
-          </p>
-          <ul class="consumer-list">
-            @for (consumer of block.consumers; track consumer.declarationId) {
-              <li class="consumer-row">
-                <a
-                  class="chip-link"
-                  [routerLink]="['/remotes']"
-                  [queryParams]="{ select: consumer.remoteSelect }"
-                  ><nf-participant-chip [name]="consumer.name" [host]="consumer.host"
-                /></a>
-                <span
-                  class="consumer-declared mono"
-                  [class.tip]="consumer.declared.pinned"
-                  [attr.title]="
-                    consumer.declared.pinned
-                      ? 'exact tag — pinned by the strict share scope; the configured requiredVersion range is not stored'
-                      : null
-                  "
-                  >{{ consumer.declared.text }}</span
-                >
-                @if (consumer.pool; as pool) {
-                  @if (pool.poolQuery !== null || pool.orphan) {
-                    <a
-                      class="pool-chip tip"
-                      [class.pool-chip-orphan]="pool.orphan"
-                      [title]="pool.note"
-                      [routerLink]="['/pools']"
-                      [queryParams]="pool.poolQuery ?? {}"
-                      >pool: {{ pool.tag }}</a
-                    >
-                  } @else {
-                    <span class="pool-chip tip" [title]="pool.note">pool: {{ pool.tag }}</span>
-                  }
-                }
-                @if (consumer.strict) {
-                  <span
-                    class="consumer-strict tip"
-                    title="strict version negotiation — accepts only an elected version satisfying the declared range (config: strictVersion: true)"
-                    >STRICT</span
-                  >
-                }
-                @for (deviation of consumer.deviations; track deviation.label) {
-                  <span class="state-chip tip" [title]="deviation.note">{{ deviation.label }}</span>
-                }
-                @if (consumer.viaSpecifiers.length > 0) {
-                  <span
-                    class="consumer-via mono tip"
-                    title="this consumer's binding resolves to the copy through these specifiers only"
-                    >via {{ consumer.viaSpecifiers.join(', ') }}</span
-                  >
-                }
-              </li>
-            }
-          </ul>
-        }
-        @if (block.chunks.length > 0) {
-          <p class="group-label">chunks</p>
-        }
-        @for (claim of block.chunks; track claim.claimId) {
-          <div class="chunk-claim">
-            <p class="chunk-claim-head">
-              <span class="mono">{{ claim.bundle }}</span>
-              @if (claim.showSource) {
-                @if (claim.source; as source) {
-                  <a
-                    class="chip-link"
-                    [routerLink]="['/remotes']"
-                    [queryParams]="{ select: source.remoteSelect }"
-                    ><nf-participant-chip [name]="source.remoteSelect" [host]="source.host"
-                  /></a>
-                }
-              }
-              @if (claim.status === 'ambiguous') {
-                <nf-state-badge kind="ambiguous" [note]="claim.note" />
-              } @else if (claim.status !== 'mapped-source') {
-                <span class="chunk-status chunk-status-qualified tip" [title]="claim.note">{{
-                  claim.status
-                }}</span>
-              }
-              @if (claim.files.length === 0) {
-                <span class="chunk-absence">({{ claim.fileClaim }})</span>
-              }
-            </p>
-            @if (claim.files.length > 0) {
-              <ul class="chunk-list" [title]="claim.note">
-                @for (file of claim.files; track file) {
-                  <li class="chunk-item">
-                    <span class="mono">{{ file }}</span>
-                  </li>
-                }
-              </ul>
-            }
-          </div>
-        }
-      </li>
-    }
-  </ul>
 
   @if (detail.unresolved.length > 0) {
     <h3 class="unresolved-heading">unresolved</h3>
@@ -242,7 +19,7 @@
           <span
             class="consumer-declared mono"
             [class.tip]="row.declared.pinned"
-            [attr.title]="
+            [attr.data-tip]="
               row.declared.pinned
                 ? 'exact tag — pinned by the strict share scope; the configured requiredVersion range is not stored'
                 : null
@@ -254,30 +31,32 @@
               <a
                 class="pool-chip tip"
                 [class.pool-chip-orphan]="pool.orphan"
-                [title]="pool.note"
+                [attr.data-tip]="pool.note"
                 [routerLink]="['/pools']"
                 [queryParams]="pool.poolQuery ?? {}"
                 >pool: {{ pool.tag }}</a
               >
             } @else {
-              <span class="pool-chip tip" [title]="pool.note">pool: {{ pool.tag }}</span>
+              <span class="pool-chip tip" [attr.data-tip]="pool.note">pool: {{ pool.tag }}</span>
             }
           }
           @if (row.strict) {
             <span
               class="consumer-strict tip"
-              title="strict version negotiation — accepts only an elected version satisfying the declared range (config: strictVersion: true)"
+              data-tip="strict version negotiation — accepts only an elected version satisfying the declared range (config: strictVersion: true)"
               >STRICT</span
             >
           }
           @if (row.specifier) {
-            <span class="consumer-via mono tip" title="the claimed specifier of this declaration">{{
-              row.specifier
-            }}</span>
+            <span
+              class="consumer-via mono tip"
+              data-tip="the claimed specifier of this declaration"
+              >{{ row.specifier }}</span
+            >
           }
-          <span class="state-chip tip" [title]="row.state.note">{{ row.state.label }}</span>
+          <span class="state-chip tip" [attr.data-tip]="row.state.note">{{ row.state.label }}</span>
           @if (row.offered; as offered) {
-            <span class="offered-chip tip" [title]="offered.note">{{ offered.label }}</span>
+            <span class="offered-chip tip" [attr.data-tip]="offered.note">{{ offered.label }}</span>
           }
         </li>
       }
@@ -287,7 +66,7 @@
   @if (detail.diagnostics.length > 0) {
     <footer class="diagnostics-footer">
       @for (item of detail.diagnostics; track item.label) {
-        <p class="diagnostics-item tip" [title]="item.note">{{ item.label }}</p>
+        <p class="diagnostics-item tip" [attr.data-tip]="item.note">{{ item.label }}</p>
       }
     </footer>
   }

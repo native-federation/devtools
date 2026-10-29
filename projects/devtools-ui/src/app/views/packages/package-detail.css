@@ -1,25 +1,3 @@
-.detail-name {
-  margin: 0 0 4px;
-  font-size: 12px;
-  font-family: var(--nf-font-mono);
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.detail-conflict {
-  color: var(--nf-color-warning-text);
-  background: var(--nf-color-warning-bg);
-  border: 1px solid var(--nf-color-warning-border);
-  border-radius: 3px;
-  padding: 0 4px;
-  font-family: var(--nf-font-sans, inherit);
-  font-size: 10px;
-  font-weight: 400;
-  white-space: nowrap;
-}
-
 .mono {
   font-family: var(--nf-font-mono);
   font-size: 11px;
@@ -27,27 +5,6 @@
 
 /* Tooltip affordance (shell convention): dotted underline + help cursor. */
 .tip {
-  text-decoration: underline dotted;
-  text-underline-offset: 2px;
-  cursor: help;
-}
-
-.detail-meta {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin: 0;
-  color: var(--nf-color-text-muted);
-}
-
-/* STRICT / pinned scope are configuration facts, not problems — muted, never
- * warning-colored. Warning tokens stay reserved for actual conflicts. */
-.detail-strict {
-  color: var(--nf-color-text-muted);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
   text-decoration: underline dotted;
   text-underline-offset: 2px;
   cursor: help;
@@ -63,109 +20,10 @@
   text-decoration: none !important;
 }
 
-/* --- copy blocks ------------------------------------------------------ */
-
-.copy-blocks,
-.file-list,
-.consumer-list,
-.unresolved-list,
-.chunk-list {
+.unresolved-list {
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-.copy-block {
-  margin-top: 12px;
-  padding: 4px 0 4px 8px;
-  border-left: 2px solid var(--nf-color-border);
-}
-
-.copy-head {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin: 0 0 2px;
-}
-
-.copy-tag {
-  font-family: var(--nf-font-mono);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.copy-disposition {
-  color: var(--nf-color-text-muted);
-  font-size: 11px;
-}
-
-.copy-audience {
-  color: var(--nf-color-text-muted);
-  font-size: 10px;
-}
-
-.source-word {
-  color: var(--nf-color-text-muted);
-  font-size: 10px;
-}
-
-.source-qualifier,
-.copy-fact {
-  padding: 0 4px;
-  border: 1px dashed var(--nf-color-border);
-  border-radius: 3px;
-  font-size: 10px;
-  color: var(--nf-color-text-muted);
-  white-space: nowrap;
-}
-
-/* --- mapped file lines ------------------------------------------------ */
-
-.file-line {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding: 1px 0 1px 12px;
-}
-
-.file-specifier {
-  color: var(--nf-color-text-muted);
-}
-
-.file-name {
-  overflow-wrap: anywhere;
-}
-
-.file-sri {
-  padding: 0 4px;
-  border: 1px solid var(--nf-color-border);
-  border-radius: 3px;
-  font-size: 10px;
-  color: var(--nf-color-text-muted);
-}
-
-/* Missing SRI stays visible but quiet — an observation, not an alarm. */
-.file-sri-missing {
-  border-style: dashed;
-  opacity: 0.7;
-}
-
-/* --- consumer rows ---------------------------------------------------- */
-
-/* Group labels (FILES / DECLARED BY / CHUNKS): the labels sit on one
- * indent level under the copy head; only the rows inside a group indent. */
-/* Bold + full text color (T8.6 screenshot review 4, cross-view grammar):
- * at 10px caps, weight alone barely renders, and the muted tone drowns
- * among muted content — color separates headers from body text. */
-.group-label {
-  margin: 2px 0 0;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--nf-color-text);
 }
 
 .consumer-row {
@@ -206,54 +64,6 @@
   color: var(--nf-color-text-muted);
   white-space: nowrap;
 }
-
-/* --- chunks (nested per copy block) ----------------------------------- */
-
-.chunk-claim {
-  padding: 1px 0 0 12px;
-}
-
-.chunk-claim-head {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin: 0;
-  color: var(--nf-color-text-muted);
-}
-
-.chunk-status {
-  padding: 0 4px;
-  border: 1px solid var(--nf-color-border);
-  border-radius: 3px;
-  font-size: 10px;
-  color: var(--nf-color-text-muted);
-  white-space: nowrap;
-}
-
-/* Uncertain claims stay visibly qualified (source-only, ambiguous). */
-.chunk-status-qualified {
-  border-style: dashed;
-}
-
-.chunk-absence {
-  font-size: 10px;
-  font-style: italic;
-}
-
-.chunk-list li {
-  padding: 1px 0 1px 12px;
-}
-
-.chunk-item {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
-  color: var(--nf-color-text-muted);
-}
-
-/* --- unresolved bucket + diagnostics ---------------------------------- */
 
 .unresolved-heading {
   margin: 14px 0 4px;

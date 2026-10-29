@@ -11,17 +11,26 @@ hidden until its view lands.
 ## What it shows
 
 **Packages** — one row per package; per share scope the elected version and
-every registered version with its status (shared, scoped, partly mapped, not
-mapped) and the resolver's verdict per declaration (provides, same version,
-reuses shared, subpool, own copy, out of range). An own copy or subpool says
-why: in a pool, the pool's reason; otherwise what the package's stored serving
-build does not serve (a strict range it rejects, entrypoints it lacks, a
-second version). Filters for multiple versions, out of range and isolated
+every registered version with its status (shared, scoped, subpool, skipped)
+and the resolver's verdict per declaration (provides, same version, reuses
+shared, subpool, own copy, out of range). An own copy or subpool says why, as a
+short cause with the full reason in its tooltip: in a pool, the pool's reason;
+otherwise what the package's serving build does not serve (a strict range it
+rejects, entrypoints it lacks, a second version). In the `strict` scope the
+serving build of each tag is derived (orchestrator 4.8 stores none), and a
+shipper counts as running its own copy only when the import map shows it.
+Explanations use the same tooltip as the Pools tab.
+Filters for multiple versions, out of range and isolated
 packages; a range check per scope (a copy's own version always passes); a
-per-version deep dive with shipped by, a Why line, entrypoints (marked where
-the serving build or global map lacks them) and files (grouped per build when
-a version has several), SRI coverage; the per-copy bindings stay available per
-scope.
+per-version deep dive with whose build it is served from, who ships it (range and verdict in each chip's
+tooltip), who uses it, entrypoints (marked where
+the serving build or global map lacks them, each linking to the Import Map) and
+files (grouped per build when a version has several), SRI coverage and a note
+when a bundle registers no chunk list. A shipper its pool placed off the map links
+to its row in the Pools tab. The range-check matrix ("Compatibility")
+always shows under the versions table, also with one version or in the strict
+scope. Declarations that resolve nowhere and registry/map
+divergences show under the versions only when there are any.
 Orchestrator 4.8 borrows no entrypoint from another build, so the devtool shows
 no torn entrypoints; older pages render without them.
 
@@ -124,7 +133,7 @@ The dev panel can replay captured scenarios without a running application via
 isolation, dynamic initialization, explicit pool tags (coherent, islanded,
 anchored, orphan, a four-pool showcase, a twelve-remote portfolio) and the 4.8
 placement reasons (uncovered gap, non-strict rejection, unshipped combination,
-own-version range), the dense
+own-version range, a strict tag its serving build does not cover), the dense
 remoteEntry formats, a live capture of a deployed Angular/React host, and
 synthetic storage-discovery states (web storage, custom namespace, custom
 adapter).
