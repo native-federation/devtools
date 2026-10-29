@@ -1,14 +1,14 @@
 # Privacy Policy — Native Federation DevTools
 
-_Last updated: 2026-10-06_
+_Last updated: 2026-10-29_
 
 **Short version: the extension collects nothing. No data ever leaves your
 machine.**
 
-Native Federation DevTools is a read-only Chrome DevTools panel. It has a
-single purpose: showing how a Native Federation application resolved its
-shared dependencies — packages, remotes, the import map, and the resulting
-dependency graph.
+Native Federation DevTools is a read-only DevTools panel for Google Chrome
+and Mozilla Firefox. It has a single purpose: showing how a Native
+Federation application resolved its shared dependencies — packages, remotes,
+the import map, and the resulting dependency graph.
 
 ## What the extension reads
 
