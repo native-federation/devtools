@@ -1,8 +1,11 @@
+import { placementReasonText } from '../../shared/placement-text';
 import type {
   BundleClaim,
   CanonicalResolutionProjection,
   ChunkGroupProjection,
   CopyGroupingFacets,
+  DeclarationVerdictRecord,
+  ParticipantDeclarationId,
   ResolvedDependencyCopy,
 } from '../../shared/store/resolution';
 import {
@@ -29,6 +32,8 @@ import {
 import { groupDependencies } from './graph-grouping';
 import {
   BundleEdgeRef,
+  CHUNK_LABEL_MAX,
+  CHUNK_W,
   CLUSTER_HEADER,
   CLUSTER_LABEL_BASELINE,
   CLUSTER_PAD,
@@ -164,6 +169,11 @@ export function buildGraphModel(
   let dependencyCursor = MARGIN + HEADER_H;
 
   const listItems: GraphListItem[] = [];
+  const verdictByDeclaration = new Map(
+    projection.packageScopeVerdicts.flatMap((verdicts) =>
+      verdicts.declarations.map((record) => [record.declarationId, record] as const),
+    ),
+  );
   const facetsByCopyId = new Map(projection.copyGroupingFacets.map((f) => [f.copyId, f]));
   const expandedCopyId = options.expandedCopyId ?? null;
   const layoutDependencyCluster = (seed: ClusterSeed, entries: typeof sortedCopies): void => {
@@ -172,7 +182,11 @@ export function buildGraphModel(
     let nodeY = boxY + CLUSTER_HEADER + CLUSTER_PAD;
     for (const entry of entries) {
       const expanded = entry.copy.id === expandedCopyId;
-      const node = { ...dependencyNodeAt(entry.copy, entry.fullLabel, nodeY), expanded };
+      const node = {
+        ...dependencyNodeAt(entry.copy, entry.fullLabel, nodeY),
+        expanded,
+        note: isolationNoteOf(entry.copy, verdictByDeclaration),
+      };
       dependencyNodes.push(node);
       orderedDependencyEntries.push(entry);
       dependencyHueByCopyId.set(entry.copy.id, colorIndex);
@@ -420,6 +434,7 @@ export function buildGraphModel(
       const id = `summary\n${clusterKey}`;
       const node: ChunkGraphNode = {
         ...nodeBaseAt('chunk', id, countClaim(collector.seeds.length, 'file'), x, nodeY),
+        width: CHUNK_W,
         labelTooltip: 'click the group to list its files',
         kind: 'chunk',
         href: null,
@@ -436,7 +451,10 @@ export function buildGraphModel(
     }
     for (const seed of expanded ? collector.seeds : []) {
       const height = seed.kind === 'stub' ? STUB_NODE_H : NODE_H;
-      const base = nodeBaseAt('chunk', seed.id, seed.label, x, nodeY);
+      const base = {
+        ...nodeBaseAt('chunk', seed.id, seed.label, x, nodeY, CHUNK_LABEL_MAX),
+        width: CHUNK_W,
+      };
       const node: ChunkGraphNode = {
         ...base,
         labelTooltip: seed.tooltip ?? base.labelTooltip,
@@ -479,7 +497,7 @@ export function buildGraphModel(
       colorIndex: clusterHueOf(collector.emitter),
       x: boxX,
       y: boxY,
-      width: NODE_W + 2 * CLUSTER_PAD,
+      width: CHUNK_W + 2 * CLUSTER_PAD,
       height: boxHeight,
       labelX: boxX + CLUSTER_PAD,
       labelY: boxY + CLUSTER_LABEL_BASELINE,
@@ -495,6 +513,7 @@ export function buildGraphModel(
   // consumer is merely filtered, never "dropped". Nodes come only from the
   // projection's remotes and copies, never invented for an edge.
   const projectionCopyIds = new Set(projection.copies.map((copy) => copy.id));
+  const copyById = new Map(projection.copies.map((copy) => [copy.id, copy]));
   const edges: GraphEdge[] = [];
   const droppedRelationIds: string[] = [];
   for (const relation of projection.consumerRelations) {
@@ -508,7 +527,14 @@ export function buildGraphModel(
     }
     // A selected (or unfiltered) consumer's relation is exactly what keeps
     // its copy rendered, so the node lookup cannot miss.
-    edges.push(edgeOf(relation, source, dependencyNodeById.get(relation.copyId)!));
+    edges.push(
+      edgeOf(
+        relation,
+        source,
+        dependencyNodeById.get(relation.copyId)!,
+        copySourceRemote(copyById.get(relation.copyId)!),
+      ),
+    );
   }
 
   // --- Bundle-edge references (rendered by the hover trace only) ---------
@@ -589,7 +615,7 @@ export function buildGraphModel(
       completeness.unmappedResolutions > 0 ||
       completeness.blockedResolutions > 0 ||
       completeness.ambiguousSourceClaims > 0,
-    width: columnX(2) + NODE_W + CLUSTER_PAD + MARGIN,
+    width: columnX(2) + CHUNK_W + CLUSTER_PAD + MARGIN,
     height: Math.max(remotesBottom, dependenciesBottom, chunksBottom) + MARGIN,
     empty: nodes.length === 0,
   };
@@ -624,6 +650,33 @@ export function graphAdjacencyOf(model: GraphModel): ReadonlyMap<string, Readonl
     link(ref.dependencyKey, ref.chunkKey);
   }
   return adjacency;
+}
+
+type VerdictLookup = ReadonlyMap<ParticipantDeclarationId, DeclarationVerdictRecord>;
+
+function reasonTextOf(
+  declarationId: ParticipantDeclarationId,
+  verdicts: VerdictLookup,
+): string | null {
+  const reason = verdicts.get(declarationId)?.reason ?? null;
+  return reason === null ? null : placementReasonText(reason);
+}
+
+// Worded as the Remotes `isolated` chip: the same verdict lookup, the same reason text.
+function isolationNoteOf(copy: ResolvedDependencyCopy, verdicts: VerdictLookup): string | null {
+  if (copy.source.kind === 'private-registration') {
+    return 'private registration — a scoped external, not shared';
+  }
+  if (copy.sourceDisposition !== 'scope-registration') {
+    return null;
+  }
+  const reason =
+    copy.source.kind === 'shared-declaration'
+      ? reasonTextOf(copy.source.declarationId, verdicts)
+      : null;
+  return reason === null
+    ? 'the evidenced source is registered with action scope — an isolated copy'
+    : `runs its own build — ${reason}`;
 }
 
 /** Last path segment of a target URL — the file name a build emitted. */
