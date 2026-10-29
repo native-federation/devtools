@@ -40,7 +40,8 @@ guesses.
   and why, plus which other remotes run its builds.
 - 🕸️ **Graph** — remotes, dependency copies, and build files as one
   traceable picture. Hover to trace, tick remotes to include or exclude
-  them, group the dependency column by provider, share scope, pool, or build.
+  them, select dependencies to see only their build files, group the
+  dependency column by provider, share scope, pool, or build.
 - 🗺️ **Import Map** — the effective map, row by row, each entry attributed
   to its package, its provider, and the chunk bundle that serves it.
 - 🧩 **Pools** — one matrix per explicit pool tag: which remotes run on the

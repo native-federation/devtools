@@ -28,9 +28,6 @@ export const CLUSTER_VGAP = 20;
 /** Two-line chunk stub (bundle name + qualifier) of a claim without files. */
 export const STUB_NODE_H = 40;
 
-/** Row height of an expanded dependency's entrypoint list. */
-export const LIST_ROW_H = 16;
-
 /**
  * Bundle-edge reference budget on top of the consume edges: references are
  * capped at `edges.length + MAX_BUNDLE_EDGES`; the overflow count is
@@ -42,8 +39,8 @@ export const MAX_BUNDLE_EDGES = 4000;
 export const HEADER_BASELINE = 18;
 export const LABEL_BASELINE = 17;
 export const LABEL_PAD = 8;
-/** Width reserved at a dependency node's right edge for its expand arrow. */
-export const TOGGLE_W = 14;
+/** Width reserved at a dependency node's right edge for its Packages link. */
+export const LINK_W = 14;
 /** Side of a remote node's filter checkbox, and the gap before its label. */
 export const CHECKBOX_SIZE = 10;
 export const CHECKBOX_GAP = 6;
@@ -148,12 +145,16 @@ export interface DependencyGraphNode extends GraphNodeBase {
   /** Right-aligned sub-label anchor (text-anchor: end). */
   subLabelX: number;
   subLabelY: number;
-  /** Right-aligned expand-arrow anchor. */
-  toggleX: number;
-  /** The accordion-open copy: its secondary entrypoints list below it. */
-  expanded: boolean;
+  /** Right-aligned anchor of the Packages link. */
+  linkX: number;
+  /** Packages `select` id of the copy's package; null when it has no Packages row. */
+  packageSelect: string | null;
   /** Why an isolated copy runs on its own; null on a shared copy. */
   note: string | null;
+  /** Hover text: the full label, the isolation note, then the secondary entrypoints. */
+  tooltip: string;
+  /** Selected: the build-files column shows only the selected copies' files. */
+  selected: boolean;
 }
 
 export interface ChunkGraphNode extends GraphNodeBase {
@@ -172,20 +173,6 @@ export interface ChunkGraphNode extends GraphNodeBase {
   summary: boolean;
   /** Key of the build-files cluster the node belongs to (the accordion toggle target). */
   clusterKey: string;
-}
-
-/** One row of an expanded dependency's secondary-entrypoint list. */
-export interface GraphListItem {
-  key: string;
-  /** Render key of the dependency node it belongs to. */
-  ownerKey: string;
-  /** The import name (specifier), or the link text of a Packages link row. */
-  text: string;
-  tooltip: string | null;
-  /** Packages `select` id when the row links to the Packages view; null on an entrypoint row. */
-  packageSelect: string | null;
-  x: number;
-  y: number;
 }
 
 export type GraphNode = RemoteGraphNode | DependencyGraphNode | ChunkGraphNode;
@@ -242,8 +229,8 @@ export interface GraphEdge {
 
 /**
  * One `dependency → chunk` reference of a bundle claim. Computed into the
- * model with full geometry but not rendered as a standing edge — the hover
- * trace (Task 3) draws the references of the hovered node only.
+ * model with full geometry; the view draws the hovered node's references,
+ * or every reference while dependencies are selected.
  */
 export interface BundleEdgeRef {
   key: string;
@@ -263,7 +250,6 @@ export interface GraphModel {
   columns: GraphColumn[];
   clusters: GraphCluster[];
   nodes: GraphNode[];
-  listItems: GraphListItem[];
   edges: GraphEdge[];
   /** Capped at `edges.length + MAX_BUNDLE_EDGES`; overflow in `cappedEdges`. */
   bundleEdgeRefs: BundleEdgeRef[];
@@ -311,11 +297,16 @@ export interface GraphBuildOptions {
   filterMode?: FilterMode;
   /** Dependency-column clustering; defaults to `provider`. The node and edge set never depends on it. */
   groupBy?: GroupBy;
-  /** Copy whose secondary entrypoints list below it (accordion: at most one). */
-  expandedCopyId?: string | null;
+  /**
+   * Selected copy IDs: with a non-empty selection the build-files column
+   * holds only the selected copies' files, so every bundle reference left
+   * belongs to a selected copy.
+   */
+  selectedDependencies?: ReadonlySet<string>;
   /**
    * Open build-files cluster (accordion: at most one); every other cluster
-   * collapses to a summary node. `'all'` (the default) opens every cluster.
+   * collapses to a summary node. `'all'` (the default) opens every cluster,
+   * as does a dependency selection.
    */
   expandedBuildKey?: string | null | 'all';
 }
