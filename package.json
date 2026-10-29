@@ -6,6 +6,8 @@
     "start": "ng serve",
     "build": "ng build",
     "build:extension": "node scripts/build-extension.mjs",
+    "start:firefox": "web-ext run -s dist/extension-firefox --args=-devtools",
+    "lint:firefox": "web-ext lint -s dist/extension-firefox",
     "check:panel-bundle": "node scripts/check-panel-bundle.mjs",
     "watch": "ng build --watch --configuration development",
     "test": "ng test devtools-ui && ng test devtools-bridge && npm run test:collector && npm run test:guards",
@@ -35,6 +37,7 @@
     "ng-packagr": "^22.0.0",
     "prettier": "^3.8.1",
     "typescript": "~6.0.2",
-    "vitest": "^4.0.8"
+    "vitest": "^4.0.8",
+    "web-ext": "^10.8.0"
   }
 }

@@ -6,7 +6,9 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 
-const extensionDir = fileURLToPath(new URL('../dist/extension', import.meta.url));
+const extensionDirs = ['../dist/extension', '../dist/extension-firefox'].map((dir) =>
+  fileURLToPath(new URL(dir, import.meta.url)),
+);
 
 const jsChecks = [
   // `inspectedWindow.eval(` is the one sanctioned DevTools API call
@@ -22,37 +24,39 @@ const htmlChecks = [
   { label: 'inline event handler', pattern: /\son[a-z]+\s*=\s*["']/i },
 ];
 
-const files = readdirSync(extensionDir, { recursive: true }).filter(
-  (file) => typeof file === 'string',
-);
-const jsFiles = files.filter((file) => file.endsWith('.js'));
-const htmlFiles = files.filter((file) => file.endsWith('.html'));
-
 let failed = false;
 
-if (jsFiles.length === 0 || htmlFiles.length === 0) {
-  console.error(`FAIL: no JS or HTML files found under ${extensionDir} — did the build run?`);
-  failed = true;
-}
+for (const extensionDir of extensionDirs) {
+  const files = readdirSync(extensionDir, { recursive: true }).filter(
+    (file) => typeof file === 'string',
+  );
+  const jsFiles = files.filter((file) => file.endsWith('.js'));
+  const htmlFiles = files.filter((file) => file.endsWith('.html'));
 
-for (const [candidates, checks] of [
-  [jsFiles, jsChecks],
-  [htmlFiles, htmlChecks],
-]) {
-  for (const file of candidates) {
-    const content = readFileSync(join(extensionDir, file), 'utf8');
-    for (const { label, pattern } of checks) {
-      if (pattern.test(content)) {
-        console.error(`FAIL ${file}: contains ${label}`);
-        failed = true;
+  if (jsFiles.length === 0 || htmlFiles.length === 0) {
+    console.error(`FAIL: no JS or HTML files found under ${extensionDir} — did the build run?`);
+    failed = true;
+  }
+
+  for (const [candidates, checks] of [
+    [jsFiles, jsChecks],
+    [htmlFiles, htmlChecks],
+  ]) {
+    for (const file of candidates) {
+      const content = readFileSync(join(extensionDir, file), 'utf8');
+      for (const { label, pattern } of checks) {
+        if (pattern.test(content)) {
+          console.error(`FAIL ${extensionDir}/${file}: contains ${label}`);
+          failed = true;
+        }
       }
     }
   }
+
+  console.log(`Scanned ${extensionDir} (${jsFiles.length} JS, ${htmlFiles.length} HTML files).`);
 }
 
 if (failed) {
   process.exit(1);
 }
-console.log(
-  `Extension bundle check passed (${jsFiles.length} JS, ${htmlFiles.length} HTML files scanned).`,
-);
+console.log('Extension bundle check passed.');
