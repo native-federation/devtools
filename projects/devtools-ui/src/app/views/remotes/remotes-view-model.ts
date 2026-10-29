@@ -14,25 +14,27 @@
 import type { TreeTableRow } from '../../shared/kit/tree-table';
 import type { FederationModel } from '../../shared/store/federation-model';
 import { buildCanonicalIndexes, countClaim } from '../../shared/view-conventions';
-import { RemoteDetailVm, buildRemoteDetail, unresolvedDeclarationCount } from './remotes-detail-vm';
+import { RemoteDetailVm, buildRemoteDetail } from './remotes-detail-vm';
+import { KIND_LABELS, RunsKind, buildRuns } from './remotes-runs-vm';
 
 export type {
   AnnotationVm,
-  CapabilityVm,
-  ConsumesRowVm,
-  ConsumesSourceVm,
-  DeclaredDisplayVm,
   ExposeVm,
-  ProvidesBlockVm,
   RelationConsumerVm,
   RemoteChunkRowVm,
   RemoteChunkSectionVm,
   RemoteDetailVm,
-  RemoteUnresolvedRowVm,
   ScopedClaimVm,
   ScopedPackageVm,
-  ZoneFileVm,
 } from './remotes-detail-vm';
+export type {
+  RemoteRefVm,
+  RunsEntrypointVm,
+  RunsKind,
+  RunsRowVm,
+  RunsTallyVm,
+  RunsVm,
+} from './remotes-runs-vm';
 
 /** Caller-owned UI state — selection lives in the view. */
 export interface RemotesUiState {
@@ -46,14 +48,10 @@ export interface RemoteRowVm {
   /** Verbatim remote name — selection and select payloads match it. */
   name: string;
   host: boolean;
-  /** Quiet scan tail, e.g. "1 expose · 12 declarations". */
-  summary: string;
-  /**
-   * `⚠` marker with its count tooltip — only when the remote has
-   * declarations whose claims resolve nowhere in this capture; null is the
-   * norm. Conflict involvement stays the package pivot's job.
-   */
-  unresolved: { count: number; note: string } | null;
+  /** Declarations out of range or resolving nowhere (`1 out of range`); usually empty. */
+  marks: { kind: RunsKind; label: string }[];
+  /** Distinct remotes running one of its builds; null when none does. */
+  serves: { label: string; note: string } | null;
 }
 
 export interface RemotesVm {
@@ -76,38 +74,15 @@ export const REMOTES_BOUNDARY_NOTE =
 
 export function buildRemotesVm(model: FederationModel, ui: RemotesUiState): RemotesVm {
   const indexes = buildCanonicalIndexes(model);
-  const declarationCounts = new Map<string, number>();
-  for (const declaration of model.registryEvidence.participantDeclarations) {
-    declarationCounts.set(
-      declaration.participant,
-      (declarationCounts.get(declaration.participant) ?? 0) + 1,
-    );
-  }
-  // Chunk-carrier pseudo packages stay out of the private count — the
-  // detail presents them in the chunk section, not as registrations.
-  const carrierPackages = new Set(
-    model.resolutionProjection.chunkGroups
-      .filter((group) => group.origin === 'scoped-pseudo-external')
-      .map((group) => group.pseudoPackage),
-  );
-  const privateCounts = new Map<string, number>();
-  for (const registration of model.registryEvidence.privateRegistrations) {
-    if (carrierPackages.has(registration.packageName)) {
-      continue;
-    }
-    privateCounts.set(
-      registration.ownerRemote,
-      (privateCounts.get(registration.ownerRemote) ?? 0) + 1,
-    );
-  }
-
   const rows: TreeTableRow<RemoteRowVm>[] = model.remotes.map((remote) => {
-    const declarationCount = declarationCounts.get(remote.name) ?? 0;
-    const privateCount = privateCounts.get(remote.name) ?? 0;
-    const summary =
-      `${countClaim(remote.exposes.length, 'expose')} · ${countClaim(declarationCount, 'declaration')}` +
-      (privateCount > 0 ? ` · ${countClaim(privateCount, 'private registration')}` : '');
-    const unresolvedCount = unresolvedDeclarationCount(remote.name, model, indexes);
+    const runs = buildRuns(remote, model, indexes);
+    const counts = new Map<RunsKind, number>();
+    for (const row of runs.rows) counts.set(row.kind, (counts.get(row.kind) ?? 0) + 1);
+    // Only problems: scoped and subpool rows are the Runs table's job.
+    const marks = (['unresolved', 'off'] as RunsKind[])
+      .filter((kind) => counts.has(kind))
+      .map((kind) => ({ kind, label: `${counts.get(kind)} ${KIND_LABELS[kind]}` }));
+    const served = [...new Set(runs.rows.flatMap((row) => row.servedTo.map((ref) => ref.name)))];
     return {
       id: remote.name,
       depth: 0,
@@ -117,15 +92,13 @@ export function buildRemotesVm(model: FederationModel, ui: RemotesUiState): Remo
         kind: 'remote' as const,
         name: remote.name,
         host: remote.isHost,
-        summary,
-        unresolved:
-          unresolvedCount === 0
+        marks,
+        serves:
+          served.length === 0
             ? null
             : {
-                count: unresolvedCount,
-                note: `${countClaim(unresolvedCount, 'declaration')} of this remote ${
-                  unresolvedCount === 1 ? 'resolves' : 'resolve'
-                } nowhere in this capture`,
+                label: `serves ${served.length}`,
+                note: `${countClaim(served.length, 'remote')} ${served.length === 1 ? 'runs' : 'run'} one of its builds: ${served.join(', ')}`,
               },
       },
     };

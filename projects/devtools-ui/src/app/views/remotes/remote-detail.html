@@ -1,540 +1,365 @@
 @if (detail(); as detail) {
-  <h2
-    class="detail-name"
-    [class.tip]="detail.display !== detail.name"
-    [attr.title]="detail.display === detail.name ? null : detail.name"
-  >
-    {{ detail.display }}
+  <h2 class="detail-name">
+    <span
+      [class.tip]="detail.display !== detail.name"
+      [attr.data-tip]="detail.display === detail.name ? null : detail.name"
+      >{{ detail.display }}</span
+    >
   </h2>
   <p class="detail-meta">
-    <span
-      >scope URL: <span class="mono">{{ detail.scopeUrl }}</span></span
+    <a
+      class="mono entry-url"
+      [href]="detail.remoteEntryUrl"
+      target="_blank"
+      rel="noreferrer"
+      [attr.data-tip]="
+        detail.remoteEntryUrl +
+        '\nscope URL: ' +
+        detail.scopeUrl +
+        '\nderived: the orchestrator stores only the scope and reads remoteEntry.json from it; a custom file name is not recorded'
+      "
+      >{{ detail.remoteEntryUrl }}</a
     >
     <span class="meta-sep">·</span>
-    <span
-      >resolved:
-      <a class="mono" [href]="detail.resolvedScopeUrl" target="_blank" rel="noreferrer">{{
-        detail.resolvedScopeUrl
-      }}</a></span
-    >
-  </p>
-  <p class="detail-meta capabilities-meta">
-    <span>capabilities:</span>
-    @if (detail.capabilities.length > 0) {
-      @for (capability of detail.capabilities; track capability.label) {
-        @if (!$first) {
-          <span class="meta-sep">·</span>
-        }
-        <span class="capability-word tip" [title]="capability.note">{{ capability.label }}</span>
-      }
-    } @else {
-      <span>none recorded in this capture</span>
-    }
-  </p>
-
-  <p class="group-label">exposes</p>
-  @if (detail.exposes.length > 0) {
-    <ul class="file-list expose-list">
+    <span class="exposes"
+      >exposes
       @for (expose of detail.exposes; track expose.qualified) {
-        <li class="file-line">
+        @if (!$first) {
+          <span class="list-sep">,</span>
+        }
+        @if (expose.mapTarget) {
+          <a
+            class="expose-link"
+            [routerLink]="['/import-map']"
+            [queryParams]="{ select: expose.qualified }"
+            [attr.data-tip]="
+              expose.qualified +
+              '\nfile: ' +
+              expose.file +
+              '\n' +
+              (expose.hasIntegrity ? 'SRI: hash recorded' : 'SRI: none recorded')
+            "
+            >{{ expose.moduleName.replace('./', '') }}</a
+          >
+        } @else {
           <span
-            class="expose-name mono tip"
-            title="remote-qualified module identity — remote name + expose key (the naive map-join specifier, live maps keep the literal /./ infix)"
-            >{{ expose.qualified }}</span
+            class="tip"
+            [attr.data-tip]="
+              expose.qualified + '\nfile: ' + expose.file + '\nnot mapped in this capture'
+            "
+            >{{ expose.moduleName.replace('./', '') }}</span
           >
-          <span class="file-name mono">{{ expose.file }}</span>
-          @if (expose.mapTarget) {
-            <a
-              class="file-mapped"
-              [routerLink]="['/import-map']"
-              [queryParams]="{ select: expose.qualified }"
-              [title]="expose.mapTarget"
-              >mapped</a
-            >
-          } @else {
-            <span class="view-observation">not mapped</span>
-          }
-          @if (expose.hasIntegrity) {
-            <span
-              class="file-sri tip"
-              title="integrity hash recorded for this file in the remote's registry entry"
-              >SRI ✓</span
-            >
-          } @else {
-            <span
-              class="file-sri file-sri-missing tip"
-              title="no integrity hash recorded for this file in the remote's registry entry"
-              >no SRI</span
-            >
-          }
-        </li>
+        }
+      } @empty {
+        none
       }
-    </ul>
-  } @else {
-    <p class="view-observation exposes-empty">none in this capture</p>
+    </span>
+  </p>
+  @if (detail.warnings.length > 0) {
+    <p class="warnings">
+      @for (warning of detail.warnings; track warning.label) {
+        <span class="warning" [attr.data-tip]="warning.note">⚠ {{ warning.label }}</span>
+      }
+    </p>
   }
 
-  <p
-    class="group-label tip"
-    title="copies this remote is the evidenced source of — consumed in place unless a chip says otherwise; an offered version that is not selected renders on its consumes row, never here"
-  >
-    provides
-  </p>
-  @if (detail.provides.length > 0) {
-    <ul class="provides-blocks">
-      @for (block of detail.provides; track block.copyId) {
-        <li class="provides-block">
-          <p class="copy-head">
-            <a
-              class="pkg-link"
-              [routerLink]="['/packages']"
-              [queryParams]="{ select: block.packageSelect }"
-              >{{ block.packageName }}</a
+  @if (detail.runs.tally.length > 0) {
+    <p class="tally">
+      @for (item of detail.runs.tally; track item.label) {
+        <span [class]="'kind kind-' + item.kind">{{ item.label }}</span>
+      }
+    </p>
+  }
+
+  <section class="runs" aria-label="runs">
+    <h3 data-tip="where each package this remote declares runs from">Runs</h3>
+    @if (detail.runs.rows.length > 0) {
+      <div class="table-scroll">
+        <table class="runs-table">
+          <thead>
+            <tr>
+              <th>Package</th>
+              <th>Version</th>
+              <th data-tip="whose build the import map points this remote to">From</th>
+              <th><span class="visually-hidden">Why</span></th>
+            </tr>
+          </thead>
+          @for (row of detail.runs.rows; track row.key) {
+            <tbody
+              class="run"
+              [class.open]="isOpen(row.key)"
+              [class.calm]="row.kind === 'self' || row.kind === 'shared'"
+              tabindex="0"
+              role="button"
+              [attr.aria-expanded]="isOpen(row.key)"
+              [attr.aria-label]="'details of ' + row.packageName"
+              (click)="toggle(row.key)"
+              (keydown)="onKey($event, row.key)"
             >
-            @if (block.scopeLabel) {
-              <span
-                class="dep-scope"
-                [title]="'share scope — configured via shareScope: ' + block.scopeLabel"
-                >{{ block.scopeLabel }}</span
-              >
-            }
-            @if (block.pool; as pool) {
-              @if (pool.poolQuery !== null || pool.orphan) {
-                <a
-                  class="pool-chip tip"
-                  [class.pool-chip-orphan]="pool.orphan"
-                  [title]="pool.note"
-                  [routerLink]="['/pools']"
-                  [queryParams]="pool.poolQuery ?? {}"
-                  >pool: {{ pool.tag }}</a
-                >
-              } @else {
-                <span class="pool-chip tip" [title]="pool.note">pool: {{ pool.tag }}</span>
-              }
-            }
-            @if (block.resolvedTag !== null) {
-              <span class="copy-tag">{{ block.resolvedTag }}</span>
-            } @else {
-              <span class="view-observation tip" [attr.title]="block.unknownTagNote"
-                >unknown tag</span
-              >
-            }
-            <span class="head-declared mono tip" [title]="block.declared.note">{{
-              block.declared.text
-            }}</span>
-            @if (block.strict) {
-              <span
-                class="head-strict tip"
-                title="strict version negotiation — accepts only an elected version satisfying the declared range (config: strictVersion: true)"
-                >STRICT</span
-              >
-            }
-            @for (deviation of block.deviations; track deviation.label) {
-              <span class="copy-fact tip" [title]="deviation.note">{{ deviation.label }}</span>
-            }
-          </p>
-          @if (block.files.length > 0) {
-            <ul class="file-list">
-              @for (file of block.files; track file.specifier) {
-                <li class="file-line file-line-indented">
-                  @if (file.showSpecifier) {
-                    <span class="file-specifier mono">{{ file.specifier }}</span>
+              <tr>
+                <td>
+                  <span class="caret" aria-hidden="true">{{ isOpen(row.key) ? '▾' : '▸' }}</span>
+                  <span class="mono">{{ row.packageName }}</span>
+                  @if (row.scopeLabel) {
+                    <span class="scope-label mono">{{ row.scopeLabel }}</span>
                   }
-                  <span class="file-name mono">{{ file.file }}</span>
-                  <a
-                    class="file-mapped"
-                    [routerLink]="['/import-map']"
-                    [queryParams]="{ select: file.importMapSelect }"
-                    [title]="file.targetUrl"
-                    >mapped</a
-                  >
-                  @if (file.hasIntegrity) {
-                    <span class="file-sri tip" title="the mapped target carries an SRI hash"
-                      >SRI ✓</span
-                    >
-                  } @else {
-                    <span
-                      class="file-sri file-sri-missing tip"
-                      title="the mapped target carries no SRI hash in the captured import map"
-                      >no SRI</span
-                    >
-                  }
-                </li>
-              }
-            </ul>
-          }
-          <!-- Two-line mini-block (screenshot review): head line + file
-               lines share the parent's anatomy. Version facts stay on the
-               head even when they equal the parent's — absence means "not
-               recorded" everywhere else, never "same as above". -->
-          @for (secondary of block.secondaries; track secondary.copyId) {
-            <div class="sub-block">
-              <p class="sub-row">
-                <span class="sub-glyph" aria-hidden="true">↳</span>
-                <a
-                  class="pkg-link"
-                  [routerLink]="['/packages']"
-                  [queryParams]="{ select: secondary.packageSelect }"
-                  [title]="
-                    'registry key ' +
-                    secondary.packageName +
-                    ' — grouped under ' +
-                    block.packageName +
-                    ' (rule: name-derived)'
-                  "
-                  >{{ secondary.suffix }}</a
-                >
-                @if (secondary.resolvedTag !== null) {
-                  <span class="copy-tag">{{ secondary.resolvedTag }}</span>
-                } @else {
-                  <span class="view-observation tip" [attr.title]="secondary.unknownTagNote"
-                    >unknown tag</span
-                  >
-                }
-                <span class="head-declared mono tip" [title]="secondary.declared.note">{{
-                  secondary.declared.text
-                }}</span>
-                @if (secondary.strict) {
-                  <span
-                    class="head-strict tip"
-                    title="strict version negotiation — accepts only an elected version satisfying the declared range (config: strictVersion: true)"
-                    >STRICT</span
-                  >
-                }
-                @for (deviation of secondary.deviations; track deviation.label) {
-                  <span class="copy-fact tip" [title]="deviation.note">{{ deviation.label }}</span>
-                }
-              </p>
-              @if (secondary.files.length > 0) {
-                <ul class="file-list">
-                  @for (file of secondary.files; track file.specifier) {
-                    <li class="file-line sub-file-line">
-                      @if (file.showSpecifier) {
-                        <span class="file-specifier mono">{{ file.specifier }}</span>
-                      }
-                      <span class="file-name mono">{{ file.file }}</span>
+                </td>
+                <td class="run-tag">{{ row.tag ?? '–' }}</td>
+                <td>
+                  <span class="from">
+                    @if (row.from.label) {
+                      <span [class]="'kind kind-' + row.kind">{{ row.from.label }}</span>
+                    }
+                    @if (row.from.remote; as remote) {
                       <a
-                        class="file-mapped"
-                        [routerLink]="['/import-map']"
-                        [queryParams]="{ select: file.importMapSelect }"
-                        [title]="file.targetUrl"
-                        >mapped</a
+                        class="chip-link"
+                        [routerLink]="['/remotes']"
+                        [queryParams]="{ select: remote.select }"
+                        (click)="$event.stopPropagation()"
+                        ><nf-participant-chip [name]="remote.name" [host]="remote.host"
+                      /></a>
+                    }
+                    @if (row.servedTo.length > 0) {
+                      <span class="serves-hint tip" [attr.data-tip]="servedNote(row)"
+                        >serves {{ row.servedTo.length }}</span
                       >
-                      @if (file.hasIntegrity) {
-                        <span class="file-sri tip" title="the mapped target carries an SRI hash"
-                          >SRI ✓</span
-                        >
-                      } @else {
-                        <span
-                          class="file-sri file-sri-missing tip"
-                          title="the mapped target carries no SRI hash in the captured import map"
-                          >no SRI</span
-                        >
-                      }
-                    </li>
+                    }
+                  </span>
+                </td>
+                <td class="why">
+                  @if (row.why; as why) {
+                    <span class="why-text" [attr.data-tip]="why.note">{{ why.label }}</span>
                   }
-                </ul>
-              }
-            </div>
-          }
-        </li>
-      }
-    </ul>
-  } @else {
-    <p class="view-observation provides-empty">none in this capture</p>
-  }
-
-  <p
-    class="group-label tip"
-    title="bindings resolving to other remotes' copies — own copies under provides are consumed in place"
-  >
-    consumes from other remotes
-  </p>
-  @if (detail.consumes.length > 0) {
-    <!-- Two-line mini-block in the provides grammar (screenshot review 3):
-         head line with the claim facts, the winner file `from` its source
-         on an own file line — no arrow glyph. -->
-    @for (row of detail.consumes; track row.claimId) {
-      <div class="consumes-row">
-        <p class="copy-head">
-          <a
-            class="pkg-link"
-            [routerLink]="['/packages']"
-            [queryParams]="{ select: row.packageSelect }"
-            >{{ row.packageName }}</a
-          >
-          @if (row.scopeLabel) {
-            <span
-              class="dep-scope"
-              [title]="'share scope — configured via shareScope: ' + row.scopeLabel"
-              >{{ row.scopeLabel }}</span
-            >
-          }
-          @if (row.pool; as pool) {
-            @if (pool.poolQuery !== null || pool.orphan) {
-              <a
-                class="pool-chip tip"
-                [class.pool-chip-orphan]="pool.orphan"
-                [title]="pool.note"
-                [routerLink]="['/pools']"
-                [queryParams]="pool.poolQuery ?? {}"
-                >pool: {{ pool.tag }}</a
-              >
-            } @else {
-              <span class="pool-chip tip" [title]="pool.note">pool: {{ pool.tag }}</span>
+                </td>
+              </tr>
+            </tbody>
+            @if (isOpen(row.key)) {
+              <tbody class="dive">
+                <tr>
+                  <td colspan="4">
+                    <dl class="facts">
+                      @if (row.why; as why) {
+                        <dt>Why</dt>
+                        <dd class="why-full">{{ why.note }}</dd>
+                      }
+                      @if (row.servedTo.length > 0) {
+                        <dt>Serves</dt>
+                        <dd>
+                          @for (remote of row.servedTo; track remote.select) {
+                            <a
+                              class="chip-link"
+                              [routerLink]="['/remotes']"
+                              [queryParams]="{ select: remote.select }"
+                              ><nf-participant-chip [name]="remote.name" [host]="remote.host"
+                            /></a>
+                          }
+                        </dd>
+                      }
+                      <dt>Declares</dt>
+                      <dd class="mono">{{ row.declared }}</dd>
+                      <dt>Ships</dt>
+                      <dd>
+                        <span class="mono">{{ row.ships }}</span>
+                        @if (row.tag !== null && row.tag !== row.ships) {
+                          <span class="muted">not used — runs {{ row.tag }}</span>
+                        }
+                      </dd>
+                      @if (row.pool; as pool) {
+                        <dt>Pool</dt>
+                        <dd>
+                          @if (pool.poolQuery !== null) {
+                            <a
+                              class="pool-link pool-chip"
+                              [routerLink]="['/pools']"
+                              [queryParams]="pool.poolQuery"
+                              [attr.data-tip]="pool.note"
+                              >{{ pool.tag }} →</a
+                            >
+                          } @else {
+                            <span
+                              class="tip"
+                              [class.pool-orphan]="pool.orphan"
+                              [attr.data-tip]="pool.note"
+                              >{{ pool.tag }}</span
+                            >
+                          }
+                        </dd>
+                      }
+                      <dt>Entrypoints</dt>
+                      <dd>
+                        <ul class="entrypoints">
+                          @for (entrypoint of row.entrypoints; track entrypoint.specifier) {
+                            <li>
+                              <a
+                                class="mono"
+                                [routerLink]="['/import-map']"
+                                [queryParams]="{ select: entrypoint.specifier }"
+                                [attr.data-tip]="entrypoint.targetUrl ?? 'open in the Import Map'"
+                                >{{ entrypoint.specifier }}</a
+                              >
+                              @if (entrypoint.file) {
+                                <span class="mono muted">{{ entrypoint.file }}</span>
+                              }
+                              @if (entrypoint.source; as source) {
+                                <span class="muted">from</span>
+                                <nf-participant-chip [name]="source.name" [host]="source.host" />
+                              }
+                              @if (entrypoint.note) {
+                                <span class="entry-note">{{ entrypoint.note }}</span>
+                              }
+                            </li>
+                          } @empty {
+                            <li class="muted">none</li>
+                          }
+                        </ul>
+                      </dd>
+                      <dt></dt>
+                      <dd>
+                        <a
+                          class="pool-link"
+                          [routerLink]="['/packages']"
+                          [queryParams]="{ select: row.packageSelect }"
+                          >Packages →</a
+                        >
+                      </dd>
+                    </dl>
+                  </td>
+                </tr>
+              </tbody>
             }
           }
-          @if (row.via) {
-            <span class="consumer-via mono tip" title="the claimed specifier of this declaration"
-              >via {{ row.via }}</span
-            >
-          }
-          <span class="head-declared mono tip" [title]="row.declared.note">{{
-            row.declared.text
-          }}</span>
-          @if (row.strict) {
-            <span
-              class="head-strict tip"
-              title="strict version negotiation — accepts only an elected version satisfying the declared range (config: strictVersion: true)"
-              >STRICT</span
-            >
-          }
-          @for (state of row.deviations; track state.label) {
-            <span class="state-chip tip" [title]="state.note">{{ state.label }}</span>
-          }
-        </p>
-        <ul class="file-list">
-          <li
-            class="file-line file-line-indented"
-            [attr.aria-label]="'resolves to ' + row.file + ' (source: ' + row.source.label + ')'"
-          >
-            <span class="file-name mono" [attr.title]="row.targetUrl">{{ row.file }}</span>
-            <span class="source-word">from</span>
-            @if (row.source.remoteSelect !== null) {
-              <a
-                class="chip-link"
-                [routerLink]="['/remotes']"
-                [queryParams]="{ select: row.source.remoteSelect }"
-                [title]="row.source.note"
-                ><nf-participant-chip [name]="row.source.remoteSelect" [host]="row.source.host"
-              /></a>
-            } @else {
-              <!-- Remote-less qualified attribution: the qualifier label IS
-                   the provider, its grounded note one hover away. -->
-              <span class="source-provider tip" [title]="row.source.note">{{
-                row.source.label
-              }}</span>
-            }
-          </li>
-        </ul>
+        </table>
       </div>
+    } @else {
+      <p class="view-observation">declares no shared packages</p>
     }
-  } @else if (detail.relationOnly.length === 0) {
-    <!-- The empty claim covers the WHOLE zone — a relation-only consumer is
-         a canonical consumption fact and must veto it (Codex review 1). -->
-    <p class="view-observation consumes-empty">none in this capture</p>
-  }
-  @if (detail.relationOnly.length > 0) {
-    <p
-      class="deps-note tip"
-      title="consumer-copy relations of the canonical projection — bindings this remote consumes without an own resolution claim"
-    >
-      resolved bindings without an own resolution claim
-    </p>
-    <ul class="relation-list">
-      @for (relation of detail.relationOnly; track relation.relationId) {
-        <li class="relation-item">
-          @if (relation.packageName !== null) {
-            <span class="mono">{{ relation.packageName }}</span>
-          }
-          @if (relation.copyTag !== null) {
-            <span class="scoped-tag mono">{{ relation.copyTag }}</span>
-          }
-          <span class="state-chip tip" [title]="relation.source.note">{{
-            relation.source.label
-          }}</span>
-          @for (binding of relation.bindings; track binding.resolutionId) {
-            <span class="relation-binding mono tip" [attr.title]="binding.targetUrl"
-              >{{ binding.specifier }} → {{ binding.file }}</span
-            >
-          }
-          <span class="relation-note tip" [title]="relation.note">consumer relation</span>
-        </li>
-      }
-    </ul>
-  }
-
-  @if (detail.unresolved.length > 0) {
-    <p class="group-label tip" title="declarations whose claims resolve nowhere in this capture">
-      unresolved
-    </p>
-    <ul class="unresolved-list">
-      @for (row of detail.unresolved; track row.key) {
-        <li class="unresolved-row">
-          <a
-            class="pkg-link"
-            [routerLink]="['/packages']"
-            [queryParams]="{ select: row.packageSelect }"
-            >{{ row.packageName }}</a
-          >
-          @if (row.scopeLabel) {
-            <span
-              class="dep-scope"
-              [title]="'share scope — configured via shareScope: ' + row.scopeLabel"
-              >{{ row.scopeLabel }}</span
-            >
-          }
-          @if (row.pool; as pool) {
-            @if (pool.poolQuery !== null || pool.orphan) {
-              <a
-                class="pool-chip tip"
-                [class.pool-chip-orphan]="pool.orphan"
-                [title]="pool.note"
-                [routerLink]="['/pools']"
-                [queryParams]="pool.poolQuery ?? {}"
-                >pool: {{ pool.tag }}</a
-              >
-            } @else {
-              <span class="pool-chip tip" [title]="pool.note">pool: {{ pool.tag }}</span>
-            }
-          }
-          <span class="consumer-declared mono tip" [title]="row.declared.note">{{
-            row.declared.text
-          }}</span>
-          @if (row.strict) {
-            <span
-              class="consumer-strict tip"
-              title="strict version negotiation — accepts only an elected version satisfying the declared range (config: strictVersion: true)"
-              >STRICT</span
-            >
-          }
-          @if (row.specifier) {
-            <span class="consumer-via mono tip" title="the claimed specifier of this declaration">{{
-              row.specifier
-            }}</span>
-          }
-          <span class="state-chip tip" [title]="row.state.note">{{ row.state.label }}</span>
-          @if (row.offered; as offered) {
-            <span class="offered-chip tip" [title]="offered.note">{{ offered.label }}</span>
-          }
-        </li>
-      }
-    </ul>
-  }
+  </section>
 
   @if (detail.scoped.length > 0) {
-    <p class="group-label">private registrations</p>
-    <ul class="scoped-list">
-      @for (scopedPackage of detail.scoped; track scopedPackage.registrationId) {
-        <li class="scoped-item">
-          <span class="mono tip" [title]="scopedPackage.domainNote">{{
-            scopedPackage.packageName
-          }}</span>
-          <span class="scoped-tag mono">{{ scopedPackage.tag }}</span>
-          @for (claim of scopedPackage.claims; track claim.claimId) {
-            @if (claim.specifier !== scopedPackage.packageName) {
-              <span class="scoped-specifier mono">{{ claim.specifier }}</span>
-            }
-            <span class="state-chip tip" [title]="claim.state.note">{{ claim.state.label }}</span>
-            @if (claim.file !== null) {
-              <span class="scoped-file mono" [attr.title]="claim.targetUrl">{{ claim.file }}</span>
-            }
-            @if (claim.copyTag !== null && claim.copyTag !== scopedPackage.tag) {
-              <span
-                class="scoped-tag mono tip"
-                title="resolved tag of the copy this claim’s binding materializes — not the registration’s own tag"
-                >{{ claim.copyTag }}</span
-              >
-            }
-          }
-        </li>
-      }
-    </ul>
-  }
-
-  <!-- The zone explanation + attribution rule live in the header tooltip
-       (screenshot review); the none level keeps its visible observation —
-       there the note IS the content. -->
-  <p
-    class="group-label"
-    [class.tip]="detail.chunks.level !== 'none'"
-    [attr.title]="
-      detail.chunks.level === 'none'
-        ? null
-        : detail.chunks.note + ' (rule: ' + detail.chunks.rule + ')'
-    "
-  >
-    chunks
-  </p>
-  @switch (detail.chunks.level) {
-    @case ('bundle-claims') {
-      <ul class="chunk-packages">
-        @for (row of detail.chunks.rows; track row.key) {
-          <li class="chunk-row">
-            <p class="chunk-head">
-              <span class="chunk-bundle mono">{{ row.bundle }}</span>
-              @if (row.status !== 'mapped-source') {
-                <span class="chunk-status tip" [title]="row.statusNote">{{ row.status }}</span>
+    <section aria-label="private registrations">
+      <h3>Private registrations</h3>
+      <ul class="scoped-list">
+        @for (scopedPackage of detail.scoped; track scopedPackage.registrationId) {
+          <li class="scoped-item">
+            <span class="mono tip" [attr.data-tip]="scopedPackage.domainNote">{{
+              scopedPackage.packageName
+            }}</span>
+            <span class="mono run-tag">{{ scopedPackage.tag }}</span>
+            @for (claim of scopedPackage.claims; track claim.claimId) {
+              @if (claim.specifier !== scopedPackage.packageName) {
+                <span class="mono muted">{{ claim.specifier }}</span>
               }
-              @if (row.files.length === 0 && row.status === 'mapped-source') {
-                <!-- The listed files ARE the claim, and a qualified status
-                     chip claims the absence itself (grounded note one hover
-                     away) — the count text remains only for the chip-less
-                     empty case (screenshot review 2). -->
-                <span class="chunk-count tip" [title]="row.statusNote">{{ row.fileClaim }}</span>
+              <span class="state-chip tip" [attr.data-tip]="claim.state.note">{{
+                claim.state.label
+              }}</span>
+              @if (claim.file !== null) {
+                <span class="mono muted" [attr.data-tip]="claim.targetUrl">{{ claim.file }}</span>
               }
-              @if (row.serves) {
-                <!-- Tip affordance only when the tooltip ADDS something the
-                     visible tail does not say (screenshot review 2). -->
+              @if (claim.copyTag !== null && claim.copyTag !== scopedPackage.tag) {
                 <span
-                  class="chunk-serves"
-                  [class.tip]="row.servesNote !== null"
-                  [attr.title]="row.servesNote"
-                  >{{ row.serves }}</span
+                  class="mono tip"
+                  data-tip="resolved tag of the copy this claim’s binding materializes — not the registration’s own tag"
+                  >{{ claim.copyTag }}</span
                 >
               }
-            </p>
-            @if (row.files.length > 0) {
-              <ul class="chunk-list">
-                @for (file of row.files; track file) {
-                  <li class="chunk-item">
-                    <span class="mono">{{ file }}</span>
-                  </li>
-                }
-              </ul>
             }
           </li>
         }
       </ul>
-    }
-    @case ('carrier-groups') {
-      <ul class="chunk-packages">
-        @for (group of detail.chunks.groups; track group.groupId) {
-          <li class="chunk-row">
-            <p class="chunk-head">
-              <span class="mono">{{ group.label }}</span>
-              <span class="chunk-count">{{ group.fileClaim }}</span>
-            </p>
+    </section>
+  }
+
+  @if (detail.relationOnly.length > 0) {
+    <section aria-label="bindings without an own claim">
+      <h3
+        data-tip="consumer-copy relations of the canonical projection — bindings this remote consumes without an own resolution claim"
+      >
+        Bindings without an own claim
+      </h3>
+      <ul class="relation-list">
+        @for (relation of detail.relationOnly; track relation.relationId) {
+          <li class="relation-item">
+            @if (relation.packageName !== null) {
+              <span class="mono">{{ relation.packageName }}</span>
+            }
+            @if (relation.copyTag !== null) {
+              <span class="mono run-tag">{{ relation.copyTag }}</span>
+            }
+            <span class="state-chip tip" [attr.data-tip]="relation.source.note">{{
+              relation.source.label
+            }}</span>
+            @for (binding of relation.bindings; track binding.resolutionId) {
+              <span class="mono muted" [attr.data-tip]="binding.targetUrl"
+                >{{ binding.specifier }} → {{ binding.file }}</span
+              >
+            }
+            <span class="tip muted" [attr.data-tip]="relation.note">consumer relation</span>
           </li>
         }
       </ul>
-    }
-    @case ('none') {
-      <!-- Short honest-empty line; the grounded explanation is one hover
-           away (screenshot review 3). -->
-      <p
-        class="view-observation tip"
-        [attr.title]="detail.chunks.note + ' (rule: ' + detail.chunks.rule + ')'"
-      >
-        {{ detail.chunks.label }}
-      </p>
-    }
+    </section>
+  }
+
+  @if (detail.chunks.level !== 'none') {
+    <section class="chunks" aria-label="chunks">
+      <h3 [attr.data-tip]="detail.chunks.note + '\nrule: ' + detail.chunks.rule">
+        Chunks <span class="chunk-count">{{ chunkCount(detail.chunks) }}</span>
+      </h3>
+      @switch (detail.chunks.level) {
+        @case ('bundle-claims') {
+          <ul class="chunk-packages">
+            @for (row of detail.chunks.rows; track row.key) {
+              <li class="chunk-row">
+                <p class="chunk-head">
+                  <span class="mono">{{ row.bundle }}</span>
+                  @if (row.status !== 'mapped-source') {
+                    <span class="state-chip tip" [attr.data-tip]="row.statusNote">{{
+                      row.status
+                    }}</span>
+                  }
+                  @if (row.files.length === 0 && row.status === 'mapped-source') {
+                    <span class="muted tip" [attr.data-tip]="row.statusNote">{{
+                      row.fileClaim
+                    }}</span>
+                  }
+                  @if (row.serves) {
+                    <span
+                      class="muted"
+                      [class.tip]="row.servesNote !== null"
+                      [attr.data-tip]="row.servesNote"
+                      >{{ row.serves }}</span
+                    >
+                  }
+                </p>
+                @if (row.files.length > 0) {
+                  <ul class="chunk-list">
+                    @for (file of row.files; track file) {
+                      <li class="mono">{{ file }}</li>
+                    }
+                  </ul>
+                }
+              </li>
+            }
+          </ul>
+        }
+        @case ('carrier-groups') {
+          <ul class="chunk-packages">
+            @for (group of detail.chunks.groups; track group.groupId) {
+              <li class="chunk-row">
+                <span class="mono">{{ group.label }}</span>
+                <span class="muted">{{ group.fileClaim }}</span>
+              </li>
+            }
+          </ul>
+        }
+      }
+    </section>
   }
 
   @if (detail.diagnostics.length > 0) {
     <footer class="diagnostics-footer">
       @for (item of detail.diagnostics; track item.label) {
-        <p class="diagnostics-item tip" [title]="item.note">{{ item.label }}</p>
+        <p class="tip" [attr.data-tip]="item.note">{{ item.label }}</p>
       }
     </footer>
   }

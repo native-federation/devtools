@@ -7,8 +7,9 @@
 .split {
   display: grid;
   /* Proportional master pane: grows with the panel instead of capping at a
-   * fixed width; 220px floor keeps narrow docked panels usable. */
-  grid-template-columns: minmax(220px, 40%) 1fr;
+   * fixed width; 220px floor keeps narrow docked panels usable. A view can
+   * narrow it with --nf-master-width. */
+  grid-template-columns: minmax(220px, var(--nf-master-width, 40%)) 1fr;
   height: 100%;
   min-height: 0;
 }

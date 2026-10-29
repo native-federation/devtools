@@ -34,11 +34,19 @@ divergences show under the versions only when there are any.
 Orchestrator 4.8 borrows no entrypoint from another build, so the devtool shows
 no torn entrypoints; older pages render without them.
 
-**Remotes** — the same data from each participant's point of view: exposes
-with their mapped targets, the remote's own dependency declarations and where
-each one resolves (`subpool of <owner>` / `isolated` chips carry the reason),
-capability evidence (SRI, dense chunking), chunk attribution, and scoped
-externals.
+**Remotes** — the same data from each participant's point of view, read from
+the declaration verdicts Packages uses: one Runs row per declared package with
+the tag it runs, whose build (`self`, a remote, `scoped`, `subpool of`,
+`out of range`, `not mapped`) and the reason when off the norm; flat secondaries
+fold into their package when they run the same way. A row this remote serves
+says which other remotes run it (`serves 2`, the names in the opened row).
+The remoteEntry.json URL (derived from the scope URL, as the orchestrator does)
+and exposes share one meta line. Instead of capabilities, a warning flags flat
+externals (a secondary entrypoint registered as its own external) or flat
+chunking (no chunk list or bundle recorded) — only what the capture proves. The
+list marks only out-of-range and unresolved declarations. Private
+registrations, claim-less bindings and chunks show only when the capture has
+them.
 
 **Graph** — remotes, dependencies, and build files as one traceable picture:
 tick remotes to include or exclude their consumers, hover to trace a

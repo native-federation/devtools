@@ -14,7 +14,7 @@ import type {
   TagPool,
   VersionVerdict,
 } from '../../shared/store/resolution';
-import { placementReasonText } from '../../shared/placement-text';
+import { verdictNoteOf } from '../../shared/verdict-text';
 import { PackageDetailVm, buildDetail } from './packages-detail-vm';
 import type { PackageEntry } from './packages-row-vm';
 import {
@@ -188,50 +188,6 @@ function scopeNoteOf(scope: string): string {
     return "shareScope: 'strict' · no election, every exact version is shared side by side";
   }
   return `configured via shareScope: '${scope}'`;
-}
-
-function verdictNoteOf(
-  record: DeclarationVerdictRecord,
-  verdicts: PackageScopeVerdicts,
-  electedRemote: string | null,
-): string {
-  const elected = verdicts.electedTag;
-  const range = record.requiredVersion;
-  switch (record.verdict) {
-    case 'provides':
-      return elected === null
-        ? `strict scope · shares exact ${record.tag}`
-        : `provides the shared ${record.tag} — the mapping publishes this build`;
-    case 'same-version':
-      return elected === null
-        ? `strict scope · exact match of ${record.tag}`
-        : `same version as the shared copy${electedRemote ? ` · resolves to ${participantDisplay(electedRemote)}'s build` : ''}`;
-    case 'reuses-shared':
-      return `${range} accepts ${elected} · resolves to the shared copy`;
-    case 'subpool': {
-      const owner =
-        record.subpoolOf === null ? 'another remote' : participantDisplay(record.subpoolOf);
-      const where =
-        record.subpoolOf === record.participant
-          ? `its build serves a subpool of its pool`
-          : `runs ${owner}'s build in a subpool of its pool`;
-      const why = record.reason === null ? null : placementReasonText(record.reason);
-      return why === null ? where : `${where} · ${why}`;
-    }
-    case 'own-copy': {
-      const why = record.reason === null ? null : placementReasonText(record.reason);
-      const whole = record.reason?.scope === 'pool' ? 'its whole pool' : `its own ${record.tag}`;
-      if (why !== null) return `${why} · runs ${whole} from its own build`;
-      // Before 4.8 nothing names the serving build; a strict rejection is the one reading the rows allow.
-      return record.strictVersion && record.acceptsElected === false
-        ? `${range} rejects ${elected} · strict · keeps its own ${record.tag}`
-        : `keeps its own ${record.tag} · the stored rows do not say why`;
-    }
-    case 'out-of-range':
-      return `${range} rejects ${elected} · not strict · resolves to ${elected} anyway — the orchestrator stores a plain skip`;
-    case 'unknown':
-      return 'the stored row and the declared range do not determine a verdict in this capture';
-  }
 }
 
 function notesOf(

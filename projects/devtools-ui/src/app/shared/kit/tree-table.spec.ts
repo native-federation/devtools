@@ -33,7 +33,13 @@ class TreeTableHost {
 
 function makeRows(): TreeTableRow<RowPayload>[] {
   return [
-    { id: 'parent', depth: 0, expandable: true, expanded: true, payload: { name: '@scope/parent' } },
+    {
+      id: 'parent',
+      depth: 0,
+      expandable: true,
+      expanded: true,
+      payload: { name: '@scope/parent' },
+    },
     { id: 'child', depth: 1, expandable: false, expanded: false, payload: { name: 'child.js' } },
     {
       id: 'sibling',

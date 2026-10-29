@@ -8,23 +8,38 @@
 .remotes-split {
   flex: 1;
   min-height: 0;
+  --nf-master-width: 28%;
 }
 
-.remote-summary {
+.row-marks {
   margin-left: auto;
-  color: var(--nf-color-text-muted);
-  font-size: 10px;
+  display: inline-flex;
+  gap: 8px;
   white-space: nowrap;
+  font-size: 10px;
+  color: var(--nf-color-text-muted);
 }
 
-/* Unresolved-declarations marker — count and grounding one hover away. */
-.row-warn {
-  margin-left: 6px;
-  font-size: 10px;
-  color: var(--nf-color-warning-text);
-  text-decoration: underline dotted;
-  text-underline-offset: 2px;
-  cursor: help;
+.mark-off,
+.mark-unresolved {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.mark-off::before,
+.mark-unresolved::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.mark-off,
+.mark-unresolved {
+  color: var(--nf-color-conflict-text);
 }
 
 /* Capture-boundary claim in the EMPTY state — observation, not error. */
