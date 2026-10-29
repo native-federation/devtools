@@ -232,7 +232,7 @@ function nodeByLabel(el: HTMLElement, kind: 'remote' | 'dependency', label: stri
 }
 
 const TOOLBAR_HINT =
-  'click remotes to include · click a dependency or build to expand · hover to trace · dashed node = isolated copy · dotted edge = served by another remote';
+  'click remotes to include · click dependencies to show their build files · click a build to expand · hover to trace · dashed node = isolated copy · dotted edge = served by another remote';
 
 describe('GraphView', () => {
   // T1-AC-01: one dependency node with a solid and a dotted consume edge;
@@ -302,7 +302,8 @@ describe('GraphView', () => {
     const titles = Array.from(el.querySelectorAll('.graph-node.dependency.isolated')).map(
       (node) => node.querySelector('title')?.textContent ?? '',
     );
-    expect(titles).toContain(
+    // The secondary entrypoints follow on the next lines.
+    expect(titles.map((title) => title.split('\n').slice(0, 2).join('\n'))).toContain(
       '@nf-lab/kit\nruns its own build — not covered: the serving build of host lacks @nf-lab/kit/charts, @nf-lab/kit/charts/legend, @nf-lab/kit/date-picker',
     );
   });
@@ -367,37 +368,61 @@ describe('GraphView', () => {
     }
   });
 
-  // Accordion: one open dependency and one open build group at a time.
-  it('opens one dependency and one build group at a time', async () => {
+  // A dependency shows its secondary entrypoints on hover and links to Packages;
+  // clicking selects it: the build files narrow to the selection's own, every
+  // line is drawn — lit into a selected dependency, grey elsewhere — and Clear
+  // restores the view. Build groups stay an accordion: one open at a time.
+  it('selects dependencies, shows their build files and lines, and opens one build group', async () => {
     const { fixture, el } = await createViewFixture('frankenstein-live');
     const click = (node: Element) => {
       node.dispatchEvent(new MouseEvent('click'));
       fixture.detectChanges();
     };
-    click(nodeByLabel(el, 'dependency', '@angular/common'));
-    expect(Array.from(el.querySelectorAll('.graph-list-text')).map((t) => textOf(t))).toEqual([
-      '@angular/common/http',
-      'see usage details',
-    ]);
-    click(nodeByLabel(el, 'dependency', 'rxjs'));
-    expect(Array.from(el.querySelectorAll('.graph-list-text')).map((t) => textOf(t))).toEqual([
-      'rxjs/operators',
-      'see usage details',
-    ]);
-    const usage = el.querySelector('a.graph-list-link');
-    expect(textOf(usage)).toBe('see usage details');
-    expect(usage?.getAttribute('href')).toBe(
+    const rxjs = () => nodeByLabel(el, 'dependency', 'rxjs');
+    expect(textOf(rxjs().querySelector(':scope > title'))).toBe(
+      'rxjs secondary entrypoints: rxjs/operators',
+    );
+    expect(rxjs().querySelector('a.graph-node-link')?.getAttribute('href')).toBe(
       `/packages?select=${encodeURIComponent('__GLOBAL__|rxjs')}`,
     );
-    expect(el.querySelectorAll('.graph-node.dependency.expanded').length).toBe(1);
-    expect(textOf(nodeByLabel(el, 'dependency', 'rxjs').querySelector('.graph-node-toggle'))).toBe(
-      '▾',
+    const chunkClusters = () =>
+      Array.from(el.querySelectorAll('g.graph-cluster .graph-cluster-label'))
+        .map((label) => textOf(label))
+        .filter((label) => !label.startsWith('host (') && !/^[a-z]+ \(/.test(label));
+    const allChunkClusters = chunkClusters();
+    expect(el.querySelectorAll('g.graph-edge-group.lit, g.graph-edge-group.grey').length).toBe(0);
+
+    click(rxjs());
+    expect(rxjs().classList).toContain('selected');
+    expect(rxjs().getAttribute('aria-checked')).toBe('true');
+    expect(textOf(el.querySelector('.graph-toolbar-line'))).toBe(
+      'build files of 1 selected dependency',
     );
-    expect(
-      textOf(nodeByLabel(el, 'dependency', '@angular/common').querySelector('.graph-node-toggle')),
-    ).toBe('▸');
-    click(nodeByLabel(el, 'dependency', 'rxjs'));
-    expect(el.querySelectorAll('.graph-list-item').length).toBe(0);
+    expect(chunkClusters()).toEqual(['host · browser-rxjs (2)']);
+    // The selection's groups open, with no toggle.
+    expect(el.querySelectorAll('.graph-node.chunk.summary').length).toBe(0);
+    expect(el.querySelectorAll('.graph-node.chunk').length).toBe(2);
+    expect(el.querySelectorAll('g.graph-cluster.toggle').length).toBe(0);
+    const bundleEdges = el.querySelectorAll('path.graph-bundle-edge');
+    expect(bundleEdges.length).toBeGreaterThan(0);
+    expect(el.querySelectorAll('path.graph-bundle-edge.lit').length).toBe(bundleEdges.length);
+    const edgeGroups = el.querySelectorAll('g.graph-edge-group');
+    const lit = el.querySelectorAll('g.graph-edge-group.lit');
+    expect(lit.length).toBeGreaterThan(0);
+    expect(lit.length + el.querySelectorAll('g.graph-edge-group.grey').length).toBe(
+      edgeGroups.length,
+    );
+
+    click(nodeByLabel(el, 'dependency', '@angular/common'));
+    expect(textOf(el.querySelector('.graph-toolbar-line'))).toBe(
+      'build files of 2 selected dependencies',
+    );
+    expect(el.querySelectorAll('g.graph-node.dependency.selected').length).toBe(2);
+
+    click(el.querySelector('button.graph-toolbar-clear')!);
+    expect(el.querySelectorAll('g.graph-node.dependency.selected').length).toBe(0);
+    expect(el.querySelectorAll('path.graph-bundle-edge').length).toBe(0);
+    expect(chunkClusters()).toEqual(allChunkClusters);
 
     // Three single-file builds always show their file.
     openBuild(el, 'host · browser-rxjs');
