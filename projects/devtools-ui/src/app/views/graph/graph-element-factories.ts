@@ -168,7 +168,6 @@ export function dependencyNodeAt(
     subLabelTooltip: tag === null ? null : tag.labelTooltip,
     isolated: isIsolated(copy),
     packageSelect: null,
-    note: null,
     tooltip: fullLabel,
     selected: false,
     subLabelX: x + NODE_W - LABEL_PAD - LINK_W,

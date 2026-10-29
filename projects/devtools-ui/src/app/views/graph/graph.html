@@ -13,7 +13,7 @@
               class="nf-button graph-group-by-button"
               [class.active]="groupBy() === option.value"
               [attr.aria-pressed]="groupBy() === option.value"
-              [title]="option.hint"
+              [attr.data-tip]="option.hint"
               (click)="setGroupBy(option.value)"
             >
               {{ option.label }}
@@ -32,7 +32,7 @@
               class="nf-button graph-filter-mode-button"
               [class.active]="filterMode() === option.value"
               [attr.aria-pressed]="filterMode() === option.value"
-              [title]="option.hint"
+              [attr.data-tip]="option.hint"
               (click)="setFilterMode(option.value)"
             >
               {{ option.label }}
@@ -76,11 +76,9 @@
               [class]="cluster.colorIndex !== null ? 'hue-' + cluster.colorIndex : ''"
               [class.focused]="clusterFocused(cluster.poolId)"
               [class.toggle]="cluster.expanded !== null"
+              [attr.data-tip]="cluster.tooltip"
               (click)="cluster.expanded !== null && toggleBuild(cluster.key)"
             >
-              @if (cluster.tooltip) {
-                <title>{{ cluster.tooltip }}</title>
-              }
               <rect
                 [attr.x]="cluster.x"
                 [attr.y]="cluster.y"
@@ -124,10 +122,9 @@
               [class.dim]="edgeDimmed(edge)"
               [class.lit]="selectingDependencies() && edgeLit(edge)"
               [class.grey]="selectingDependencies() && !edgeLit(edge)"
+              [attr.data-tip]="edge.tooltip"
+              data-tip-cursor
             >
-              @if (edge.tooltip) {
-                <title>{{ edge.tooltip }}</title>
-              }
               <!-- Invisible wide stroke: the 1.5px edge itself is no hover target. -->
               <path class="graph-edge-hit" [attr.d]="edge.path" />
               <path
@@ -164,10 +161,8 @@
                   (mouseenter)="setHovered(node.key)"
                   (mouseleave)="setHovered(null)"
                   (click)="toggleRemote(node.id)"
+                  [attr.data-tip]="node.labelTooltip"
                 >
-                  @if (node.labelTooltip) {
-                    <title>{{ node.labelTooltip }}</title>
-                  }
                   <rect
                     [attr.x]="node.x"
                     [attr.y]="node.y"
@@ -208,8 +203,9 @@
                   [class.dim]="nodeDimmed(node.key)"
                   (mouseenter)="setHovered(node.key)"
                   (mouseleave)="setHovered(null)"
+                  [attr.data-tip]="node.tooltip"
+                  data-tip-list
                 >
-                  <title>{{ node.tooltip }}</title>
                   <rect
                     [attr.x]="node.x"
                     [attr.y]="node.y"
@@ -225,10 +221,8 @@
                       class="graph-node-sublabel"
                       [attr.x]="node.subLabelX"
                       [attr.y]="node.subLabelY"
+                      [attr.data-tip]="node.subLabelTooltip"
                     >
-                      @if (node.subLabelTooltip) {
-                        <title>{{ node.subLabelTooltip }}</title>
-                      }
                       {{ node.subLabel }}
                     </text>
                   }
@@ -238,8 +232,8 @@
                       [routerLink]="['/packages']"
                       [queryParams]="{ select: select }"
                       (click)="$event.stopPropagation()"
+                      data-tip="open in Packages"
                     >
-                      <title>open in Packages</title>
                       <text [attr.x]="node.linkX" [attr.y]="node.subLabelY" text-anchor="end">
                         ↗
                       </text>
@@ -256,10 +250,8 @@
                   [class.dim]="nodeDimmed(node.key)"
                   (mouseenter)="setHovered(node.key)"
                   (mouseleave)="setHovered(null)"
+                  [attr.data-tip]="node.labelTooltip"
                 >
-                  @if (node.labelTooltip) {
-                    <title>{{ node.labelTooltip }}</title>
-                  }
                   <rect
                     [attr.x]="node.x"
                     [attr.y]="node.y"
@@ -300,6 +292,7 @@
         </svg>
       </div>
     }
+    <nf-tip />
     <!-- Outside the empty branch: a capture can diverge without yielding a
          single node — an incomplete capture must never look merely blank. -->
     @if (vm.divergent || vm.droppedRelationIds.length > 0) {

@@ -197,7 +197,7 @@ function seededProjection(
 function edgeTitles(el: HTMLElement, dotted: boolean): string[] {
   return Array.from(el.querySelectorAll<SVGGElement>('g.graph-edge-group'))
     .filter((group) => (group.querySelector('path.graph-edge.dotted') !== null) === dotted)
-    .map((group) => group.querySelector('title')?.textContent?.trim() ?? '');
+    .map((group) => group.getAttribute('data-tip') ?? '');
 }
 
 /** Whitespace-normalized text content. */
@@ -296,18 +296,6 @@ describe('GraphView', () => {
     expect(scopedEl.querySelectorAll('.graph-node.remote.isolated').length).toBe(0);
   });
 
-  // graph-v48 T2-AC-01: the dashed node's tooltip says why it runs its own build.
-  it('titles a falling-back copy with the label and its reason', async () => {
-    const el = await createView('fallback-uncovered');
-    const titles = Array.from(el.querySelectorAll('.graph-node.dependency.isolated')).map(
-      (node) => node.querySelector('title')?.textContent ?? '',
-    );
-    // The secondary entrypoints follow on the next lines.
-    expect(titles.map((title) => title.split('\n').slice(0, 2).join('\n'))).toContain(
-      '@nf-lab/kit\nruns its own build — not covered: the serving build of host lacks @nf-lab/kit/charts, @nf-lab/kit/charts/legend, @nf-lab/kit/date-picker',
-    );
-  });
-
   // T1-AC-05: forbidden delivery vocabulary never reaches the rendered DOM.
   it('keeps delivery-claiming vocabulary out of the rendered graph', async () => {
     const forbidden = /\b(loaded|downloaded|fetched|executed|wire cost|byte size|cache hit)\b/i;
@@ -324,8 +312,11 @@ describe('GraphView', () => {
       TestBed.resetTestingModule();
       const el = await createView(id);
       expect(el.textContent).not.toMatch(forbidden);
-      for (const withTitle of Array.from(el.querySelectorAll('[title], [aria-label]'))) {
+      for (const withTitle of Array.from(
+        el.querySelectorAll('[title], [aria-label], [data-tip]'),
+      )) {
         expect(withTitle.getAttribute('title') ?? '').not.toMatch(forbidden);
+        expect(withTitle.getAttribute('data-tip') ?? '').not.toMatch(forbidden);
         expect(withTitle.getAttribute('aria-label') ?? '').not.toMatch(forbidden);
       }
     }
@@ -356,7 +347,7 @@ describe('GraphView', () => {
     expect(
       Array.from(el.querySelectorAll('.graph-cluster-label')).map((label) => textOf(label)),
     ).toEqual(['pool ui (2)', '(not pooled) (1)', 'host (1)', 'mfe1 (2)']);
-    expect(el.querySelector('.graph-cluster title')?.textContent?.trim()).toBe(
+    expect(el.querySelector('.graph-cluster[data-tip]')?.getAttribute('data-tip')).toBe(
       'formed by: mfe1 "ui", mfe2 "ui"',
     );
     expect(nodeKeys()).toEqual(before);
@@ -372,6 +363,36 @@ describe('GraphView', () => {
   // clicking selects it: the build files narrow to the selection's own, every
   // line is drawn — lit into a selected dependency, grey elsewhere — and Clear
   // restores the view. Build groups stay an accordion: one open at a time.
+  // Tooltips use the shared popup of Pools/Packages: a dependency lists its
+  // entrypoints one per line; an edge's popup sits at the pointer, since its
+  // bounding box (a long curve) says nothing about where the mouse is.
+  it('shows the shared tooltip popup on a dependency and at the pointer on an edge', async () => {
+    const { fixture, el } = await createViewFixture('frankenstein-live');
+    const common = nodeByLabel(el, 'dependency', '@angular/common');
+    common.querySelector('rect')!.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    fixture.detectChanges();
+    const tip = el.querySelector('.nf-tip.nf-tip-list');
+    expect(tip?.getAttribute('role')).toBe('tooltip');
+    expect(tip?.classList).not.toContain('nf-tip-columns');
+    expect(Array.from(tip!.querySelectorAll('.nf-tip-line')).map((line) => textOf(line))).toEqual([
+      '@angular/common',
+      '@angular/common/http',
+    ]);
+    common.querySelector('rect')!.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
+    fixture.detectChanges();
+    expect(el.querySelector('.nf-tip')).toBeNull();
+
+    TestBed.resetTestingModule();
+    const shared = await createViewFixture('co-declared-share');
+    const dotted = shared.el.querySelector('path.graph-edge.dotted')!;
+    dotted.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, clientX: 120, clientY: 80 }));
+    shared.fixture.detectChanges();
+    const edgeTip = shared.el.querySelector<HTMLElement>('.nf-tip');
+    expect(textOf(edgeTip)).toBe('served by mfe1');
+    expect(edgeTip?.style.left).toBe('120px');
+    expect(edgeTip?.style.top).toBe(`${80 + 12 + 6}px`);
+  });
+
   it('selects dependencies, shows their build files and lines, and opens one build group', async () => {
     const { fixture, el } = await createViewFixture('frankenstein-live');
     const click = (node: Element) => {
@@ -379,9 +400,8 @@ describe('GraphView', () => {
       fixture.detectChanges();
     };
     const rxjs = () => nodeByLabel(el, 'dependency', 'rxjs');
-    expect(textOf(rxjs().querySelector(':scope > title'))).toBe(
-      'rxjs secondary entrypoints: rxjs/operators',
-    );
+    expect(rxjs().getAttribute('data-tip')).toBe('rxjs, rxjs/operators');
+    expect(rxjs().hasAttribute('data-tip-list')).toBe(true);
     expect(rxjs().querySelector('a.graph-node-link')?.getAttribute('href')).toBe(
       `/packages?select=${encodeURIComponent('__GLOBAL__|rxjs')}`,
     );

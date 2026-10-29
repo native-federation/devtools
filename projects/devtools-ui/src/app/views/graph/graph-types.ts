@@ -149,9 +149,7 @@ export interface DependencyGraphNode extends GraphNodeBase {
   linkX: number;
   /** Packages `select` id of the copy's package; null when it has no Packages row. */
   packageSelect: string | null;
-  /** Why an isolated copy runs on its own; null on a shared copy. */
-  note: string | null;
-  /** Hover text: the full label, the isolation note, then the secondary entrypoints. */
+  /** Hover list: every entrypoint of the copy, the package itself first, `, `-separated. */
   tooltip: string;
   /** Selected: the build-files column shows only the selected copies' files. */
   selected: boolean;
