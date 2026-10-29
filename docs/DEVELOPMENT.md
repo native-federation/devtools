@@ -129,9 +129,19 @@ npm install
 npm run build:extension
 ```
 
+This assembles `dist/extension/` for Chrome and `dist/extension-firefox/` for
+Firefox; the two differ only in the manifest (the Firefox one adds
+`browser_specific_settings.gecko`).
+
 Then in Chrome: `chrome://extensions` → enable **Developer mode** → **Load
-unpacked** → select the built extension directory. Open DevTools on any Native
+unpacked** → select `dist/extension/`. Open DevTools on any Native
 Federation application; the panel appears as a new tab.
+
+In Firefox: `npm run start:firefox` starts a fresh profile with the add-on
+loaded and DevTools open (`web-ext run`), or load
+`dist/extension-firefox/manifest.json` via `about:debugging` → **Load Temporary
+Add-on…**. `npm run lint:firefox` runs the addons.mozilla.org linter; its one
+warning, about Firefox for Android, does not apply — Android has no DevTools.
 
 ## Development
 
@@ -170,7 +180,7 @@ unsupported; the descriptor's `get` is never called. Background and design:
 
 | Path | Contents |
 | --- | --- |
-| `extension/` | MV3 manifest and DevTools page |
+| `extension/` | MV3 manifest and DevTools page (Chrome and Firefox) |
 | `projects/` | collector, bridge, and UI libraries |
 | `captures/` | raw runtime captures and the corpus manifests (one per lab corpus) |
 | `guards/` | invariant tests, including the privacy scan |

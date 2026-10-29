@@ -6,7 +6,7 @@
 
 **See what your micro frontends actually negotiated.**
 
-A read-only Chrome DevTools panel for [Native Federation](https://native-federation.com) applications running the **v4 Orchestrator**.
+A read-only Chrome and Firefox DevTools panel for [Native Federation](https://native-federation.com) applications running the **v4 Orchestrator**.
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 [![Latest release](https://img.shields.io/github/v/release/native-federation/devtools?include_prereleases&label=release)](https://github.com/native-federation/devtools/releases)
@@ -151,6 +151,15 @@ Unpacked extensions do not update themselves. To upgrade, unzip the new
 release into the same folder and click the ↻ reload icon on the extension's
 card in `chrome://extensions`. Automatic updates come with the Web Store.
 
+### Firefox
+
+Firefox 140 or later. Until the add-on is signed on addons.mozilla.org,
+Firefox loads it as a temporary add-on, which is removed when Firefox
+restarts. Build it from source (`npm run build:extension`), then open
+`about:debugging#/runtime/this-firefox` → **Load Temporary Add-on…** → select
+`dist/extension-firefox/manifest.json`. Or run `npm run start:firefox`, which
+starts a separate Firefox profile with the add-on loaded and DevTools open.
+
 ### From source
 
 Contributors can build the extension themselves — see
@@ -162,7 +171,7 @@ Contributors can build the extension themselves — see
 | --- | --- |
 | [native-federation.com](https://native-federation.com) | Project home — docs, guides, team, resources |
 | [orchestrator](https://github.com/native-federation/orchestrator) | Runtime micro frontend orchestrator (v4) — the runtime this panel reads |
-| **devtools** (this repo) | Chrome DevTools panel for inspecting running federations |
+| **devtools** (this repo) | Chrome and Firefox DevTools panel for inspecting running federations |
 
 ## Documentation
 
