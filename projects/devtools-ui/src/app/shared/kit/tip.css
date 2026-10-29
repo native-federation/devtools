@@ -31,9 +31,16 @@
   font-weight: 600;
 }
 
-/* A long `+N more` list reads in columns. */
 .nf-tip-list {
-  columns: 3 8em;
   font-family: var(--nf-font-mono);
   font-size: 11px;
+}
+
+/* A long `+N more` list reads in columns. */
+.nf-tip-columns {
+  columns: 3 8em;
+}
+
+.nf-tip-columns .nf-tip-line {
+  break-inside: avoid;
 }

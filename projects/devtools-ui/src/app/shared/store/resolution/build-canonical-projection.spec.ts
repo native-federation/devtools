@@ -530,6 +530,8 @@ describe('resolution layer surface (T6-AC-06)', () => {
       'deriveTagPools',
       'materializeResolvedCopies',
       'normalizeRegistryEvidence',
+      'npmPackageOf',
+      'packageRuleOf',
       'projectSharedRows',
       'resolveEffectiveConsumerBindings',
     ]);

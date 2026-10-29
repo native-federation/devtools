@@ -23,13 +23,13 @@ import {
   LABEL_BASELINE,
   LABEL_MAX,
   LABEL_PAD,
+  LINK_W,
   MARGIN,
   NODE_H,
   NODE_VGAP,
   NODE_W,
   RemoteGraphNode,
   SUB_LABEL_MAX,
-  TOGGLE_W,
 } from './graph-types';
 
 /**
@@ -167,11 +167,12 @@ export function dependencyNodeAt(
     subLabel: tag === null ? null : tag.label,
     subLabelTooltip: tag === null ? null : tag.labelTooltip,
     isolated: isIsolated(copy),
-    expanded: false,
-    note: null,
-    subLabelX: x + NODE_W - LABEL_PAD - TOGGLE_W,
+    packageSelect: null,
+    tooltip: fullLabel,
+    selected: false,
+    subLabelX: x + NODE_W - LABEL_PAD - LINK_W,
     subLabelY: y + LABEL_BASELINE,
-    toggleX: x + NODE_W - LABEL_PAD,
+    linkX: x + NODE_W - LABEL_PAD,
   };
 }
 

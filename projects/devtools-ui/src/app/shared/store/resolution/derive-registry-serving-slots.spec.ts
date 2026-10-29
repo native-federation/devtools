@@ -57,6 +57,7 @@ function seededEvidence(registrations: SeedRegistration[]): CanonicalRegistryEvi
           strictVersion: false,
           bundle: null,
           cached: participant.cached,
+          dense: false,
           generation: 'v4.5',
           pool: null,
           servedBy: null,

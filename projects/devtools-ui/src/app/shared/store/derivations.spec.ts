@@ -256,6 +256,18 @@ describe('deriveFederation — resolution arrows (T7-AC-03)', () => {
       rule: 'name-derived',
     });
   });
+
+  // Orchestrator 4.9 stores `dense` per copy. The same two records stored dense are what a build that
+  // declares `@nf-lab/dense-lib/extra` as its own package publishes, so /extra is a package, not a subpath.
+  it('links no parent to a package a 4.9 dense build declared', () => {
+    const snapshot = structuredClone(FIXTURES['dense-chunking-only']) as SnapshotV1;
+    for (const external of Object.values(snapshot.runtime!.sharedExternals['__GLOBAL__']))
+      for (const version of external.versions)
+        for (const remote of version.remotes) if (remote.name === 'mfe1') remote.dense = true;
+
+    const derived = deriveFederation(ingestSnapshot(snapshot));
+    expect(factsOf(derived, 'mfe1', '@nf-lab/dense-lib/extra').parentLink).toBeNull();
+  });
 });
 
 describe('deriveFederation — secondary-entry parent linking (T7-AC-04)', () => {

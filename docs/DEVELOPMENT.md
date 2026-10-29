@@ -50,10 +50,14 @@ them.
 
 **Graph** — remotes, dependencies, and build files as one traceable picture:
 tick remotes to include or exclude their consumers, hover to trace a
-resolution path, expand a dependency for its secondary entrypoints or a build
-for its files. The dependency column groups by provider (default), share
-scope, pool, or build; dashed nodes mark isolated copies, dotted edges are
-served by another remote (the tooltip names it); tooltips say why.
+resolution path (a dependency's tooltip lists all its entrypoints, ↗ opens it
+in Packages), select dependencies to narrow the build files to theirs — every
+line is then drawn, white into a selected dependency, grey elsewhere — or
+expand a build for its files. The dependency column groups by provider
+(default), share scope, pool, or build; dashed nodes mark isolated copies (why
+they run their own build is in Remotes and Packages), dotted edges are served
+by another remote (the tooltip names it). Tooltips use the same popup as Pools
+and Packages.
 
 **Import Map** — the raw evidence view: sectioned tables in map order with
 owner-consensus headers, each row attributed to its package, provider, and

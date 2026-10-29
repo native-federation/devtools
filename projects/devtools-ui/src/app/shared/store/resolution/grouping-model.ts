@@ -62,6 +62,8 @@ export interface CopyBuild {
 export interface CopyGroupingFacets {
   copyId: ResolvedDependencyCopyId;
   shareScope: string | null;
+  /** The package its registry records belong to by the orchestrator's rule (`package-rule.ts`); null when they disagree or none. */
+  package: string | null;
   tagPoolId: TagPoolId | null;
   /** Build outputs of the copy's bundle claims: emitting remote (null under ambiguity) and bundle. */
   builds: CopyBuild[];

@@ -1,11 +1,8 @@
-import { placementReasonText } from '../../shared/placement-text';
 import type {
   BundleClaim,
   CanonicalResolutionProjection,
   ChunkGroupProjection,
   CopyGroupingFacets,
-  DeclarationVerdictRecord,
-  ParticipantDeclarationId,
   ResolvedDependencyCopy,
 } from '../../shared/store/resolution';
 import {
@@ -47,11 +44,9 @@ import {
   GraphNode,
   HEADER_BASELINE,
   HEADER_H,
-  GraphListItem,
   HONEST_BUCKETS,
   HonestBucket,
   LABEL_PAD,
-  LIST_ROW_H,
   MARGIN,
   MAX_BUNDLE_EDGES,
   NODE_H,
@@ -67,7 +62,7 @@ import {
  * (remotes, resolved dependency copies clustered by their evidenced source,
  * claimed chunk files clustered by emitter · bundle), one consume edge per
  * `ConsumerCopyRelation`, and precomputed `dependency → chunk` references
- * for the hover trace. The builder computes all geometry; the renderer draws
+ * for the hover trace and the dependency selection. The builder computes all geometry; the renderer draws
  * primitives only. Identical inputs produce a deeply equal model. Every
  * rendered identity chains to canonical IDs (remote name, copy ID, relation
  * ID, bundle-claim ID, chunk-group ID + recorded file), and nothing here
@@ -168,47 +163,29 @@ export function buildGraphModel(
   const dependencyHueByCopyId = new Map<string, number | null>();
   let dependencyCursor = MARGIN + HEADER_H;
 
-  const listItems: GraphListItem[] = [];
-  const verdictByDeclaration = new Map(
-    projection.packageScopeVerdicts.flatMap((verdicts) =>
-      verdicts.declarations.map((record) => [record.declarationId, record] as const),
-    ),
-  );
   const facetsByCopyId = new Map(projection.copyGroupingFacets.map((f) => [f.copyId, f]));
-  const expandedCopyId = options.expandedCopyId ?? null;
+  const selectedDependencies = options.selectedDependencies ?? new Set<string>();
   const layoutDependencyCluster = (seed: ClusterSeed, entries: typeof sortedCopies): void => {
     const colorIndex = clusterHueOf(seed.hueRemote);
     const boxY = dependencyCursor;
     let nodeY = boxY + CLUSTER_HEADER + CLUSTER_PAD;
     for (const entry of entries) {
-      const expanded = entry.copy.id === expandedCopyId;
-      const node = {
-        ...dependencyNodeAt(entry.copy, entry.fullLabel, nodeY),
-        expanded,
-        note: isolationNoteOf(entry.copy, verdictByDeclaration),
-      };
-      dependencyNodes.push(node);
+      const base = dependencyNodeAt(entry.copy, entry.fullLabel, nodeY);
+      const secondaries = secondaryEntrypointsOf(
+        entry.copy,
+        entry.fullLabel,
+        projection.copies,
+        facetsByCopyId,
+      );
+      dependencyNodes.push({
+        ...base,
+        packageSelect: packageSelectOf(entry.copy, facetsByCopyId.get(entry.copy.id)),
+        tooltip: [entry.fullLabel, ...secondaries].join(', '),
+        selected: selectedDependencies.has(entry.copy.id),
+      });
       orderedDependencyEntries.push(entry);
       dependencyHueByCopyId.set(entry.copy.id, colorIndex);
       nodeY += NODE_H + NODE_VGAP;
-      if (expanded) {
-        const rows = secondaryEntrypointsOf(entry.copy, entry.fullLabel, projection.copies);
-        const packageSelect = packageSelectOf(entry.copy, facetsByCopyId.get(entry.copy.id));
-        if (packageSelect !== null) {
-          rows.push({ text: 'see usage details', tooltip: 'open in Packages', packageSelect });
-        }
-        rows.forEach((row, index) => {
-          const y = nodeY + index * LIST_ROW_H + LIST_ROW_H - 4;
-          listItems.push({
-            key: `${node.key}\n${row.text}`,
-            ownerKey: node.key,
-            ...row,
-            x: node.x + 2 * LABEL_PAD,
-            y,
-          });
-        });
-        nodeY += rows.length * LIST_ROW_H + NODE_VGAP;
-      }
     }
     const boxHeight = nodeY - NODE_VGAP - boxY + CLUSTER_PAD;
     const boxX = columnX(1) - CLUSTER_PAD;
@@ -326,7 +303,11 @@ export function buildGraphModel(
     }
   };
 
-  for (const { copy } of orderedDependencyEntries) {
+  const chunkSourceEntries =
+    selectedDependencies.size === 0
+      ? orderedDependencyEntries
+      : orderedDependencyEntries.filter(({ copy }) => selectedDependencies.has(copy.id));
+  for (const { copy } of chunkSourceEntries) {
     const claims = copy.bundleClaimIds
       .map((claimId) => claimById.get(claimId))
       .filter((claim): claim is BundleClaim => claim !== undefined);
@@ -420,6 +401,8 @@ export function buildGraphModel(
   const chunkNodeById = new Map<string, ChunkGraphNode>();
   /** Seed ID → rendered node ID: a collapsed cluster's files resolve to its summary node. */
   const renderedChunkId = new Map<string, string>();
+  // A selection's own files are few: its groups all open, with nothing to toggle.
+  const selecting = selectedDependencies.size > 0;
   const expandedBuildKey =
     options.expandedBuildKey === undefined ? 'all' : options.expandedBuildKey;
   let chunkCursor = MARGIN + HEADER_H;
@@ -428,7 +411,7 @@ export function buildGraphModel(
     let nodeY = boxY + CLUSTER_HEADER + CLUSTER_PAD;
     const x = columnX(2);
     // A single-file group shows its file directly: there is nothing to expand.
-    const collapsible = collector.seeds.length > 1;
+    const collapsible = !selecting && collector.seeds.length > 1;
     const expanded = !collapsible || expandedBuildKey === 'all' || expandedBuildKey === clusterKey;
     if (!expanded) {
       const id = `summary\n${clusterKey}`;
@@ -537,7 +520,7 @@ export function buildGraphModel(
     );
   }
 
-  // --- Bundle-edge references (rendered by the hover trace only) ---------
+  // --- Bundle-edge references (hover trace, or all while selecting) -------
   const referenceCap = edges.length + MAX_BUNDLE_EDGES;
   const bundleEdgeRefs: BundleEdgeRef[] = [];
   // A collapsed group's files share one summary node: their references merge.
@@ -604,7 +587,6 @@ export function buildGraphModel(
     ],
     clusters,
     nodes,
-    listItems,
     edges,
     bundleEdgeRefs,
     cappedEdges,
@@ -652,33 +634,6 @@ export function graphAdjacencyOf(model: GraphModel): ReadonlyMap<string, Readonl
   return adjacency;
 }
 
-type VerdictLookup = ReadonlyMap<ParticipantDeclarationId, DeclarationVerdictRecord>;
-
-function reasonTextOf(
-  declarationId: ParticipantDeclarationId,
-  verdicts: VerdictLookup,
-): string | null {
-  const reason = verdicts.get(declarationId)?.reason ?? null;
-  return reason === null ? null : placementReasonText(reason);
-}
-
-// Worded as the Remotes `isolated` chip: the same verdict lookup, the same reason text.
-function isolationNoteOf(copy: ResolvedDependencyCopy, verdicts: VerdictLookup): string | null {
-  if (copy.source.kind === 'private-registration') {
-    return 'private registration — a scoped external, not shared';
-  }
-  if (copy.sourceDisposition !== 'scope-registration') {
-    return null;
-  }
-  const reason =
-    copy.source.kind === 'shared-declaration'
-      ? reasonTextOf(copy.source.declarationId, verdicts)
-      : null;
-  return reason === null
-    ? 'the evidenced source is registered with action scope — an isolated copy'
-    : `runs its own build — ${reason}`;
-}
-
 /** Last path segment of a target URL — the file name a build emitted. */
 function fileNameOf(url: string): string {
   const path = url.split(/[?#]/)[0];
@@ -686,46 +641,33 @@ function fileNameOf(url: string): string {
 }
 
 /**
- * Rows of an expanded dependency: entrypoints of its own `entries` map beyond
- * the package itself (dense builds), then sibling copies registered under a
- * secondary name of the package by the same source (flat builds; the
- * name-derived parent rule of Packages).
+ * Secondary entrypoints of a copy: those of its own `entries` map beyond the
+ * package itself (dense builds), then sibling copies registered under a
+ * secondary name of the package by the same source, in the same package
+ * (flat builds; the name-derived parent rule of Packages).
  */
 function secondaryEntrypointsOf(
   copy: ResolvedDependencyCopy,
   label: string,
   copies: readonly ResolvedDependencyCopy[],
-): Pick<GraphListItem, 'text' | 'tooltip' | 'packageSelect'>[] {
-  const rows = new Map<string, Pick<GraphListItem, 'text' | 'tooltip' | 'packageSelect'>>();
-  for (const specifier of Object.keys(copy.entrypoints).sort(compareStrings)) {
-    if (specifier !== label) {
-      rows.set(specifier, {
-        text: specifier,
-        tooltip: "secondary entrypoint in this copy's entries map",
-        packageSelect: null,
-      });
-    }
-  }
+  facetsByCopyId: ReadonlyMap<string, CopyGroupingFacets>,
+): string[] {
+  const packageOf = (c: ResolvedDependencyCopy) => facetsByCopyId.get(c.id)?.package ?? null;
+  const names = new Set(Object.keys(copy.entrypoints).filter((specifier) => specifier !== label));
   const source = copySourceRemote(copy);
-  for (const other of [...copies].sort((a, b) => compareStrings(a.id, b.id))) {
+  for (const other of copies) {
     const name = other.sourcePackage;
     if (
       other.id !== copy.id &&
       name !== null &&
       name.startsWith(`${label}/`) &&
-      !rows.has(name) &&
+      packageOf(other) === packageOf(copy) &&
       copySourceRemote(other) === source
     ) {
-      rows.set(name, {
-        text: name,
-        tooltip: 'secondary entrypoint registered as its own copy (name-derived parent)',
-        packageSelect: null,
-      });
+      names.add(name);
     }
   }
-  return rows.size > 0
-    ? [...rows.values()].sort((a, b) => compareStrings(a.text, b.text))
-    : [{ text: 'no secondary entrypoints', tooltip: null, packageSelect: null }];
+  return [...names].sort(compareStrings);
 }
 
 // Mirrors the Packages view's copyGroupIds: private sources have no Packages row.

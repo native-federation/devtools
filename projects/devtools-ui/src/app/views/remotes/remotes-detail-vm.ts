@@ -8,7 +8,11 @@
  * only. Nothing re-derives elections, share counts, or source semantics.
  */
 import type { FederationModel, RemoteEntity } from '../../shared/store/federation-model';
-import type { BundleClaimStatus, DeclarationResolutionClaim } from '../../shared/store/resolution';
+import {
+  npmPackageOf,
+  type BundleClaimStatus,
+  type DeclarationResolutionClaim,
+} from '../../shared/store/resolution';
 import {
   CanonicalIndexes,
   chunkFileClaim,
@@ -164,7 +168,8 @@ const CHUNK_EXPLANATION = "code shared between this remote's exposes, plus lazy 
 // Chunk lists and `bundle` are both written only under `features.denseChunking` (see
 // docs/work/share-pools/plan.md, persisted-evidence table). Flat externals show only when a
 // secondary entrypoint is registered as its own external; single-entry packages look the same
-// either way, so they prove nothing.
+// either way, so they prove nothing. A stored `dense` (orchestrator 4.9+) tells a flat secondary from
+// a package a dense build declared; before it, a record under another of the remote's records is flat.
 function warningsOf(
   remote: RemoteEntity,
   model: FederationModel,
@@ -178,17 +183,24 @@ function warningsOf(
   const warnings: AnnotationVm[] = [];
 
   const keys = new Set<string>();
+  const flatKeys = new Set<string>();
   for (const declaration of declarations) {
     const registration = indexes.registrationById.get(declaration.versionRegistrationId);
     const external = registration && indexes.sharedExternalById.get(registration.sharedExternalId);
-    if (external) keys.add(`${external.shareScope}|${external.packageName}`);
+    if (!external) continue;
+    const key = `${external.shareScope}|${external.packageName}`;
+    keys.add(key);
+    if (!declaration.dense && npmPackageOf(external.packageName) !== external.packageName)
+      flatKeys.add(key);
   }
-  const secondaries = [...keys].filter((key) => {
-    for (let i = key.indexOf('/', key.indexOf('|')); i > 0; i = key.indexOf('/', i + 1)) {
-      if (keys.has(key.slice(0, i))) return true;
-    }
-    return false;
-  });
+  const secondaries = evidence.participantDeclarations.some((d) => d.dense)
+    ? [...flatKeys]
+    : [...keys].filter((key) => {
+        for (let i = key.indexOf('/', key.indexOf('|')); i > 0; i = key.indexOf('/', i + 1)) {
+          if (keys.has(key.slice(0, i))) return true;
+        }
+        return false;
+      });
   if (secondaries.length > 0) {
     const names = secondaries.map((key) => key.slice(key.indexOf('|') + 1));
     warnings.push({

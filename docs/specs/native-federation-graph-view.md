@@ -125,12 +125,18 @@ left-mid and render as horizontal cubic Béziers
 - **Hover = trace** (transient, stateless): hovered node plus
   undirected-adjacent nodes stay full opacity, everything else dims;
   non-adjacent consume edges dim hard; bundle edges of the hovered
-  node appear. Native tooltips carry the full text.
+  node appear. Tooltips use the panel's shared popup (`shared/kit/tip.ts`);
+  a dependency's lists all its entrypoints, an edge's sits at the pointer.
 - **Click on a remote** toggles it in the selection set; a dependency
   is kept when **at least one consumer relation touches a selected
   remote** (OR). The remote column always renders completely. Toolbar
   shows the filter state and a clear action; unfiltered state shows
   the affordance hint line.
+- **Click on a dependency** toggles it in a second selection set. With
+  a selection, the chunk column holds only the selected copies' files
+  (their groups open), all their bundle edges are drawn, and consume
+  edges read lit (into a selected copy) or grey. The hover trace still
+  dims on top; Clear empties both sets.
 - **Chunk attribution ignores the remote selection** — the emitter is
   not the consumer; a selected remote borrowing a copy from an
   unselected source keeps the backing chunks. (Highest-value

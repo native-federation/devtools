@@ -33,6 +33,7 @@ export {
 export { aggregatePackageMeasures } from './aggregate-package-measures';
 export { deriveChunkGroups } from './derive-chunk-groups';
 export { attachBundleClaimIds, deriveBundleClaims } from './derive-bundle-claims';
+export { npmPackageOf, packageRuleOf, type PackageOf } from './package-rule';
 export { deriveCopyGroupingFacets, deriveTagPools } from './derive-grouping-facets';
 export { derivePoolFamilies } from './derive-pool-families';
 export { derivePackageVerdicts } from './derive-package-verdicts';

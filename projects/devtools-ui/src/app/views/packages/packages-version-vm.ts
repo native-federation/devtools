@@ -26,6 +26,7 @@ import {
   packageId,
   participantDisplay,
   targetFileName,
+  type SamePackage,
 } from './packages-vm-shared';
 
 export interface RemoteRefVm {
@@ -454,6 +455,7 @@ export function buildPackageView(
   allGroups: PackageGroup[],
   indexes: CanonicalIndexes,
   focusedScope: string | null,
+  samePackage: SamePackage,
 ): PackageViewVm {
   const scopes = entry.verdicts.map((verdicts): ScopeBlockVm => {
     const group = entry.groups.find((g) => g.scope === verdicts.shareScope)!;
@@ -498,7 +500,7 @@ export function buildPackageView(
         };
       }),
       rangeCheck: rangeCheckOf(verdicts),
-      bindings: buildDetail(allGroups, indexes, group.id),
+      bindings: buildDetail(allGroups, indexes, group.id, samePackage),
     };
   });
   return { packageName: entry.packageName, scopeCount: scopes.length, scopes };

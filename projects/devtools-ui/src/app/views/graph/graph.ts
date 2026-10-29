@@ -10,6 +10,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { PARTICIPANT_COLOR_LOOKUP } from '../../shared/kit/participant-colors';
+import { TipHost, TipPopup } from '../../shared/kit/tip';
 import { FederationStore } from '../../shared/store/federation-store';
 import { countClaim } from '../../shared/view-conventions';
 import { nodeKeyOf } from './graph-element-factories';
@@ -35,16 +36,20 @@ import {
  * chip dots. All wording stays resolution-honest: an edge shows what the
  * captured map resolves, never what was requested or executed.
  *
- * Interaction state is `{ selectedRemotes, hovered }` plus the `groupBy`
- * and `filterMode` preferences — everything else derives per change. Clicking a remote toggles the
- * consumer filter (OR semantics, inverted in exclude mode, applied inside the builder); hovering traces a node by
- * emphasis only — classes flip and the hovered node's precomputed bundle
+ * Interaction state is `{ selectedRemotes, selectedDependencies, hovered }`
+ * plus the `groupBy` and `filterMode` preferences — everything else derives
+ * per change. Clicking a remote toggles the consumer filter (OR semantics,
+ * inverted in exclude mode, applied inside the builder); clicking a
+ * dependency toggles its selection, which narrows the build files to the
+ * selected copies' and draws every line, lit or grey. Hovering traces a node
+ * by emphasis only — classes flip and the hovered node's precomputed bundle
  * edges are revealed, but the model itself never changes on hover.
  */
 @Component({
   selector: 'nf-graph-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, TipPopup],
+  hostDirectives: [TipHost],
   templateUrl: './graph.html',
   styleUrl: './graph.css',
 })
@@ -98,11 +103,14 @@ export class GraphView {
     return cluster === undefined ? null : new Set(cluster.nodeKeys);
   });
 
-  // Accordion state per column: at most one open copy and one open build group.
-  protected readonly expandedCopyId = linkedSignal({
+  protected readonly selectedDependencies = linkedSignal({
     source: this.store.model,
-    computation: (): string | null => null,
+    computation: (): ReadonlySet<string> => new Set(),
   });
+
+  protected readonly selectingDependencies = computed(() => this.selectedDependencies().size > 0);
+
+  // Accordion state of the build-files column: at most one open build group.
   protected readonly expandedBuildKey = linkedSignal({
     source: this.store.model,
     computation: (): string | null => null,
@@ -123,7 +131,7 @@ export class GraphView {
           selectedRemotes: this.selectedRemotes(),
           filterMode: this.filterMode(),
           groupBy: this.groupBy(),
-          expandedCopyId: this.expandedCopyId(),
+          selectedDependencies: this.selectedDependencies(),
           expandedBuildKey: this.expandedBuildKey(),
         });
   });
@@ -143,16 +151,24 @@ export class GraphView {
     return new Set([hovered, ...(this.adjacency().get(hovered) ?? [])]);
   });
 
-  /** The hovered node's bundle edges — a reveal of precomputed references. */
-  protected readonly hoveredBundleEdges = computed<BundleEdgeRef[]>(() => {
+  /**
+   * Bundle edges on show: all of them while dependencies are selected (the
+   * build files are then the selection's own), else the hovered node's.
+   */
+  protected readonly shownBundleEdges = computed<BundleEdgeRef[]>(() => {
     const hovered = this.hovered();
     const vm = this.vm();
-    if (hovered === null || vm === null) {
+    if (vm === null) {
       return [];
     }
-    return vm.bundleEdgeRefs.filter(
-      (ref) => ref.dependencyKey === hovered || ref.chunkKey === hovered,
-    );
+    if (this.selectingDependencies()) {
+      return vm.bundleEdgeRefs;
+    }
+    return hovered === null
+      ? []
+      : vm.bundleEdgeRefs.filter(
+          (ref) => ref.dependencyKey === hovered || ref.chunkKey === hovered,
+        );
   });
 
   protected nodeDimmed(key: string): boolean {
@@ -168,6 +184,16 @@ export class GraphView {
     return poolId !== null && this.focusedKeys() !== null && poolId === this.focusedPoolId();
   }
 
+  // White while selecting: the edge lands on a selected dependency; every other edge goes grey.
+  protected edgeLit(edge: GraphEdge): boolean {
+    return this.selectedDependencies().has(edge.targetId);
+  }
+
+  protected bundleEdgeDimmed(edge: BundleEdgeRef): boolean {
+    const hovered = this.hovered();
+    return hovered !== null && edge.dependencyKey !== hovered && edge.chunkKey !== hovered;
+  }
+
   protected edgeDimmed(edge: GraphEdge): boolean {
     const hovered = this.hovered();
     return (
@@ -178,7 +204,11 @@ export class GraphView {
   }
 
   protected toggleDependency(copyId: string): void {
-    this.expandedCopyId.update((open) => (open === copyId ? null : copyId));
+    const next = new Set(this.selectedDependencies());
+    if (!next.delete(copyId)) {
+      next.add(copyId);
+    }
+    this.selectedDependencies.set(next);
   }
 
   // Opened explicitly: the SVG link's own target="_blank" did nothing in the DevTools panel.
@@ -224,13 +254,26 @@ export class GraphView {
 
   protected clearSelection(): void {
     this.selectedRemotes.set(new Set());
+    this.selectedDependencies.set(new Set());
     this.focusedPoolId.set(null);
   }
 
-  protected filterLine(count: number): string {
-    return this.filterMode() === 'exclude'
-      ? `excluding ${countClaim(count, 'remote')}`
-      : `filtering by ${countClaim(count, 'remote')}`;
+  // The focus line, the remote filter and the dependency selection, joined; null when all are idle.
+  protected selectionLine(): string | null {
+    const remotes = this.selectedRemotes().size;
+    const dependencies = this.selectedDependencies().size;
+    const parts = [
+      this.focusLine(),
+      remotes === 0
+        ? null
+        : this.filterMode() === 'exclude'
+          ? `excluding ${countClaim(remotes, 'remote')}`
+          : `filtering by ${countClaim(remotes, 'remote')}`,
+      dependencies === 0
+        ? null
+        : `build files of ${countClaim(dependencies, 'selected dependency', 'selected dependencies')}`,
+    ].filter((part) => part !== null);
+    return parts.length === 0 ? null : parts.join(' · ');
   }
 
   protected cappedLine(count: number): string {

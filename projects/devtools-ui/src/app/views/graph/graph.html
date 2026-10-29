@@ -13,7 +13,7 @@
               class="nf-button graph-group-by-button"
               [class.active]="groupBy() === option.value"
               [attr.aria-pressed]="groupBy() === option.value"
-              [title]="option.hint"
+              [attr.data-tip]="option.hint"
               (click)="setGroupBy(option.value)"
             >
               {{ option.label }}
@@ -32,27 +32,23 @@
               class="nf-button graph-filter-mode-button"
               [class.active]="filterMode() === option.value"
               [attr.aria-pressed]="filterMode() === option.value"
-              [title]="option.hint"
+              [attr.data-tip]="option.hint"
               (click)="setFilterMode(option.value)"
             >
               {{ option.label }}
             </button>
           }
         </div>
-        @if (focusLine(); as line) {
+        @if (selectionLine(); as line) {
           <span class="graph-toolbar-line">{{ line }}</span>
-          <button type="button" class="nf-button graph-toolbar-clear" (click)="clearSelection()">
-            Clear
-          </button>
-        } @else if (selectedRemotes().size > 0) {
-          <span class="graph-toolbar-line">{{ filterLine(selectedRemotes().size) }}</span>
           <button type="button" class="nf-button graph-toolbar-clear" (click)="clearSelection()">
             Clear
           </button>
         } @else {
           <span class="graph-toolbar-line graph-toolbar-hint">
-            click remotes to {{ filterMode() }} · click a dependency or build to expand · hover to
-            trace · dashed node = isolated copy · dotted edge = served by another remote
+            click remotes to {{ filterMode() }} · click dependencies to show their build files ·
+            click a build to expand · hover to trace · dashed node = isolated copy · dotted edge =
+            served by another remote
           </span>
         }
         @if (vm.cappedEdges > 0) {
@@ -80,11 +76,9 @@
               [class]="cluster.colorIndex !== null ? 'hue-' + cluster.colorIndex : ''"
               [class.focused]="clusterFocused(cluster.poolId)"
               [class.toggle]="cluster.expanded !== null"
+              [attr.data-tip]="cluster.tooltip"
               (click)="cluster.expanded !== null && toggleBuild(cluster.key)"
             >
-              @if (cluster.tooltip) {
-                <title>{{ cluster.tooltip }}</title>
-              }
               <rect
                 [attr.x]="cluster.x"
                 [attr.y]="cluster.y"
@@ -123,10 +117,14 @@
             </g>
           }
           @for (edge of vm.edges; track edge.id) {
-            <g class="graph-edge-group" [class.dim]="edgeDimmed(edge)">
-              @if (edge.tooltip) {
-                <title>{{ edge.tooltip }}</title>
-              }
+            <g
+              class="graph-edge-group"
+              [class.dim]="edgeDimmed(edge)"
+              [class.lit]="selectingDependencies() && edgeLit(edge)"
+              [class.grey]="selectingDependencies() && !edgeLit(edge)"
+              [attr.data-tip]="edge.tooltip"
+              data-tip-cursor
+            >
               <!-- Invisible wide stroke: the 1.5px edge itself is no hover target. -->
               <path class="graph-edge-hit" [attr.d]="edge.path" />
               <path
@@ -136,36 +134,18 @@
               />
             </g>
           }
-          <!-- Hover reveal: the hovered node's precomputed bundle edges only —
-               an emphasis overlay, never a model change. -->
-          @for (edge of hoveredBundleEdges(); track edge.key) {
+          <!-- Precomputed bundle edges, never a model change: the hovered node's,
+               or all of them, lit, while dependencies are selected. -->
+          @for (edge of shownBundleEdges(); track edge.key) {
             <path
               class="graph-bundle-edge"
-              [class]="edge.colorIndex !== null ? 'hue-' + edge.colorIndex : ''"
+              [class]="
+                !selectingDependencies() && edge.colorIndex !== null ? 'hue-' + edge.colorIndex : ''
+              "
+              [class.lit]="selectingDependencies()"
+              [class.dim]="selectingDependencies() && bundleEdgeDimmed(edge)"
               [attr.d]="edge.path"
             />
-          }
-          @for (item of vm.listItems; track item.key) {
-            <g class="graph-list-item" [class.dim]="nodeDimmed(item.ownerKey)">
-              @if (item.tooltip) {
-                <title>{{ item.tooltip }}</title>
-              }
-              @if (item.packageSelect; as select) {
-                <a
-                  class="graph-list-link"
-                  [routerLink]="['/packages']"
-                  [queryParams]="{ select: select }"
-                >
-                  <text class="graph-list-text" [attr.x]="item.x" [attr.y]="item.y">
-                    {{ item.text }}
-                  </text>
-                </a>
-              } @else {
-                <text class="graph-list-text" [attr.x]="item.x" [attr.y]="item.y">
-                  {{ item.text }}
-                </text>
-              }
-            </g>
           }
           @for (node of vm.nodes; track node.key) {
             @switch (node.kind) {
@@ -181,10 +161,8 @@
                   (mouseenter)="setHovered(node.key)"
                   (mouseleave)="setHovered(null)"
                   (click)="toggleRemote(node.id)"
+                  [attr.data-tip]="node.labelTooltip"
                 >
-                  @if (node.labelTooltip) {
-                    <title>{{ node.labelTooltip }}</title>
-                  }
                   <rect
                     [attr.x]="node.x"
                     [attr.y]="node.y"
@@ -217,18 +195,17 @@
               @case ('dependency') {
                 <g
                   class="graph-node dependency"
-                  [class.expanded]="node.expanded"
+                  [class.selected]="node.selected"
+                  role="checkbox"
+                  [attr.aria-checked]="node.selected"
                   (click)="toggleDependency(node.id)"
                   [class.isolated]="node.isolated"
                   [class.dim]="nodeDimmed(node.key)"
                   (mouseenter)="setHovered(node.key)"
                   (mouseleave)="setHovered(null)"
+                  [attr.data-tip]="node.tooltip"
+                  data-tip-list
                 >
-                  @if (node.note) {
-                    <title>{{ node.labelTooltip ?? node.label }}&#10;{{ node.note }}</title>
-                  } @else if (node.labelTooltip) {
-                    <title>{{ node.labelTooltip }}</title>
-                  }
                   <rect
                     [attr.x]="node.x"
                     [attr.y]="node.y"
@@ -244,21 +221,24 @@
                       class="graph-node-sublabel"
                       [attr.x]="node.subLabelX"
                       [attr.y]="node.subLabelY"
+                      [attr.data-tip]="node.subLabelTooltip"
                     >
-                      @if (node.subLabelTooltip) {
-                        <title>{{ node.subLabelTooltip }}</title>
-                      }
                       {{ node.subLabel }}
                     </text>
                   }
-                  <text
-                    class="graph-node-toggle"
-                    [attr.x]="node.toggleX"
-                    [attr.y]="node.subLabelY"
-                    text-anchor="end"
-                  >
-                    {{ node.expanded ? '▾' : '▸' }}
-                  </text>
+                  @if (node.packageSelect; as select) {
+                    <a
+                      class="graph-node-link"
+                      [routerLink]="['/packages']"
+                      [queryParams]="{ select: select }"
+                      (click)="$event.stopPropagation()"
+                      data-tip="open in Packages"
+                    >
+                      <text [attr.x]="node.linkX" [attr.y]="node.subLabelY" text-anchor="end">
+                        ↗
+                      </text>
+                    </a>
+                  }
                 </g>
               }
               @case ('chunk') {
@@ -270,10 +250,8 @@
                   [class.dim]="nodeDimmed(node.key)"
                   (mouseenter)="setHovered(node.key)"
                   (mouseleave)="setHovered(null)"
+                  [attr.data-tip]="node.labelTooltip"
                 >
-                  @if (node.labelTooltip) {
-                    <title>{{ node.labelTooltip }}</title>
-                  }
                   <rect
                     [attr.x]="node.x"
                     [attr.y]="node.y"
@@ -314,6 +292,7 @@
         </svg>
       </div>
     }
+    <nf-tip />
     <!-- Outside the empty branch: a capture can diverge without yielding a
          single node — an incomplete capture must never look merely blank. -->
     @if (vm.divergent || vm.droppedRelationIds.length > 0) {

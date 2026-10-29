@@ -610,6 +610,32 @@ describe('buildPackagesVm — flat list, links, filter, scopes (structure preser
     });
   });
 
+  // declared-packages (orchestrator 4.9): three packages a dense build declared under one npm name.
+  it('links no declared package under the name above it; without dense it links them', () => {
+    const linkedOf = (vm: PackagesVm) =>
+      packageRows(vm).map((row) => [row.displayName, row.linked?.parentPackage ?? null]);
+    expect(linkedOf(vmOf('declared-packages'))).toEqual([
+      ['@nf-lab/ws', null],
+      ['@nf-lab/ws/dialog', null],
+      ['@nf-lab/ws/table', null],
+    ]);
+
+    const snapshot = structuredClone(FIXTURES['declared-packages']) as SnapshotV1;
+    for (const external of Object.values(snapshot.runtime!.sharedExternals['__GLOBAL__']))
+      for (const version of external.versions)
+        for (const copy of version.remotes) delete copy.dense;
+    const vm = buildPackagesVm(ingestSnapshot(snapshot), {
+      filter: 'all',
+      selectedParticipant: null,
+      selectedId: null,
+    });
+    expect(linkedOf(vm)).toEqual([
+      ['@nf-lab/ws', null],
+      ['/dialog', '@nf-lab/ws'],
+      ['/table', '@nf-lab/ws'],
+    ]);
+  });
+
   it('narrows Multiple versions to resolved-tag multiplicity only', () => {
     const clean = vmOf('dense-chunking-only', { filter: 'multi' });
     expect(countOf(clean, 'multi')).toBe(0);

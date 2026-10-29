@@ -40,7 +40,6 @@ import {
   GraphModel,
   HEADER_H,
   LABEL_MAX,
-  LIST_ROW_H,
   MARGIN,
   MAX_BUNDLE_EDGES,
   NODE_H,
@@ -964,40 +963,9 @@ describe('buildGraphModel', () => {
   });
 });
 
-// graph-v48 T2: isolated nodes and subpool edges carry the placement reason
-// the Packages verdicts derive, worded by `shared/placement-text.ts`.
+// graph-v48 T2: subpool edges name the remote serving them. The isolated-node
+// reason left the Graph for Remotes and Packages (dashed border + ↗ instead).
 describe('buildGraphModel — placement notes (orchestrator 4.8)', () => {
-  const notesOf = (model: GraphModel) =>
-    dependencyNodesOf(model)
-      .filter((node) => node.note !== null)
-      .map((node) => [node.label, node.subLabel, node.note]);
-
-  // T2-AC-01: an unpooled fallback names the entrypoints the serving build lacks.
-  it('fallback-uncovered: each falling-back copy names its missing entrypoints', () => {
-    expect(notesOf(modelOf('fallback-uncovered'))).toEqual([
-      [
-        '@nf-lab/kit',
-        '1.2.0',
-        'runs its own build — not covered: the serving build of host lacks @nf-lab/kit/table, @nf-lab/kit/table/sort, @nf-lab/kit/table/paginator, @nf-lab/kit/dialog, @nf-lab/kit/forms',
-      ],
-      [
-        '@nf-lab/kit',
-        '1.3.0',
-        'runs its own build — not covered: the serving build of host lacks @nf-lab/kit/charts, @nf-lab/kit/charts/legend, @nf-lab/kit/date-picker',
-      ],
-    ]);
-  });
-
-  // T2-AC-02: a pooled isolation names range, tag and strictness.
-  it('pool-incompatible-nonstrict: the isolated pool members name the rejecting range', () => {
-    const reason =
-      'runs its own build — version conflict: its range ^1.0.0 (not strict) rejects the global 2.0.0 of @nf-lab/ui-core, @nf-lab/ui-dom';
-    expect(notesOf(modelOf('pool-incompatible-nonstrict'))).toEqual([
-      ['@nf-lab/ui-core', '1.1.0', reason],
-      ['@nf-lab/ui-dom', '1.1.0', reason],
-    ]);
-  });
-
   // T2-AC-03: an anchored edge names the remote serving it (the subpool owner), no pool wording;
   // the owner's own edge reads as its own copy.
   it('pool-showcase: anchored edges name the serving owner', () => {
@@ -1009,14 +977,6 @@ describe('buildGraphModel — placement notes (orchestrator 4.8)', () => {
     expect(tooltipOf('catalog', '@nf-lab/ui-dom')).toBe('served by admin');
     expect(tooltipOf('admin', '@nf-lab/ui-dom')).toBe('its own copy');
     expect(model.edges.some((e) => e.tooltip?.includes('pool'))).toBe(false);
-  });
-
-  it('leaves shared copies without a note and marks private copies as such', () => {
-    expect(notesOf(modelOf('co-declared-share'))).toEqual([]);
-    expect(notesOf(modelOf('scoped')).map(([, , note]) => note)).toEqual([
-      'private registration — a scoped external, not shared',
-      'private registration — a scoped external, not shared',
-    ]);
   });
 });
 
@@ -1125,45 +1085,66 @@ describe('buildGraphModel — group-by (share-pools T4)', () => {
   });
 });
 
-// Accordion: an open dependency lists its secondary entrypoints; build-files
-// groups collapse to one summary row unless open (at most one per column).
-describe('buildGraphModel — accordion', () => {
-  const copyIdOf = (id: FixtureId, label: string) =>
-    dependencyNodesOf(modelOf(id)).find((node) => node.label === label)!.id;
+// Hover list: a dependency lists all its entrypoints, the package itself
+// first; build-files groups collapse to one summary row unless open.
+describe('buildGraphModel — entrypoint lists and accordion', () => {
+  const nodeOf = (model: GraphModel, label: string) =>
+    dependencyNodesOf(model).find((node) => node.label === label)!;
 
-  it('lists a flat build’s secondary copies under the open dependency', () => {
-    const projection = projectionOf('frankenstein-live');
-    const common = copyIdOf('frankenstein-live', '@angular/common');
-    const model = buildGraphModel(projection, { expandedCopyId: common });
-    expect(model.listItems.map((item) => [item.text, item.packageSelect])).toEqual([
-      ['@angular/common/http', null],
-      ['see usage details', '__GLOBAL__|@angular/common'],
-    ]);
-    expect(
-      dependencyNodesOf(model)
-        .filter((node) => node.expanded)
-        .map((n) => n.label),
-    ).toEqual(['@angular/common']);
-    // Rows (entrypoint + usage link) push the following node down by their height.
-    const before = dependencyNodesOf(modelOf('frankenstein-live'));
-    const after = dependencyNodesOf(model);
-    const index = before.findIndex((node) => node.id === common);
-    expect(after[index + 1].y - before[index + 1].y).toBe(2 * LIST_ROW_H + NODE_VGAP);
+  it('lists a flat build’s secondary copies after the package', () => {
+    const common = nodeOf(modelOf('frankenstein-live'), '@angular/common');
+    expect(common.tooltip).toBe('@angular/common, @angular/common/http');
+    expect(common.packageSelect).toBe('__GLOBAL__|@angular/common');
   });
 
-  it('lists a dense build’s own entries-map secondaries', () => {
-    const lib = copyIdOf('dense-both', '@nf-lab/dense-lib');
-    const model = buildGraphModel(projectionOf('dense-both'), { expandedCopyId: lib });
-    expect(model.listItems.map((item) => [item.text, item.packageSelect])).toEqual([
-      ['@nf-lab/dense-lib/extra', null],
-      ['see usage details', '__GLOBAL__|@nf-lab/dense-lib'],
-    ]);
-    const utils = copyIdOf('dense-both', '@nf-lab/utils');
+  it('lists a dense build’s own entries-map secondaries after the package', () => {
+    const model = modelOf('dense-both');
+    expect(nodeOf(model, '@nf-lab/dense-lib').tooltip).toBe(
+      '@nf-lab/dense-lib, @nf-lab/dense-lib/extra',
+    );
+    expect(nodeOf(model, '@nf-lab/utils').tooltip).toBe('@nf-lab/utils');
+  });
+
+  // declared-packages (orchestrator 4.9): `/table` and `/dialog` are packages of their own, not
+  // secondaries of `@nf-lab/ws`; table's own `/sort` entry still is one.
+  it('lists no declared package under the dependency above it', () => {
+    const model = modelOf('declared-packages');
+    expect(nodeOf(model, '@nf-lab/ws').tooltip).toBe('@nf-lab/ws');
+    expect(nodeOf(model, '@nf-lab/ws/table').tooltip).toBe(
+      '@nf-lab/ws/table, @nf-lab/ws/table/sort',
+    );
+  });
+
+  // Selection narrows the build files to the selected copies' own; the
+  // dependency column and the consume edges stay whole.
+  it('shows only the selected dependencies’ build files', () => {
+    const projection = projectionOf('frankenstein-live');
+    const full = modelOf('frankenstein-live');
+    const rxjs = nodeOf(full, 'rxjs');
+    const common = nodeOf(full, '@angular/common');
+    const selected = buildGraphModel(projection, {
+      selectedDependencies: new Set([rxjs.id, common.id]),
+    });
+    expect(dependencyNodesOf(selected).map((node) => node.id)).toEqual(
+      dependencyNodesOf(full).map((node) => node.id),
+    );
+    expect(selected.edges).toEqual(full.edges);
     expect(
-      buildGraphModel(projectionOf('dense-both'), { expandedCopyId: utils }).listItems.map(
-        (item) => item.text,
-      ),
-    ).toEqual(['no secondary entrypoints', 'see usage details']);
+      dependencyNodesOf(selected)
+        .filter((node) => node.selected)
+        .map((node) => node.label),
+    ).toEqual(['@angular/common', 'rxjs']);
+    const ownChunks = (key: string) =>
+      new Set(
+        full.bundleEdgeRefs.filter((ref) => ref.dependencyKey === key).map((r) => r.chunkKey),
+      );
+    const expected = new Set([...ownChunks(rxjs.key), ...ownChunks(common.key)]);
+    expect(new Set(chunkNodesOf(selected).map((node) => node.key))).toEqual(expected);
+    expect(new Set(selected.bundleEdgeRefs.map((ref) => ref.dependencyKey))).toEqual(
+      new Set([rxjs.key, common.key]),
+    );
+    // An empty selection is no selection.
+    expect(buildGraphModel(projection, { selectedDependencies: new Set() })).toEqual(full);
   });
 
   it('collapses build groups to summary rows; one open group shows its files', () => {
@@ -1200,28 +1181,27 @@ describe('buildGraphModel — accordion', () => {
     expect(buildGraphModel(projection, { expandedBuildKey: core.key })).toEqual(open);
   });
 
-  // The "see usage details" link must land on the Packages scope block that
+  // The ↗ Packages link must land on the Packages scope block that
   // lists this copy's version as mapped — checked against the real Packages VM
   // for every copy of every fixture, so the two grouping rules cannot drift apart.
-  it('links every expandable copy to the Packages scope block that lists it', () => {
+  it('links every copy to the Packages scope block that lists it', () => {
     let linked = 0;
     for (const fixtureId of Object.keys(FIXTURES) as FixtureId[]) {
       const model = ingestSnapshot(structuredClone(FIXTURES[fixtureId]));
+      const nodes = dependencyNodesOf(buildGraphModel(model.resolutionProjection));
       for (const copy of model.resolutionProjection.copies) {
-        const link = buildGraphModel(model.resolutionProjection, {
-          expandedCopyId: copy.id,
-        }).listItems.find((item) => item.packageSelect !== null);
-        if (link === undefined) {
+        const select = nodes.find((node) => node.id === copy.id)?.packageSelect ?? null;
+        if (select === null) {
           continue;
         }
         linked += 1;
         const scope = buildPackagesVm(model, {
           filter: 'all',
           selectedParticipant: null,
-          selectedId: link.packageSelect,
+          selectedId: select,
         }).packageView?.scopes.find((block) => block.focused);
-        const where = `${fixtureId}: ${copy.id} -> ${link.packageSelect}`;
-        expect(scope?.id, where).toBe(link.packageSelect);
+        const where = `${fixtureId}: ${copy.id} -> ${select}`;
+        expect(scope?.id, where).toBe(select);
         if (copy.resolvedTag !== null) {
           expect(
             scope!.versions.filter((version) => version.mapped).map((version) => version.tag),
