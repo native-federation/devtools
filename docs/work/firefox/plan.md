@@ -25,9 +25,9 @@ no DevTools.
 
 - `build-extension.mjs` assembles a second directory, `dist/extension-firefox/`, from the same
   shell and panel; its manifest is the Chrome manifest plus `browser_specific_settings.gecko`
-  (add-on id, `strict_min_version` 140 — the ESR line, and the first that knows
-  `data_collection_permissions`, which AMO requires for new add-ons: `{ required: ["none"] }`). The
-  Chrome manifest stays free of Gecko keys, so Chrome shows no unknown-key warning. The bundle
+  (add-on id `devtools@native-federation.com`, permanent once signed on AMO; `strict_min_version`
+  140 — the ESR line, and the first that knows `data_collection_permissions`, which AMO requires
+  for new add-ons: `{ required: ["none"] }`). The Chrome manifest stays free of Gecko keys, so Chrome shows no unknown-key warning. The bundle
   check scans both directories.
 - `devtools.js` passes the 32px icon to `panels.create` (Firefox renders the empty path as a
   broken image; Chrome ignores it either way).
@@ -50,6 +50,4 @@ no DevTools.
 
 ### Open
 
-- The Gecko add-on id is permanent once signed on AMO; it is a placeholder until the project
-  owners pick it.
 - AMO signing and listing (unlisted self-distribution or public) — outside this scope.
