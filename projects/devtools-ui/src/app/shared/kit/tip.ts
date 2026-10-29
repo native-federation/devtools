@@ -12,6 +12,7 @@ export interface Tip {
   head: string | null;
   lines: { label: string | null; text: string }[];
   list: boolean;
+  columns: boolean;
   above: boolean;
   x: number;
   y: number;
@@ -20,7 +21,8 @@ export interface Tip {
 /**
  * Delegated tooltips for every `[data-tip]` under the host: `\n` separates lines, `label: text`
  * lines get their label set off, `data-tip-head` turns the first line into a heading and
- * `data-tip-list` splits on `, ` into columns. Render them with `<nf-tip />` inside the host.
+ * `data-tip-list` splits on `, ` into a list (in columns once it is long) and `data-tip-cursor` places it at the pointer (for
+ * targets whose box says little, like a graph edge). Render them with `<nf-tip />` inside the host.
  */
 @Directive({
   selector: '[nfTips]',
@@ -44,7 +46,9 @@ export class TipHost {
   }
 
   show(event: Event): void {
-    const target = (event.target as Element | null)?.closest<HTMLElement>('[data-tip]');
+    const target = (event.target as Element | null)?.closest<HTMLElement | SVGElement>(
+      '[data-tip]',
+    );
     if (!target || target === this.target || !this.host.nativeElement.contains(target)) return;
     const text = target.dataset['tip'];
     if (!text) return;
@@ -52,12 +56,16 @@ export class TipHost {
     const list = target.hasAttribute('data-tip-list');
     const lines = (list ? text.split(', ') : text.split('\n')).map(tipLine);
     const head = target.hasAttribute('data-tip-head') ? (lines.shift()?.text ?? null) : null;
-    const rect = target.getBoundingClientRect();
+    const rect =
+      target.hasAttribute('data-tip-cursor') && event instanceof MouseEvent
+        ? new DOMRect(event.clientX, event.clientY, 0, 12)
+        : target.getBoundingClientRect();
     const above = rect.bottom + 160 > window.innerHeight && rect.top > 160;
     this.tip.set({
       head,
       lines: list ? lines.map((line) => ({ label: null, text: line.text })) : lines,
       list,
+      columns: list && lines.length > 8,
       above,
       x: Math.max(8, Math.min(rect.left, window.innerWidth - 368)),
       y: above ? rect.top - 6 : rect.bottom + 6,
@@ -88,6 +96,7 @@ function tipLine(line: string): { label: string | null; text: string } {
         role="tooltip"
         [class.nf-tip-above]="t.above"
         [class.nf-tip-list]="t.list"
+        [class.nf-tip-columns]="t.columns"
         [style.left.px]="t.x"
         [style.top.px]="t.y"
       >

@@ -963,40 +963,9 @@ describe('buildGraphModel', () => {
   });
 });
 
-// graph-v48 T2: isolated nodes and subpool edges carry the placement reason
-// the Packages verdicts derive, worded by `shared/placement-text.ts`.
+// graph-v48 T2: subpool edges name the remote serving them. The isolated-node
+// reason left the Graph for Remotes and Packages (dashed border + ↗ instead).
 describe('buildGraphModel — placement notes (orchestrator 4.8)', () => {
-  const notesOf = (model: GraphModel) =>
-    dependencyNodesOf(model)
-      .filter((node) => node.note !== null)
-      .map((node) => [node.label, node.subLabel, node.note]);
-
-  // T2-AC-01: an unpooled fallback names the entrypoints the serving build lacks.
-  it('fallback-uncovered: each falling-back copy names its missing entrypoints', () => {
-    expect(notesOf(modelOf('fallback-uncovered'))).toEqual([
-      [
-        '@nf-lab/kit',
-        '1.2.0',
-        'runs its own build — not covered: the serving build of host lacks @nf-lab/kit/table, @nf-lab/kit/table/sort, @nf-lab/kit/table/paginator, @nf-lab/kit/dialog, @nf-lab/kit/forms',
-      ],
-      [
-        '@nf-lab/kit',
-        '1.3.0',
-        'runs its own build — not covered: the serving build of host lacks @nf-lab/kit/charts, @nf-lab/kit/charts/legend, @nf-lab/kit/date-picker',
-      ],
-    ]);
-  });
-
-  // T2-AC-02: a pooled isolation names range, tag and strictness.
-  it('pool-incompatible-nonstrict: the isolated pool members name the rejecting range', () => {
-    const reason =
-      'runs its own build — version conflict: its range ^1.0.0 (not strict) rejects the global 2.0.0 of @nf-lab/ui-core, @nf-lab/ui-dom';
-    expect(notesOf(modelOf('pool-incompatible-nonstrict'))).toEqual([
-      ['@nf-lab/ui-core', '1.1.0', reason],
-      ['@nf-lab/ui-dom', '1.1.0', reason],
-    ]);
-  });
-
   // T2-AC-03: an anchored edge names the remote serving it (the subpool owner), no pool wording;
   // the owner's own edge reads as its own copy.
   it('pool-showcase: anchored edges name the serving owner', () => {
@@ -1008,14 +977,6 @@ describe('buildGraphModel — placement notes (orchestrator 4.8)', () => {
     expect(tooltipOf('catalog', '@nf-lab/ui-dom')).toBe('served by admin');
     expect(tooltipOf('admin', '@nf-lab/ui-dom')).toBe('its own copy');
     expect(model.edges.some((e) => e.tooltip?.includes('pool'))).toBe(false);
-  });
-
-  it('leaves shared copies without a note and marks private copies as such', () => {
-    expect(notesOf(modelOf('co-declared-share'))).toEqual([]);
-    expect(notesOf(modelOf('scoped')).map(([, , note]) => note)).toEqual([
-      'private registration — a scoped external, not shared',
-      'private registration — a scoped external, not shared',
-    ]);
   });
 });
 
@@ -1124,44 +1085,34 @@ describe('buildGraphModel — group-by (share-pools T4)', () => {
   });
 });
 
-// Hover tooltip: a dependency names its secondary entrypoints; build-files
-// groups collapse to one summary row unless open (at most one).
-describe('buildGraphModel — tooltips and accordion', () => {
+// Hover list: a dependency lists all its entrypoints, the package itself
+// first; build-files groups collapse to one summary row unless open.
+describe('buildGraphModel — entrypoint lists and accordion', () => {
   const nodeOf = (model: GraphModel, label: string) =>
     dependencyNodesOf(model).find((node) => node.label === label)!;
 
-  it('names a flat build’s secondary copies in the tooltip', () => {
-    expect(nodeOf(modelOf('frankenstein-live'), '@angular/common').tooltip).toBe(
-      '@angular/common\nsecondary entrypoints:\n  @angular/common/http',
-    );
-    expect(nodeOf(modelOf('frankenstein-live'), '@angular/common').packageSelect).toBe(
-      '__GLOBAL__|@angular/common',
-    );
+  it('lists a flat build’s secondary copies after the package', () => {
+    const common = nodeOf(modelOf('frankenstein-live'), '@angular/common');
+    expect(common.tooltip).toBe('@angular/common, @angular/common/http');
+    expect(common.packageSelect).toBe('__GLOBAL__|@angular/common');
   });
 
-  it('names a dense build’s own entries-map secondaries in the tooltip', () => {
+  it('lists a dense build’s own entries-map secondaries after the package', () => {
     const model = modelOf('dense-both');
     expect(nodeOf(model, '@nf-lab/dense-lib').tooltip).toBe(
-      '@nf-lab/dense-lib\nsecondary entrypoints:\n  @nf-lab/dense-lib/extra',
+      '@nf-lab/dense-lib, @nf-lab/dense-lib/extra',
     );
-    expect(nodeOf(model, '@nf-lab/utils').tooltip).toBe('@nf-lab/utils\nno secondary entrypoints');
+    expect(nodeOf(model, '@nf-lab/utils').tooltip).toBe('@nf-lab/utils');
   });
 
   // declared-packages (orchestrator 4.9): `/table` and `/dialog` are packages of their own, not
   // secondaries of `@nf-lab/ws`; table's own `/sort` entry still is one.
-  it('names no declared package as a secondary of the dependency above it', () => {
+  it('lists no declared package under the dependency above it', () => {
     const model = modelOf('declared-packages');
-    expect(nodeOf(model, '@nf-lab/ws').tooltip).toBe('@nf-lab/ws\nno secondary entrypoints');
+    expect(nodeOf(model, '@nf-lab/ws').tooltip).toBe('@nf-lab/ws');
     expect(nodeOf(model, '@nf-lab/ws/table').tooltip).toBe(
-      '@nf-lab/ws/table\nsecondary entrypoints:\n  @nf-lab/ws/table/sort',
+      '@nf-lab/ws/table, @nf-lab/ws/table/sort',
     );
-  });
-
-  it('puts the isolation note between the label and the entrypoints', () => {
-    const isolated = dependencyNodesOf(modelOf('fallback-uncovered')).find(
-      (node) => node.note !== null,
-    )!;
-    expect(isolated.tooltip.split('\n').slice(0, 2)).toEqual([isolated.label, isolated.note]);
   });
 
   // Selection narrows the build files to the selected copies' own; the

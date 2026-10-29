@@ -1,11 +1,8 @@
-import { placementReasonText } from '../../shared/placement-text';
 import type {
   BundleClaim,
   CanonicalResolutionProjection,
   ChunkGroupProjection,
   CopyGroupingFacets,
-  DeclarationVerdictRecord,
-  ParticipantDeclarationId,
   ResolvedDependencyCopy,
 } from '../../shared/store/resolution';
 import {
@@ -166,11 +163,6 @@ export function buildGraphModel(
   const dependencyHueByCopyId = new Map<string, number | null>();
   let dependencyCursor = MARGIN + HEADER_H;
 
-  const verdictByDeclaration = new Map(
-    projection.packageScopeVerdicts.flatMap((verdicts) =>
-      verdicts.declarations.map((record) => [record.declarationId, record] as const),
-    ),
-  );
   const facetsByCopyId = new Map(projection.copyGroupingFacets.map((f) => [f.copyId, f]));
   const selectedDependencies = options.selectedDependencies ?? new Set<string>();
   const layoutDependencyCluster = (seed: ClusterSeed, entries: typeof sortedCopies): void => {
@@ -179,7 +171,6 @@ export function buildGraphModel(
     let nodeY = boxY + CLUSTER_HEADER + CLUSTER_PAD;
     for (const entry of entries) {
       const base = dependencyNodeAt(entry.copy, entry.fullLabel, nodeY);
-      const note = isolationNoteOf(entry.copy, verdictByDeclaration);
       const secondaries = secondaryEntrypointsOf(
         entry.copy,
         entry.fullLabel,
@@ -189,14 +180,7 @@ export function buildGraphModel(
       dependencyNodes.push({
         ...base,
         packageSelect: packageSelectOf(entry.copy, facetsByCopyId.get(entry.copy.id)),
-        note,
-        tooltip: [
-          base.labelTooltip ?? base.label,
-          ...(note === null ? [] : [note]),
-          ...(secondaries.length === 0
-            ? ['no secondary entrypoints']
-            : ['secondary entrypoints:', ...secondaries.map((name) => `  ${name}`)]),
-        ].join('\n'),
+        tooltip: [entry.fullLabel, ...secondaries].join(', '),
         selected: selectedDependencies.has(entry.copy.id),
       });
       orderedDependencyEntries.push(entry);
@@ -648,33 +632,6 @@ export function graphAdjacencyOf(model: GraphModel): ReadonlyMap<string, Readonl
     link(ref.dependencyKey, ref.chunkKey);
   }
   return adjacency;
-}
-
-type VerdictLookup = ReadonlyMap<ParticipantDeclarationId, DeclarationVerdictRecord>;
-
-function reasonTextOf(
-  declarationId: ParticipantDeclarationId,
-  verdicts: VerdictLookup,
-): string | null {
-  const reason = verdicts.get(declarationId)?.reason ?? null;
-  return reason === null ? null : placementReasonText(reason);
-}
-
-// Worded as the Remotes `isolated` chip: the same verdict lookup, the same reason text.
-function isolationNoteOf(copy: ResolvedDependencyCopy, verdicts: VerdictLookup): string | null {
-  if (copy.source.kind === 'private-registration') {
-    return 'private registration — a scoped external, not shared';
-  }
-  if (copy.sourceDisposition !== 'scope-registration') {
-    return null;
-  }
-  const reason =
-    copy.source.kind === 'shared-declaration'
-      ? reasonTextOf(copy.source.declarationId, verdicts)
-      : null;
-  return reason === null
-    ? 'the evidenced source is registered with action scope — an isolated copy'
-    : `runs its own build — ${reason}`;
 }
 
 /** Last path segment of a target URL — the file name a build emitted. */

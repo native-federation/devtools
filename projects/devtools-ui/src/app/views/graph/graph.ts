@@ -10,6 +10,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { PARTICIPANT_COLOR_LOOKUP } from '../../shared/kit/participant-colors';
+import { TipHost, TipPopup } from '../../shared/kit/tip';
 import { FederationStore } from '../../shared/store/federation-store';
 import { countClaim } from '../../shared/view-conventions';
 import { nodeKeyOf } from './graph-element-factories';
@@ -47,7 +48,8 @@ import {
 @Component({
   selector: 'nf-graph-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, TipPopup],
+  hostDirectives: [TipHost],
   templateUrl: './graph.html',
   styleUrl: './graph.css',
 })

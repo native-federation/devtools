@@ -125,7 +125,8 @@ left-mid and render as horizontal cubic Béziers
 - **Hover = trace** (transient, stateless): hovered node plus
   undirected-adjacent nodes stay full opacity, everything else dims;
   non-adjacent consume edges dim hard; bundle edges of the hovered
-  node appear. Native tooltips carry the full text.
+  node appear. Tooltips use the panel's shared popup (`shared/kit/tip.ts`);
+  a dependency's lists all its entrypoints, an edge's sits at the pointer.
 - **Click on a remote** toggles it in the selection set; a dependency
   is kept when **at least one consumer relation touches a selected
   remote** (OR). The remote column always renders completely. Toolbar
