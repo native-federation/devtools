@@ -157,10 +157,16 @@ describe('derivePoolFamilies — hand-built records', () => {
     poolCause?: string;
     requiredVersion?: string;
     strictVersion?: boolean;
+    // Specifiers the record ships; defaults to the package alone.
+    entries?: string[];
   };
   const familyFrom = (
     packages: Record<string, Row[]>,
-    { dirty = false, undecidedScopes = [] as string[] } = {},
+    {
+      dirty = false,
+      undecidedScopes = [] as string[],
+      record = {} as { poolName?: string; poolWinner?: string; servingBuild?: string },
+    } = {},
   ) => {
     const base = FIXTURES['pool-tag-coherent'];
     const shared: NonNullable<SnapshotV1['runtime']>['sharedExternals'] = { __GLOBAL__: {} };
@@ -178,18 +184,23 @@ describe('derivePoolFamilies — hand-built records', () => {
               requiredVersion: row.requiredVersion ?? '*',
               strictVersion: row.strictVersion ?? false,
               file: null,
-              entries: { [pkg]: `${row.remote}-${pkg}-${tag}.js` },
+              entries: Object.fromEntries(
+                (row.entries ?? [pkg]).map((e) => [e, `${row.remote}-${e}-${tag}.js`]),
+              ),
               cached: false,
               bundle: null,
               ...(row.pool ? { pool: row.pool } : {}),
               ...(row.servedBy ? { servedBy: row.servedBy } : {}),
               ...(row.poolCause ? { poolCause: row.poolCause } : {}),
-              servedFiles: [{ entry: pkg, file: `${row.remote}-${pkg}-${tag}.js` }],
+              servedFiles: (row.entries ?? [pkg]).map((e) => ({
+                entry: e,
+                file: `${row.remote}-${e}-${tag}.js`,
+              })),
               generation: 'v4.5' as const,
             })),
         };
       });
-      shared['__GLOBAL__'][pkg] = { dirty, versions };
+      shared['__GLOBAL__'][pkg] = { dirty, ...record, versions };
     }
     const snapshot = {
       ...base,
@@ -316,6 +327,114 @@ describe('derivePoolFamilies — hand-built records', () => {
     };
     expect(familyFrom(rows).pending).toBe(false);
     expect(familyFrom(rows, { undecidedScopes: ['__GLOBAL__'] }).pending).toBe(true);
+  });
+
+  // Orchestrator 4.10 reads every record a remote ships for one package at one tag as its own copy
+  // (#134): a split build stores two `fw` copies of r1 side by side in one version row. r2 wins at
+  // 1.1.0; r1's second record, strict `~1.0.0` over `fw/sub`, rejects it, so r1 is islanded.
+  const fw = { remote: 'r1', tag: '1.0.0', action: 'scope', pool: 'fw', poolCause: 'incompatible' };
+  const fwRoot: Row = { ...fw, requiredVersion: '^1.0.0', entries: ['fw'] };
+  const fwSub: Row = { ...fw, ...strict('~1.0.0'), entries: ['fw/sub'] };
+  const splitIsland = (r1: Row[]) =>
+    familyFrom(
+      {
+        fw: [
+          {
+            remote: 'r2',
+            tag: '1.1.0',
+            action: 'share',
+            pool: 'fw',
+            requiredVersion: '^1.1.0',
+            entries: ['fw', 'fw/sub'],
+          },
+          ...r1,
+        ],
+        fw2: [
+          { remote: 'r2', tag: '1.0.0', action: 'share', pool: 'fw', requiredVersion: '^1.0.0' },
+          { ...fw, requiredVersion: '^1.0.0' },
+        ],
+      },
+      { record: { poolName: 'fw', poolWinner: 'r2', servingBuild: 'r2' } },
+    );
+
+  it('a split record whose range rejects the winner islands its remote consistently', () => {
+    const family = splitIsland([fwRoot, fwSub]);
+    expect(consumer(family, 'r1')).toMatchObject({
+      placement: { kind: 'self' },
+      storedCause: 'incompatible',
+      miss: {
+        kind: 'range',
+        rejections: [
+          {
+            member: 'fw',
+            specifier: 'fw/sub',
+            tag: '1.1.0',
+            requiredVersion: '~1.0.0',
+            strict: true,
+          },
+        ],
+      },
+      consistent: true,
+    });
+    // The matrix cell shows the rejecting record, so the verdict counts its conflict.
+    const r1 = family.statusMatrix.bands.find((band) => band.owner === 'r1')!.rows[0];
+    expect(r1.cells.map((cell) => cell?.state)).toEqual(['rejected', 'isolated']);
+    expect(r1.cells[0]).toMatchObject({ requiredVersion: '~1.0.0', sharedTag: '1.1.0' });
+    expect(family.statusMatrix.verdict.isolated).toEqual({
+      remotes: ['r1'],
+      conflicts: 1,
+      cause: 'incompatible',
+    });
+  });
+
+  it("a split remote's records read the same in either order", () => {
+    // Split records ship disjoint specifiers, so no record's first-wins tag shadows another's.
+    expect(splitIsland([fwSub, fwRoot])).toEqual(splitIsland([fwRoot, fwSub]));
+  });
+
+  it('a split record the surface lacks is a gap in both cells', () => {
+    // r1's second `fw` record ships `fw/sub`, which r2's build does not: both the matrix and the
+    // lens must count the specifiers of every record, not just the root's.
+    const r1 = { ...fw, poolCause: 'uncovered', requiredVersion: '^1.0.0' };
+    const family = familyFrom(
+      {
+        fw: [
+          { remote: 'r2', tag: '1.0.0', action: 'share', pool: 'fw', requiredVersion: '^1.0.0' },
+          { ...r1, entries: ['fw'] },
+          { ...r1, entries: ['fw/sub'] },
+        ],
+        fw2: [
+          { remote: 'r2', tag: '1.0.0', action: 'share', pool: 'fw', requiredVersion: '^1.0.0' },
+          r1,
+        ],
+      },
+      { record: { poolName: 'fw', poolWinner: 'r2', servingBuild: 'r2' } },
+    );
+    const row = family.statusMatrix.bands.flatMap((b) => b.rows).find((r) => r.remote === 'r1')!;
+    expect(row.cells[0]).toMatchObject({ state: 'gap', missing: ['fw/sub'] });
+    expect(family.lenses.find((l) => l.owner === 'r2')!.cells['r1'][0]).toMatchObject({
+      state: 'gap',
+      missing: ['fw/sub'],
+    });
+  });
+
+  it("the global surface takes the serving build's copy at the shared tag only", () => {
+    // A synthetic two-tag shape that pins the tag filter; real split records share one tag.
+    // host serves `a` at 2.0.0 and also ships a 1.0.0 copy with `a/legacy`, which is not mapped.
+    const family = familyFrom(
+      {
+        a: [
+          { remote: 'host', tag: '2.0.0', action: 'share', pool: 'p' },
+          { remote: 'host', tag: '1.0.0', action: 'skip', pool: 'p', entries: ['a', 'a/legacy'] },
+        ],
+        b: [{ remote: 'host', tag: '2.0.0', action: 'share', pool: 'p' }],
+      },
+      { record: { servingBuild: 'host' } },
+    );
+    expect(family.globalSurface.map((e) => `${e.specifier}@${e.tag}:${e.build}`)).toEqual([
+      'a@2.0.0:host',
+      'b@2.0.0:host',
+    ]);
   });
 });
 

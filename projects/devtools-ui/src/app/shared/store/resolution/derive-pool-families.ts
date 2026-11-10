@@ -84,8 +84,6 @@ export function derivePoolFamilies(
         for (const declaration of registration.participantDeclarationIds.map((id) =>
           declarationById.get(id)!,
         )) {
-          // A remote ships one copy per member; a second row is a record it cannot produce.
-          if (rows.some((row) => row.remote === declaration.participant)) continue;
           rows.push({
             remote: declaration.participant,
             member,
@@ -113,9 +111,10 @@ export function derivePoolFamilies(
         external.servingBuild !== null && participants.includes(external.servingBuild)
           ? external.servingBuild
           : participants[0];
-      const copy = rows.find((row) => row.remote === build);
-      for (const specifier of copy?.specifiers ?? [])
-        surface.push({ specifier, member, tag: shared.tag, build });
+      for (const row of rows)
+        if (row.remote === build && row.tag === shared.tag)
+          for (const specifier of row.specifiers)
+            surface.push({ specifier, member, tag: shared.tag, build });
     }
 
     const surfaceTags = new SpecifierTags(packageOf);
@@ -125,11 +124,10 @@ export function derivePoolFamilies(
     for (const entry of surface)
       if (!memberSurface.has(entry.member)) memberSurface.set(entry.member, entry);
 
+    const memberRowsOf = (remote: string, member: string) =>
+      (rowsByMember.get(member) ?? []).filter((row) => row.remote === remote);
     const rowsOf = (remote: string) =>
-      pool.members.flatMap((member) => {
-        const row = rowsByMember.get(member)?.find((r) => r.remote === remote);
-        return row === undefined ? [] : [row];
-      });
+      pool.members.flatMap((member) => memberRowsOf(remote, member));
     const builds = pool.remotes.map((remote) => {
       const tags = new SpecifierTags(packageOf);
       for (const row of rowsOf(remote))
@@ -208,8 +206,6 @@ export function derivePoolFamilies(
       .map(([specifier, remotes]) => ({ specifier, remotes: remotes.sort(compareText) }))
       .sort((a, b) => compareText(a.specifier, b.specifier));
 
-    const rowOf = (remote: string, member: string) =>
-      rowsByMember.get(member)?.find((row) => row.remote === remote);
     const undecided = undecidedScopes.includes(pool.shareScope);
     const winner = externals.find((e) => e.poolWinner !== null)?.poolWinner ?? null;
     return {
@@ -222,7 +218,7 @@ export function derivePoolFamilies(
         pool,
         members,
         consumers,
-        rowOf,
+        memberRowsOf,
         surfaceTags,
         memberSurface,
         winner,
@@ -251,13 +247,18 @@ function lensOf(
       for (const specifier of row.specifiers)
         declared.set(specifier, [...new Set([...(declared.get(specifier) ?? []), remote])]);
     cells[remote] = members.map((member) => {
-      const row = rows.find((r) => r.member === member);
-      if (row === undefined) return null;
-      const missing = row.specifiers.filter((specifier) => !tags.has(specifier));
-      const rejected = row.specifiers.some((specifier) => {
-        const tag = tags.get(specifier);
-        return tag !== undefined && acceptsTag(tag, row.tag, row.requiredVersion) === false;
-      });
+      const records = rows.filter((r) => r.member === member);
+      if (records.length === 0) return null;
+      const rejects = (record: MemberRow) =>
+        record.specifiers.some((specifier) => {
+          const tag = tags.get(specifier);
+          return tag !== undefined && acceptsTag(tag, record.tag, record.requiredVersion) === false;
+        });
+      const row = cellRecord(records, rejects);
+      const missing = records
+        .flatMap((record) => record.specifiers)
+        .filter((specifier) => !tags.has(specifier));
+      const rejected = rejects(row);
       return {
         state: rejected ? 'rejected' : missing.length > 0 ? 'gap' : 'accepted',
         tag: tags.pinnedTag(member) ?? null,
@@ -278,6 +279,15 @@ function lensOf(
     consumers: remotes.map((remote) => ({ remote, miss: missOf(rowsOf(remote), tags, []) })),
     cells,
   };
+}
+
+// A package split over records (orchestrator 4.10) shows the rejecting one, else its root's.
+function cellRecord(records: MemberRow[], rejects: (record: MemberRow) => boolean): MemberRow {
+  return (
+    records.find(rejects) ??
+    records.find((record) => record.specifiers.includes(record.member)) ??
+    records[0]
+  );
 }
 
 function placementOf(rows: readonly MemberRow[]): PoolPlacement {
@@ -347,7 +357,7 @@ function consistentOf(
   }
 }
 
-type RowOf = (remote: string, member: string) => MemberRow | undefined;
+type MemberRowsOf = (remote: string, member: string) => MemberRow[];
 type MemberSurface = ReadonlyMap<string, { tag: string; build: string }>;
 
 function bandKeyOf(
@@ -370,7 +380,7 @@ function statusMatrixOf(
   pool: TagPool,
   members: readonly PoolFamilyMember[],
   consumers: readonly PoolConsumer[],
-  rowOf: RowOf,
+  memberRowsOf: MemberRowsOf,
   surface: SpecifierTags,
   memberSurface: MemberSurface,
   winner: string | null,
@@ -397,18 +407,22 @@ function statusMatrixOf(
   ): PoolStatusRow => {
     const placement = consumer.placement;
     const cells = pool.members.map((member): PoolStatusCell | null => {
-      const row = rowOf(consumer.remote, member);
-      if (row === undefined) return null;
+      const records = memberRowsOf(consumer.remote, member);
+      if (records.length === 0) return null;
       const sharedTag = memberSurface.get(member)?.tag ?? null;
-      const acceptsShared =
-        sharedTag === null ? null : acceptsTag(sharedTag, row.tag, row.requiredVersion);
+      const accepts = (record: MemberRow) =>
+        sharedTag === null ? null : acceptsTag(sharedTag, record.tag, record.requiredVersion);
+      const row = cellRecord(records, (record) => accepts(record) === false);
+      const acceptsShared = accepts(row);
       const servedTag =
         placement.kind === 'self'
           ? row.tag
           : placement.kind === 'subpool'
-            ? (rowOf(placement.owner, member)?.tag ?? row.tag)
+            ? (memberRowsOf(placement.owner, member)[0]?.tag ?? row.tag)
             : (sharedTag ?? row.tag);
-      const missing = row.specifiers.filter((specifier) => !surface.has(specifier));
+      const missing = records
+        .flatMap((record) => record.specifiers)
+        .filter((specifier) => !surface.has(specifier));
       const state: PoolStatusCell['state'] =
         acceptsShared === false
           ? 'rejected'
@@ -438,7 +452,7 @@ function statusMatrixOf(
       host: consumer.host,
       tag:
         pool.members
-          .map((member) => rowOf(consumer.remote, member)?.poolTag ?? null)
+          .map((member) => memberRowsOf(consumer.remote, member)[0]?.poolTag ?? null)
           .find((t) => t !== null) ?? null,
       redirected: placement.kind === 'subpool' && placement.owner !== consumer.remote,
       cells,
