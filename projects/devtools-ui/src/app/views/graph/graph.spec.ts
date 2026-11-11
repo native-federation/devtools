@@ -373,12 +373,26 @@ describe('GraphView', () => {
     fixture.detectChanges();
     const tip = el.querySelector('.nf-tip.nf-tip-list');
     expect(tip?.getAttribute('role')).toBe('tooltip');
-    expect(tip?.classList).not.toContain('nf-tip-columns');
     expect(Array.from(tip!.querySelectorAll('.nf-tip-line')).map((line) => textOf(line))).toEqual([
       '@angular/common',
       '@angular/common/http',
     ]);
     common.querySelector('rect')!.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
+    fixture.detectChanges();
+    expect(el.querySelector('.nf-tip')).toBeNull();
+
+    // A long entrypoint list scrolls: the pointer can move into the list and
+    // scroll it without closing it, and leaving the list closes it.
+    common.querySelector('rect')!.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    fixture.detectChanges();
+    const list = el.querySelector('.nf-tip.nf-tip-list')!;
+    common
+      .querySelector('rect')!
+      .dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: list }));
+    list.dispatchEvent(new Event('scroll'));
+    fixture.detectChanges();
+    expect(el.querySelector('.nf-tip.nf-tip-list')).not.toBeNull();
+    list.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
     fixture.detectChanges();
     expect(el.querySelector('.nf-tip')).toBeNull();
 
