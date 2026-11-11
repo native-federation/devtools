@@ -31,16 +31,14 @@
   font-weight: 600;
 }
 
+/* A list takes the pointer so a long one can be scrolled; it opens flush with its target. */
 .nf-tip-list {
+  max-width: min(560px, calc(100vw - 16px));
+  max-height: 240px;
+  overflow: auto;
+  white-space: nowrap;
+  overscroll-behavior: contain;
   font-family: var(--nf-font-mono);
   font-size: 11px;
-}
-
-/* A long `+N more` list reads in columns. */
-.nf-tip-columns {
-  columns: 3 8em;
-}
-
-.nf-tip-columns .nf-tip-line {
-  break-inside: avoid;
+  pointer-events: auto;
 }

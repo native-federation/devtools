@@ -903,13 +903,14 @@ describe('document map tag content', () => {
 
 describe('entry-cap truncation is loud (T4-AC-06)', () => {
   it('surfaces probe-side truncation of a chunk-heavy page in the snapshot errors', () => {
-    // 30 bundles × 40 files = 1200 entries — far over the probe's global
-    // entry cap (maxTotalEntries: 512). Truncation must never be silent:
-    // the probe records it and the mapper carries it into the snapshot.
+    // 30 bundles × 600 files = 18000 entries — over the probe's
+    // per-repository entry budget (maxEntries: 16384). Truncation must never
+    // be silent: the probe records it and the mapper carries it into the
+    // snapshot.
     const bundles: Record<string, string[]> = {};
     for (let index = 0; index < 30; index += 1) {
       bundles[`bundle-${index}`] = Array.from(
-        { length: 40 },
+        { length: 600 },
         (_, file) => `chunk-${index}-${file}.js`,
       );
     }
@@ -928,8 +929,50 @@ describe('entry-cap truncation is loud (T4-AC-06)', () => {
       (count, files) => count + files.length,
       0,
     );
-    expect(retained).toBeLessThan(1200);
+    expect(retained).toBeLessThan(18000);
     expect(snapshot.errors.map((error) => error.code)).toContain('array-item-limit');
+  });
+
+  it('gives each repository its own budget, so a large one does not starve the next', () => {
+    // Regression: with one global budget, the flat chunk rows of an
+    // 8-remote app in scoped-externals (read before shared-externals and
+    // shared-chunks) used it all up, and the later repositories came
+    // through empty. Here scoped-externals nearly fills a whole budget
+    // (4 × 2000 rows, each with a one-key entries map) and shared-chunks must still arrive complete.
+    const scoped: Record<string, Record<string, unknown>> = {};
+    for (let remote = 0; remote < 4; remote += 1) {
+      const rows: Record<string, unknown> = {};
+      for (let chunk = 0; chunk < 2000; chunk += 1) {
+        rows[`@nf-internal/chunk-${remote}-${chunk}`] = {
+          tag: '0.0.0',
+          entries: { [`@nf-internal/chunk-${remote}-${chunk}`]: `chunk-${chunk}.js` },
+        };
+      }
+      scoped[`remote-${remote}`] = rows;
+    }
+    const bundles: Record<string, string[]> = {};
+    for (let index = 0; index < 10; index += 1) {
+      bundles[`bundle-${index}`] = Array.from({ length: 100 }, (_, file) => `c-${index}-${file}.js`);
+    }
+    const sandbox = makeBarePage({
+      __NATIVE_FEDERATION__: {
+        remotes: {},
+        'scoped-externals': scoped,
+        'shared-externals': {},
+        'shared-chunks': { host: bundles },
+      },
+    });
+    const raw = evaluateProbe(PASSIVE_PROBE_SOURCE, sandbox);
+    const snapshot = mapProbeResult(raw, null, { capturedAt: CAPTURED_AT });
+
+    const retained = Object.values(snapshot.runtime!.sharedChunks['host']).reduce(
+      (count, files) => count + files.length,
+      0,
+    );
+    expect(retained).toBe(1000);
+    const codes = snapshot.errors.map((error) => error.code);
+    expect(codes).not.toContain('array-item-limit');
+    expect(codes).not.toContain('object-key-limit');
   });
 });
 

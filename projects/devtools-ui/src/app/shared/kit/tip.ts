@@ -12,7 +12,6 @@ export interface Tip {
   head: string | null;
   lines: { label: string | null; text: string }[];
   list: boolean;
-  columns: boolean;
   above: boolean;
   x: number;
   y: number;
@@ -21,7 +20,7 @@ export interface Tip {
 /**
  * Delegated tooltips for every `[data-tip]` under the host: `\n` separates lines, `label: text`
  * lines get their label set off, `data-tip-head` turns the first line into a heading and
- * `data-tip-list` splits on `, ` into a list (in columns once it is long) and `data-tip-cursor` places it at the pointer (for
+ * `data-tip-list` splits on `, ` into a scrollable list and `data-tip-cursor` places it at the pointer (for
  * targets whose box says little, like a graph edge). Render them with `<nf-tip />` inside the host.
  */
 @Directive({
@@ -39,8 +38,11 @@ export class TipHost {
   private target: Element | null = null;
 
   constructor() {
-    // A scroll anywhere (the page, a table scrolling sideways) moves the target away from its tooltip.
-    const hide = () => this.hide();
+    // A scroll anywhere (the page, a table scrolling sideways) moves the target away from its tooltip;
+    // scrolling the list inside the tooltip itself doesn't.
+    const hide = (event: Event) => {
+      if (!isInTip(event.target)) this.hide();
+    };
     document.addEventListener('scroll', hide, true);
     inject(DestroyRef).onDestroy(() => document.removeEventListener('scroll', hide, true));
   }
@@ -60,24 +62,31 @@ export class TipHost {
       target.hasAttribute('data-tip-cursor') && event instanceof MouseEvent
         ? new DOMRect(event.clientX, event.clientY, 0, 12)
         : target.getBoundingClientRect();
-    const above = rect.bottom + 160 > window.innerHeight && rect.top > 160;
+    const room = list ? 260 : 160;
+    const above = rect.bottom + room > window.innerHeight && rect.top > room;
+    // No gap under a list: the pointer must reach it without crossing anything that hides it.
+    const gap = list ? 0 : 6;
     this.tip.set({
       head,
       lines: list ? lines.map((line) => ({ label: null, text: line.text })) : lines,
       list,
-      columns: list && lines.length > 8,
       above,
-      x: Math.max(8, Math.min(rect.left, window.innerWidth - 368)),
-      y: above ? rect.top - 6 : rect.bottom + 6,
+      // Keep the widest tip (see tip.css max-width) inside the viewport.
+      x: Math.max(8, Math.min(rect.left, window.innerWidth - (list ? 568 : 368))),
+      y: above ? rect.top - gap : rect.bottom + gap,
     });
   }
 
   hide(event?: Event): void {
     const next = (event as MouseEvent | FocusEvent | undefined)?.relatedTarget as Node | null;
-    if (next && this.target?.contains(next)) return;
+    if (next && (this.target?.contains(next) || isInTip(next))) return;
     this.target = null;
     this.tip.set(null);
   }
+}
+
+function isInTip(node: EventTarget | null): boolean {
+  return node instanceof Element && node.closest('.nf-tip') !== null;
 }
 
 // `cause: text` lines get their cause set off; a version like `^1.0.0` never reads as a label.
@@ -96,7 +105,6 @@ function tipLine(line: string): { label: string | null; text: string } {
         role="tooltip"
         [class.nf-tip-above]="t.above"
         [class.nf-tip-list]="t.list"
-        [class.nf-tip-columns]="t.columns"
         [style.left.px]="t.x"
         [style.top.px]="t.y"
       >

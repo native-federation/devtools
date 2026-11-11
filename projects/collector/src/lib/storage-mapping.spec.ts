@@ -269,7 +269,7 @@ describe('hostile storage contents', () => {
   it('never half-parses an oversized item', () => {
     const { snapshot } = capture({
       __NF_ORCHESTRATOR__: descriptor('__NATIVE_FEDERATION__', 'localStorage'),
-      local: { '__NATIVE_FEDERATION__.remotes': JSON.stringify({ pad: 'x'.repeat(262144) }) },
+      local: { '__NATIVE_FEDERATION__.remotes': JSON.stringify({ pad: 'x'.repeat(4194304) }) },
     });
 
     expect(snapshot.channels.nativeFederationGlobals.state).toBe('not-recognized');

@@ -145,17 +145,17 @@ describe('edge cases: proxied values', () => {
 
 describe('edge cases: oversized values', () => {
   it('caps strings, arrays, object keys, and import-map inventory', () => {
-    // 'big' is inserted first: only the first 128 map keys survive the
+    // 'big' is inserted first: only the first 4096 map keys survive the
     // object-key cap, and the oversized remote must be among them for the
     // string and array limits to be exercised.
-    const hugeExposes = Array.from({ length: 500 }, (_, index) => ({
+    const hugeExposes = Array.from({ length: 5000 }, (_, index) => ({
       file: `file-${index}.js`,
       moduleName: 'https://edge.example/m.js',
     }));
     const manyRemotes: Record<string, unknown> = {
       big: { scopeUrl: `https://edge.example/${'x'.repeat(5000)}`, exposes: hugeExposes },
     };
-    for (let index = 0; index < 300; index += 1) {
+    for (let index = 0; index < 4200; index += 1) {
       manyRemotes[`remote-${index}`] = {
         scopeUrl: 'https://edge.example/',
         exposes: [],
@@ -168,7 +168,7 @@ describe('edge cases: oversized values', () => {
     }));
     mapNodes[0] = {
       getAttribute: (name: string) => (name === 'type' ? 'importmap' : null),
-      textContent: `{"imports":{"pad":"${'y'.repeat(200000)}"}}`,
+      textContent: `{"imports":{"pad":"${'y'.repeat(1100000)}"}}`,
     };
 
     const sandbox = makeBarePage({
@@ -193,18 +193,18 @@ describe('edge cases: oversized values', () => {
     expect(codes).toContain('import-map-text-limit');
     expect(raw.importMaps!.length).toBeLessThanOrEqual(32);
     for (const map of raw.importMaps!) {
-      expect(map.text.length).toBeLessThanOrEqual(131072);
+      expect(map.text.length).toBeLessThanOrEqual(1048576);
     }
     const remotes = raw.globals!.nativeFederation.repositories!['remotes'].value as Record<
       string,
       unknown
     >;
-    expect(Object.keys(remotes).length).toBeLessThanOrEqual(128);
+    expect(Object.keys(remotes).length).toBeLessThanOrEqual(4096);
   });
 
   it('caps oversized shim maps', () => {
     const hugeImports: Record<string, string> = {};
-    for (let index = 0; index < 400; index += 1) {
+    for (let index = 0; index < 5000; index += 1) {
       hugeImports[`specifier-${index}`] = 'https://edge.example/m.js';
     }
     const importShim = () => {};
@@ -214,7 +214,7 @@ describe('edge cases: oversized values', () => {
     const sandbox = makeBarePage({ importShim });
     const shim = runShim(sandbox);
     expect(shim.errors.some((error) => error.code === 'object-key-limit')).toBe(true);
-    expect(Object.keys(shim.map!.imports!).length).toBeLessThanOrEqual(128);
+    expect(Object.keys(shim.map!.imports!).length).toBeLessThanOrEqual(4096);
   });
 });
 

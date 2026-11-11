@@ -7,9 +7,9 @@
  */
 export const DEFAULT_LIMITS = Object.freeze({
   maxDepth: 12,
-  maxEntries: 512,
-  maxObjectKeys: 128,
-  maxArrayItems: 128,
+  maxEntries: 16384,
+  maxObjectKeys: 4096,
+  maxArrayItems: 4096,
   maxStringLength: 4096,
   maxErrorDetailLength: 512,
   maxErrors: 128,
