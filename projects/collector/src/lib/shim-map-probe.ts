@@ -24,9 +24,9 @@ export const SHIM_MAP_PROBE_SOURCE = `(() => {
 
   const limits = Object.freeze({
     maxErrors: 128,
-    maxObjectKeys: 128,
+    maxObjectKeys: 4096,
     maxStringLength: 4096,
-    maxTotalEntries: 512
+    maxTotalEntries: 16384
   });
   const errors = [];
   let retainedEntries = 0;

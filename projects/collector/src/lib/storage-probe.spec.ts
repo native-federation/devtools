@@ -136,7 +136,7 @@ describe('storage probe containment', () => {
     const raw = run(
       makeBarePage({
         localStorage: makeStorage(counters, 'l', {
-          '__NATIVE_FEDERATION__.remotes': 'x'.repeat(262145),
+          '__NATIVE_FEDERATION__.remotes': 'x'.repeat(4194305),
         }),
       }),
     );
@@ -149,7 +149,7 @@ describe('storage probe containment', () => {
     expect(raw['errors']).toContainEqual({
       stage: 'storage-probe',
       code: 'storage-text-limit',
-      detail: { path: 'localStorage.remotes', observed: 262145 },
+      detail: { path: 'localStorage.remotes', observed: 4194305 },
     });
   });
 

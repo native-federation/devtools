@@ -31,7 +31,7 @@ export const STORAGE_PROBE_SOURCE = `(() => {
     maxErrors: 128,
     maxNamespaces: 8,
     maxObjectKeys: 128,
-    maxStorageTextLength: 262144,
+    maxStorageTextLength: 4194304,
     maxStringLength: 4096
   });
   const errors = [];

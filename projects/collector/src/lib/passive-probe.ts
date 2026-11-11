@@ -40,14 +40,14 @@ export const PASSIVE_PROBE_SOURCE = `(() => {
   "use strict";
 
   const limits = Object.freeze({
-    maxArrayItems: 128,
+    maxArrayItems: 4096,
+    maxEntries: 16384,
     maxErrors: 128,
     maxImportMaps: 32,
-    maxImportMapTextLength: 131072,
+    maxImportMapTextLength: 1048576,
     maxNamespaces: 8,
-    maxObjectKeys: 128,
-    maxStringLength: 4096,
-    maxTotalEntries: 512
+    maxObjectKeys: 4096,
+    maxStringLength: 4096
   });
   const errors = [];
   let retainedEntries = 0;
@@ -108,7 +108,7 @@ export const PASSIVE_PROBE_SOURCE = `(() => {
       addError("probe", "keys-unavailable", path);
       return [];
     }
-    const remaining = Math.max(0, limits.maxTotalEntries - retainedEntries);
+    const remaining = Math.max(0, limits.maxEntries - retainedEntries);
     const maximum = Math.min(limits.maxObjectKeys, remaining);
     if (keys.length > maximum) addError("probe", "object-key-limit", path, keys.length);
     const output = [];
@@ -129,7 +129,7 @@ export const PASSIVE_PROBE_SOURCE = `(() => {
     if (!array) return null;
     const length = readData(value, "length", path + ".length");
     if (length.status !== "data" || !Number.isSafeInteger(length.value) || length.value < 0) return null;
-    const remaining = Math.max(0, limits.maxTotalEntries - retainedEntries);
+    const remaining = Math.max(0, limits.maxEntries - retainedEntries);
     const maximum = Math.min(limits.maxArrayItems, remaining);
     if (length.value > maximum) addError("probe", "array-item-limit", path, length.value);
     const retained = Math.min(length.value, maximum);
@@ -327,6 +327,8 @@ export const PASSIVE_PROBE_SOURCE = `(() => {
         continue;
       }
       const valueType = repository.value === null ? "null" : typeof repository.value;
+      // One budget per repository, as on the host: a large repository must not starve the next.
+      retainedEntries = 0;
       const projected = project(repository.value, repositorySchemas[name], "repository." + name, 0);
       nativeSummary.repositories[name] = projected === undefined
         ? { present: true, descriptor: "data", valueType }
